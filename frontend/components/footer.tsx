@@ -18,7 +18,7 @@ export function Footer() {
   };
 
   return (
-    <footer className="bg-[#2A1329] text-white pt-12 sm:pt-16 pb-12 border-t border-[#432542]">
+    <footer className="bg-[#5A3859] text-white pt-12 sm:pt-16 pb-12 border-t border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top Feature Badges */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8 pb-10 sm:pb-12 border-b border-white/10 text-left">

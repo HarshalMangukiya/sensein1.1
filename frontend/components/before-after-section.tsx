@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ComparisonItem {
   id: string;
@@ -65,38 +65,65 @@ function BeforeAfterCard({ item }: { item: ComparisonItem }) {
     setSliderPos(percentage);
   }, []);
 
-  const handlePointerDown = (e: React.PointerEvent) => {
+  const handleLinePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
     setIsDragging(true);
     updatePosition(e.clientX);
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch (err) {}
   };
 
-  const handlePointerMove = (e: React.PointerEvent) => {
+  const handleLinePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDragging) return;
+    e.preventDefault();
     updatePosition(e.clientX);
   };
 
-  const handlePointerUp = (e: React.PointerEvent) => {
-    setIsDragging(false);
-    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+  const handleLinePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      setIsDragging(false);
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch (err) {}
+    }
   };
 
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleWindowPointerMove = (e: PointerEvent) => {
+      updatePosition(e.clientX);
+    };
+
+    const handleWindowPointerUp = () => {
+      setIsDragging(false);
+    };
+
+    window.addEventListener('pointermove', handleWindowPointerMove);
+    window.addEventListener('pointerup', handleWindowPointerUp);
+    window.addEventListener('pointercancel', handleWindowPointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handleWindowPointerMove);
+      window.removeEventListener('pointerup', handleWindowPointerUp);
+      window.removeEventListener('pointercancel', handleWindowPointerUp);
+    };
+  }, [isDragging, updatePosition]);
+
   return (
-    <div className="bg-white rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-luxury transition-all duration-300 flex flex-col">
+    <div className="bg-white rounded-2xl border border-border/80 overflow-hidden shadow-xs hover:shadow-luxury transition-all duration-300 flex flex-col">
       {/* Top Header Labels */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-border/70 text-[11px] font-bold tracking-widest text-charcoal uppercase select-none">
+      <div className="flex items-center justify-between px-5 py-3 text-[11px] font-bold tracking-[0.2em] text-charcoal uppercase select-none">
         <span>BEFORE</span>
         <span>AFTER</span>
       </div>
 
-      {/* Interactive Image Split Stage */}
+      {/* Interactive Image Split Stage (touch-pan-y enables smooth mobile vertical scrolling) */}
       <div
         ref={containerRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={() => setIsDragging(false)}
-        className="relative aspect-[3/4] w-full overflow-hidden select-none cursor-ew-resize touch-none"
+        className="relative aspect-[3/4] w-full overflow-hidden select-none touch-pan-y"
       >
         {/* After Image (Full Background) */}
         <img
@@ -119,36 +146,50 @@ function BeforeAfterCard({ item }: { item: ComparisonItem }) {
           />
         </div>
 
-        {/* Vertical Divider Line */}
+        {/* Interactive Slider Divider Line & Handle Hitbox (Click ONLY on Line to Move Left/Right) */}
         <div
-          className="absolute top-0 bottom-0 w-[2px] bg-white shadow-[0_0_10px_rgba(0,0,0,0.6)] z-20 pointer-events-none"
-          style={{ left: `${sliderPos}%` }}
-        />
-
-        {/* Circular Drag Handle */}
-        <div
-          className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-white shadow-2xl border border-border flex items-center justify-center text-charcoal z-30 pointer-events-none transition-transform duration-150 ${
-            isDragging ? 'scale-115 shadow-plum/30' : 'scale-100'
-          }`}
+          onPointerDown={handleLinePointerDown}
+          onPointerMove={handleLinePointerMove}
+          onPointerUp={handleLinePointerUp}
+          onPointerCancel={handleLinePointerUp}
+          className="absolute top-0 bottom-0 w-12 -ml-6 z-30 cursor-ew-resize touch-none flex items-center justify-center group select-none"
           style={{ left: `${sliderPos}%` }}
         >
-          {/* Custom SVG double arrow <> */}
-          <svg className="w-3.5 h-3.5 text-charcoal" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="8 17 3 12 8 7" />
-            <polyline points="16 7 21 12 16 17" />
-          </svg>
+          {/* Visible Vertical Divider Line */}
+          <div className="w-[2px] h-full bg-white shadow-[0_0_8px_rgba(0,0,0,0.6)] pointer-events-none" />
+
+          {/* Circular Drag Handle */}
+          <div
+            className={`absolute top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white shadow-xl border border-border/80 flex items-center justify-center text-charcoal pointer-events-none transition-transform duration-150 ${
+              isDragging ? 'scale-115 shadow-plum/40 ring-2 ring-plum/20' : 'scale-100 group-hover:scale-110'
+            }`}
+          >
+            {/* Custom SVG double arrow <> */}
+            <svg
+              className="w-3.5 h-3.5 text-charcoal"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="8 17 3 12 8 7" />
+              <polyline points="16 7 21 12 16 17" />
+            </svg>
+          </div>
         </div>
       </div>
 
       {/* Card Info Details */}
-      <div className="p-5 flex-1 flex flex-col justify-between bg-white">
+      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between bg-white">
         <div>
           {/* Badge & Price */}
           <div className="flex items-center justify-between gap-2">
-            <span className="bg-plum/10 text-plum text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-[3px]">
+            <span className="bg-[#F4EFF3] text-plum text-[10px] sm:text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-[4px]">
               {item.badge}
             </span>
-            <span className="text-base font-bold text-charcoal tracking-tight">
+            <span className="text-base sm:text-lg font-bold text-charcoal tracking-tight">
               ₹{item.price.toLocaleString('en-IN')}
             </span>
           </div>
@@ -172,6 +213,47 @@ function BeforeAfterCard({ item }: { item: ComparisonItem }) {
 }
 
 export function BeforeAfterSection() {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const checkScrollButtons = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setCanScrollLeft(scrollLeft > 10);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+
+      const cardWidth = clientWidth * 0.88;
+      const idx = Math.round(scrollLeft / (cardWidth || 1));
+      setActiveIndex(Math.min(COMPARISONS.length - 1, Math.max(0, idx)));
+    }
+  };
+
+  const handleScroll = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const scrollAmount = container.clientWidth * 0.9;
+      container.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      checkScrollButtons();
+      container.addEventListener('scroll', checkScrollButtons, { passive: true });
+      window.addEventListener('resize', checkScrollButtons);
+      return () => {
+        container.removeEventListener('scroll', checkScrollButtons);
+        window.removeEventListener('resize', checkScrollButtons);
+      };
+    }
+  }, []);
+
   return (
     <section className="py-12 sm:py-20 bg-white border-y border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -221,11 +303,65 @@ export function BeforeAfterSection() {
           </p>
         </div>
 
-        {/* 3 Interactive Split Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 mt-10 sm:mt-14">
-          {COMPARISONS.map((item) => (
-            <BeforeAfterCard key={item.id} item={item} />
-          ))}
+        {/* 3 Interactive Split Cards (Single-Row Carousel on Mobile, 3-Col Grid on Desktop) */}
+        <div className="relative group mt-10 sm:mt-14">
+          {/* Circular Previous Button (Mobile/Tablet) */}
+          <button
+            onClick={() => handleScroll('left')}
+            disabled={!canScrollLeft}
+            className={`md:hidden absolute -left-2 sm:-left-3 top-[38%] -translate-y-1/2 z-40 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white shadow-md border border-neutral-200/90 flex items-center justify-center text-charcoal hover:bg-neutral-50 active:scale-95 transition-all duration-200 ${
+              !canScrollLeft ? 'opacity-30 cursor-not-allowed pointer-events-none' : 'opacity-90 hover:opacity-100'
+            }`}
+            aria-label="Previous transformation"
+          >
+            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-charcoal" />
+          </button>
+
+          {/* Circular Next Button (Mobile/Tablet) */}
+          <button
+            onClick={() => handleScroll('right')}
+            disabled={!canScrollRight}
+            className={`md:hidden absolute -right-2 sm:-right-3 top-[38%] -translate-y-1/2 z-40 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white shadow-md border border-neutral-200/90 flex items-center justify-center text-charcoal hover:bg-neutral-50 active:scale-95 transition-all duration-200 ${
+              !canScrollRight ? 'opacity-30 cursor-not-allowed pointer-events-none' : 'opacity-90 hover:opacity-100'
+            }`}
+            aria-label="Next transformation"
+          >
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-charcoal" />
+          </button>
+
+          {/* Scrollable Cards Container */}
+          <div
+            ref={scrollContainerRef}
+            className="flex md:grid md:grid-cols-3 gap-5 sm:gap-6 md:gap-8 overflow-x-auto md:overflow-visible scroll-smooth snap-x snap-mandatory no-scrollbar pb-3 pt-1 px-1 -mx-1"
+          >
+            {COMPARISONS.map((item) => (
+              <div
+                key={item.id}
+                className="w-[86vw] sm:w-[360px] md:w-auto shrink-0 snap-center md:shrink md:snap-align-none"
+              >
+                <BeforeAfterCard item={item} />
+              </div>
+            ))}
+          </div>
+
+          {/* Mobile Pagination Indicator Dots */}
+          <div className="flex md:hidden items-center justify-center gap-1.5 mt-4">
+            {COMPARISONS.map((item, i) => (
+              <button
+                key={item.id}
+                onClick={() => {
+                  if (scrollContainerRef.current) {
+                    const scrollAmount = scrollContainerRef.current.clientWidth * 0.9 * i;
+                    scrollContainerRef.current.scrollTo({ left: scrollAmount, behavior: 'smooth' });
+                  }
+                }}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  activeIndex === i ? 'w-6 bg-plum' : 'w-1.5 bg-neutral-300'
+                }`}
+                aria-label={`Go to slide ${i + 1}`}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </section>
