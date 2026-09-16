@@ -13,7 +13,7 @@ const tickerItems = [
 
 export function AnnouncementBar() {
   return (
-    <div className="bg-[#4A1528] text-white py-2.5 overflow-hidden border-b border-[#38101E] select-none relative z-50">
+    <div className="bg-[#432542] text-white py-2.5 overflow-hidden border-b border-[#311730] select-none relative z-50">
       <div className="flex w-max animate-ticker-right hover:[animation-play-state:paused]">
         {/* First repetition */}
         <div className="flex items-center flex-shrink-0">

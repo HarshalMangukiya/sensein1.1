@@ -10,10 +10,12 @@ const config: Config = {
     extend: {
       colors: {
         plum: {
-          light: '#6B253D',
-          DEFAULT: '#4A1528',
-          dark: '#38101E',
-          deep: '#260812',
+          light: '#764A75',
+          DEFAULT: '#5A3859', // Exact color from user reference button
+          hover: '#6D436C',
+          dark: '#432542',    // Deep velvet aubergine
+          deep: '#2A1329',
+          soft: '#633E62',
         },
         alabaster: {
           light: '#FDFBF9',

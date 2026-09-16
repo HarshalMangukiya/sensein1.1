@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, ShoppingCart, User as UserIcon, X, ChevronRight } from 'lucide-react';
+import { Search, ShoppingCart, User as UserIcon, X, ChevronRight, Sparkles, Package, Mail } from 'lucide-react';
 import { useCartStore } from '@/store/cart-store';
 import { useAuthStore } from '@/store/auth-store';
+import { BrandLogo } from '@/components/brand-logo';
 
 interface HeaderProps {
   onOpenSearch?: () => void;
@@ -71,20 +72,14 @@ export function Header({ onOpenSearch }: HeaderProps) {
             </div>
 
             {/* Center: Luxury SENSEIN® PROFESSIONAL Logo */}
-            <div className="text-center absolute left-1/2 -translate-x-1/2">
-              <Link href="/" className="inline-flex flex-col items-center group select-none">
-                <div className="flex items-start">
-                  <span className="font-serif text-2xl sm:text-3xl font-bold tracking-[0.24em] text-[#1A1A1A] group-hover:text-plum transition-colors">
-                    SENSEIN
-                  </span>
-                  <span className="text-[10px] font-sans font-bold ml-0.5 mt-0.5 text-[#1A1A1A]">
-                    ®
-                  </span>
-                </div>
-                <span className="text-[9px] sm:text-[10px] tracking-[0.38em] font-sans font-bold text-charcoal-muted uppercase mt-0.5">
-                  PROFESSIONAL
-                </span>
-              </Link>
+            <div className="text-center absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
+              <BrandLogo
+                variant="dark"
+                width={175}
+                height={54}
+                priority
+                imgClassName="h-7 sm:h-8 md:h-9 w-auto"
+              />
             </div>
 
             {/* Right: Search, User, Cart Icons */}
@@ -144,62 +139,114 @@ export function Header({ onOpenSearch }: HeaderProps) {
         </div>
       </header>
 
-      {/* Slide-out Navigation Drawer for the 3-wave menu */}
+      {/* Slide-out Navigation Drawer matching reference screenshot */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-[100] overflow-hidden">
           <div
             className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
             onClick={() => setIsMobileMenuOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 max-w-xs w-full bg-[#FAF7F5] shadow-2xl p-6 flex flex-col justify-between z-10 animate-in slide-in-from-left duration-300">
+          <div className="fixed inset-y-0 left-0 max-w-[320px] sm:max-w-xs w-full bg-white shadow-2xl p-5 flex flex-col justify-between z-10 animate-in slide-in-from-left duration-300">
+            {/* Top Logo & Close Button */}
             <div>
-              <div className="flex items-center justify-between pb-6 border-b border-border">
-                <div>
-                  <div className="flex items-start">
-                    <span className="font-serif text-xl font-bold tracking-[0.22em] text-plum">
-                      SENSEIN
-                    </span>
-                    <span className="text-[9px] font-sans font-bold ml-0.5 text-plum">®</span>
-                  </div>
-                  <span className="block text-[8px] tracking-[0.3em] text-charcoal-muted uppercase mt-0.5">
-                    PROFESSIONAL
-                  </span>
-                </div>
+              <div className="flex items-center justify-between pb-3.5 border-b border-neutral-100">
+                <BrandLogo
+                  variant="dark"
+                  width={130}
+                  height={40}
+                  imgClassName="h-7 w-auto"
+                />
                 <button
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="p-1.5 text-charcoal hover:text-plum transition rounded"
+                  className="p-1 text-neutral-600 hover:text-[#5A3859] transition rounded"
                   aria-label="Close menu"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="mt-8 space-y-3">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.label}
-                    href={link.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center justify-between py-2.5 text-xs font-semibold tracking-wider text-charcoal hover:text-plum border-b border-border/50 uppercase"
-                  >
-                    <span>{link.label}</span>
-                    <ChevronRight className="w-4 h-4 text-charcoal-muted" />
-                  </Link>
-                ))}
+              {/* Top Banner: EXPLORE ALL PRODUCTS */}
+              <div className="mt-3.5">
+                <Link
+                  href="/shop"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-[#5A3859] hover:bg-[#6D436C] text-white rounded-xl shadow-xs transition-all group"
+                >
+                  <span className="text-xs font-bold uppercase tracking-wider">
+                    EXPLORE ALL PRODUCTS
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-white/80 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </div>
+
+              {/* Category Section Header */}
+              <div className="mt-5">
+                <h4 className="text-[10px] uppercase tracking-wider font-bold text-neutral-400 mb-1.5 px-1">
+                  PRODUCT CATEGORIES
+                </h4>
+
+                {/* Categories List */}
+                <div className="space-y-0.5 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
+                  {[
+                    { name: 'Shampoo', value: 'Shampoo' },
+                    { name: 'Mask', value: 'Mask' },
+                    { name: 'Serum', value: 'Serum' },
+                    { name: 'Perfume', value: 'Perfume' },
+                    { name: 'Cream', value: 'Cream' },
+                    { name: 'Facewash', value: 'Facewash' },
+                    { name: 'Wax', value: 'Wax' },
+                    { name: 'Travelling Kit', value: 'Travelling Kit' },
+                    { name: 'Oil', value: 'Oil' },
+                    { name: 'Powder', value: 'Powder' },
+                  ].map((cat) => (
+                    <Link
+                      key={cat.name}
+                      href={`/shop?category=${encodeURIComponent(cat.value)}`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center justify-between py-1.5 px-1.5 rounded-md hover:bg-neutral-50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-neutral-300 group-hover:bg-[#5A3859] transition-colors" />
+                        <span className="text-[13px] text-neutral-700 font-medium group-hover:text-[#5A3859] transition-colors">
+                          {cat.name}
+                        </span>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-neutral-300 group-hover:text-[#5A3859] group-hover:translate-x-0.5 transition-all" />
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="pt-6 border-t border-border space-y-3">
+            {/* Bottom Actions: BULK ORDER & WHATSAPP SUPPORT */}
+            <div className="pt-3 border-t border-neutral-100 space-y-2">
+              {/* BULK ORDER / WHOLESALE */}
               <Link
                 href="/wholesale"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="w-full block text-center py-3 bg-plum text-white text-xs uppercase tracking-widest font-bold rounded hover:bg-plum-dark transition shadow-sm"
+                className="w-full flex items-center justify-between px-3 py-2.5 bg-white border border-neutral-200 hover:border-[#5A3859] rounded-xl transition-all shadow-2xs group"
               >
-                Wholesale Concierge
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-neutral-700 group-hover:text-[#5A3859] transition-colors" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-neutral-800 group-hover:text-[#5A3859] transition-colors">
+                    BULK ORDER
+                  </span>
+                </div>
+                <div className="flex items-center gap-0.5 text-[10px] font-bold tracking-wider text-neutral-500 uppercase group-hover:text-[#5A3859] transition-colors">
+                  <span>WHOLESALE</span>
+                  <ChevronRight className="w-3 h-3" />
+                </div>
               </Link>
-              <p className="text-[10px] text-center text-charcoal-muted tracking-wider">
-                PARIS • NEW DELHI • MUMBAI
-              </p>
+
+              {/* EMAIL SUPPORT */}
+              <a
+                href="mailto:mrdwarkesh@gmail.com?subject=SENSEIN%20Concierge%20Support%20Inquiry"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#5A3859] hover:bg-[#6D436C] text-white rounded-xl shadow-xs transition-all font-bold text-xs uppercase tracking-wider"
+              >
+                <Mail className="w-4 h-4" />
+                <span>EMAIL SUPPORT</span>
+              </a>
             </div>
           </div>
         </div>

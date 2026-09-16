@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Mail, ArrowRight, Shield, Award, Sparkles, Heart } from 'lucide-react';
+import { BrandLogo } from '@/components/brand-logo';
 
 export function Footer() {
   const [subscribed, setSubscribed] = useState(false);
@@ -17,7 +18,7 @@ export function Footer() {
   };
 
   return (
-    <footer className="bg-[#240A14] text-white pt-12 sm:pt-16 pb-12 border-t border-plum-dark">
+    <footer className="bg-[#2A1329] text-white pt-12 sm:pt-16 pb-12 border-t border-[#432542]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top Feature Badges */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8 pb-10 sm:pb-12 border-b border-white/10 text-left">
@@ -74,13 +75,13 @@ export function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8 sm:gap-10 py-10 sm:py-12 border-b border-white/10">
           {/* Brand Col */}
           <div className="md:col-span-2 space-y-4">
-            <div>
-              <span className="font-serif text-2xl font-bold tracking-[0.25em] text-white block">
-                SENSEIN
-              </span>
-              <span className="text-[10px] tracking-[0.4em] text-gold-light uppercase block mt-0.5">
-                PROFESSIONAL
-              </span>
+            <div className="mb-2">
+              <BrandLogo
+                variant="light"
+                width={185}
+                height={57}
+                imgClassName="h-9 sm:h-10 w-auto"
+              />
             </div>
             <p className="text-xs text-white/70 max-w-sm leading-relaxed font-light">
               Pioneering cellular trichology and high-luxury cosmetic rituals. Engineered in Parisian laboratories, crafted for discerning connoisseurs worldwide.
@@ -89,7 +90,7 @@ export function Footer() {
               <span className="text-[11px] uppercase tracking-widest text-gold font-medium block mb-1">
                 Concierge Assistance
               </span>
-              <p className="text-xs text-white/80">+91 98110 22334 • concierge@sensein-luxe.com</p>
+              <p className="text-xs text-white/80">+91 98110 22334 • mrdwarkesh@gmail.com</p>
             </div>
           </div>
 
@@ -196,8 +197,8 @@ export function Footer() {
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-[11px] text-white/50">
           <p>© {new Date().getFullYear()} SENSEIN PROFESSIONAL. All Rights Reserved.</p>
           <div className="flex gap-6 mt-4 sm:mt-0">
-            <Link href="/shop" className="hover:text-white transition">Privacy Policy</Link>
-            <Link href="/shop" className="hover:text-white transition">Terms of Service</Link>
+            <Link href="/privacy-policy" className="hover:text-white transition">Privacy Policy</Link>
+            <Link href="/terms-and-conditions" className="hover:text-white transition">Terms & Conditions</Link>
             <Link href="/wholesale" className="hover:text-white transition">Wholesale Inquiry</Link>
           </div>
         </div>

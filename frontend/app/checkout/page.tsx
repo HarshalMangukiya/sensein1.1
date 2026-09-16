@@ -173,7 +173,7 @@ export default function CheckoutPage() {
               contact: formData.phone,
             },
             theme: {
-              color: '#4A1528',
+              color: '#5A3859',
             },
           };
           const rzp = new window.Razorpay(options);

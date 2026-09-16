@@ -32,63 +32,53 @@ export default function HomePage() {
   return (
     <div className="space-y-12 sm:space-y-20 lg:space-y-24">
       {/* 1. EDITORIAL HERO SECTION */}
-      <section className="relative w-full min-h-[560px] sm:min-h-[660px] lg:min-h-0 lg:aspect-[1376/768] flex items-end bg-[#1F0811] overflow-hidden">
-        {/* Background Image with Gradient Overlay */}
+      <section className="relative w-full min-h-[500px] sm:min-h-[580px] lg:min-h-[640px] flex items-center justify-center bg-[#150A14] overflow-hidden">
+        {/* Background Image: SENSEIN Luxury Perfume Bottle */}
         <div className="absolute inset-0 z-0">
           <img
-            src="/images/hero/editorial-hero.jpg"
-            alt="SENSEIN Editorial Paris Campaign"
-            className="w-full h-full object-cover object-[36%_top] sm:object-top filter brightness-[0.95] contrast-[1.04]"
+            src="/images/hero/sensein-perfume-bottle.jpg"
+            alt="SENSEIN Luxury Fragrance & Elixir"
+            className="w-full h-full object-cover object-center filter brightness-[0.82] contrast-[1.08]"
           />
-          {/* Subtle bottom gradient to ensure text legibility while keeping the model face crystal clear on all screens */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#14040B] via-[#14040B]/80 via-55% sm:via-[#14040B]/60 sm:via-35% to-transparent pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#14040B]/60 via-transparent to-transparent pointer-events-none" />
+          {/* Subtle cinematic overlays for text legibility and luxury depth */}
+          <div className="absolute inset-0 bg-black/40 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#150A14] via-transparent to-black/50 pointer-events-none" />
         </div>
 
-        {/* Hero Content positioned at bottom-left */}
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-5 sm:pb-8 lg:pb-10 pt-16 sm:pt-20">
-          <div className="max-w-xl lg:max-w-2xl text-white space-y-3 sm:space-y-4">
-            <h1 className="font-serif text-2xl sm:text-4xl lg:text-[54px] font-semibold leading-[1.14] sm:leading-[1.08] tracking-tight text-white drop-shadow-md">
-              Formulated for Perfection. <br />
-              <span className="italic font-light text-gold-light">Engineered for Radiance.</span>
-            </h1>
+        {/* Hero Content Centered (Matching Reference Mockup) */}
+        <div className="relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 text-center py-16 sm:py-24 lg:py-28 flex flex-col items-center">
+          <h1 className="font-serif text-3xl sm:text-5xl lg:text-[56px] font-bold tracking-tight sm:tracking-[0.02em] leading-[1.14] text-white uppercase drop-shadow-[0_4px_16px_rgba(0,0,0,0.85)]">
+            SALON LUXURY RE-ENGINEERED
+          </h1>
 
-            <p className="text-xs sm:text-sm md:text-base text-white/90 font-light leading-relaxed max-w-lg drop-shadow-sm line-clamp-3 sm:line-clamp-none">
-              Elevate your daily ritual with high-potency French Plum Elixirs, hydrolyzed micro-keratin peptides, and stem-cell scalp bio-actives. Salon-grade alchemy for transcendent luster.
-            </p>
+          <p className="mt-4 sm:mt-5 text-xs sm:text-sm md:text-base text-white/90 font-light max-w-xl mx-auto leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">
+            High-performance botanical formulas crafted with clean ingredients for Indian hair textures.
+          </p>
 
-            <div className="pt-1 flex flex-col sm:flex-row gap-2.5 sm:gap-3">
-              <Link
-                href="/shop"
-                className="w-full sm:w-auto px-6 py-3 sm:px-7 sm:py-3.5 bg-white text-plum text-[11px] sm:text-xs font-bold uppercase tracking-[0.16em] sm:tracking-[0.18em] rounded-sm hover:bg-gold-light hover:text-charcoal transition duration-300 flex items-center justify-center gap-2 shadow-lg"
-              >
-                Explore The Collection
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-              <Link
-                href="/shop?category=Mask"
-                className="w-full sm:w-auto px-6 py-3 sm:px-7 sm:py-3.5 bg-white/10 hover:bg-white/20 border border-white/40 hover:border-white text-white text-[11px] sm:text-xs font-bold uppercase tracking-[0.16em] sm:tracking-[0.18em] rounded-sm transition duration-300 flex items-center justify-center gap-2 backdrop-blur-sm"
-              >
-                Discover Keratin Ritual
-              </Link>
-            </div>
-
-            {/* Badges under hero */}
-            <div className="pt-3 border-t border-white/20 grid grid-cols-3 gap-2 sm:gap-4 text-white/85 text-center sm:text-left">
-              <div>
-                <strong className="block text-white text-xs sm:text-base font-serif">500+</strong>
-                <span className="block text-[9px] sm:text-[11px] text-white/70 leading-tight">Luxury Salons</span>
-              </div>
-              <div>
-                <strong className="block text-white text-xs sm:text-base font-serif">87%</strong>
-                <span className="block text-[9px] sm:text-[11px] text-white/70 leading-tight">Breakage Cut</span>
-              </div>
-              <div>
-                <strong className="block text-white text-xs sm:text-base font-serif">100%</strong>
-                <span className="block text-[9px] sm:text-[11px] text-white/70 leading-tight">Bio-Botanicals</span>
-              </div>
-            </div>
+          <div className="mt-7 sm:mt-8">
+            <Link
+              href="/shop"
+              className="inline-flex items-center justify-center px-8 py-3.5 sm:px-10 sm:py-4 bg-[#5A3859] hover:bg-[#6D436C] text-white text-xs sm:text-[13px] font-bold uppercase tracking-[0.2em] rounded-sm transition-all duration-300 shadow-2xl hover:shadow-[0_10px_25px_-5px_rgba(90,56,89,0.5)] transform hover:-translate-y-0.5 active:translate-y-0"
+            >
+              EXPLORE COLLECTION
+            </Link>
           </div>
+        </div>
+
+        {/* Rounded Bottom Arc Divider: Bows downward in center matching reference */}
+        <div className="absolute -bottom-[1px] left-0 right-0 w-full overflow-hidden leading-none z-20 pointer-events-none">
+          <svg
+            viewBox="0 0 1440 60"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-full h-6 sm:h-9 lg:h-12 block"
+            preserveAspectRatio="none"
+          >
+            <path
+              d="M0,0 Q720,55 1440,0 L1440,60 L0,60 Z"
+              fill="#FAF7F5"
+            />
+          </svg>
         </div>
       </section>
 
@@ -120,7 +110,7 @@ export default function HomePage() {
 
       {/* 3. GAMIFIED MILESTONE CALLOUT BANNER */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-r from-plum via-[#38101E] to-[#260812] text-white rounded-sm p-5 sm:p-8 shadow-luxury relative overflow-hidden">
+        <div className="bg-gradient-to-r from-plum via-plum-dark to-plum-deep text-white rounded-sm p-5 sm:p-8 shadow-luxury relative overflow-hidden">
           <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-6">
             <div className="space-y-1.5 sm:space-y-2 text-center md:text-left">
               <div className="inline-flex items-center gap-1 text-gold text-[11px] sm:text-xs font-semibold uppercase tracking-widest">
