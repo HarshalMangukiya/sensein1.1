@@ -6,6 +6,7 @@ import { ArrowRight, ShieldCheck, Award, Heart, CheckCircle2, Star, Gift, Chevro
 import { ProductCard } from '@/components/product-card';
 import { RealResultsCarousel } from '@/components/real-results-carousel';
 import { BeforeAfterSection } from '@/components/before-after-section';
+import { WhyChooseSensein } from '@/components/why-choose-sensein';
 import { fetchProducts } from '@/lib/api';
 import { LUXURY_PRODUCTS } from '@/lib/products-data';
 
@@ -245,14 +246,13 @@ export default function HomePage() {
       </section>
 
       {/* 5. SCIENCE OF BOTANICAL FORMULATIONS STORY */}
-      <section className="bg-white py-12 sm:py-24 border-y border-border">
+      {/* <section className="bg-white py-12 sm:py-24 border-y border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-            {/* Left Image Collage */}
             <div className="relative max-w-md mx-auto lg:max-w-none w-full">
               <div className="aspect-[4/3] rounded-sm overflow-hidden border border-border shadow-luxury">
                 <img
-                  src="/images/products/mask-1.png"
+                  src="/images/products/mask-1.png" 
                   alt="SENSEIN Keratin Bond Restorative Mask"
                   className="w-full h-full object-cover"
                 />
@@ -266,7 +266,6 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Right Content */}
             <div className="space-y-4 sm:space-y-6 pt-4 lg:pt-0">
               <span className="text-[10px] uppercase tracking-[0.25em] font-bold text-plum block">
                 The Science of Radiance
@@ -322,7 +321,7 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* 6. REAL PEOPLE REAL RESULTS 3D CAROUSEL */}
       <RealResultsCarousel />
@@ -330,7 +329,10 @@ export default function HomePage() {
       {/* 7. DIGITS DON'T LIE - BEFORE & AFTER INTERACTIVE SLIDER */}
       <BeforeAfterSection />
 
-      {/* 8. WHOLESALE & SALON PARTNERSHIP TEASER */}
+      {/* 8. WHY CHOOSE SENSEIN? */}
+      <WhyChooseSensein />
+
+      {/* 9. WHOLESALE & SALON PARTNERSHIP TEASER */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-[#FAF7F5] border border-border p-6 sm:p-12 rounded-sm flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8">
           <div className="space-y-2.5 sm:space-y-3 text-center md:text-left">

@@ -193,13 +193,35 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Bottom copyright */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-[11px] text-white/50">
-          <p>© {new Date().getFullYear()} SENSEIN PROFESSIONAL. All Rights Reserved.</p>
-          <div className="flex gap-6 mt-4 sm:mt-0">
-            <Link href="/privacy-policy" className="hover:text-white transition">Privacy Policy</Link>
-            <Link href="/terms-and-conditions" className="hover:text-white transition">Terms & Conditions</Link>
-            <Link href="/wholesale" className="hover:text-white transition">Wholesale Inquiry</Link>
+        {/* Bottom Bar: Copyright, Links & Powered By */}
+        <div className="pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-[11px] text-white/60 border-t border-white/10 mt-2">
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-6 text-center sm:text-left">
+            <p>© {new Date().getFullYear()} SENSEIN PROFESSIONAL. All Rights Reserved.</p>
+            <div className="flex gap-5 text-white/50">
+              <Link href="/privacy-policy" className="hover:text-white transition">Privacy Policy</Link>
+              <Link href="/terms-and-conditions" className="hover:text-white transition">Terms & Conditions</Link>
+              <Link href="/wholesale" className="hover:text-white transition">Wholesale Inquiry</Link>
+            </div>
+          </div>
+
+          {/* Powered By Vision Craft Media */}
+          <div className="flex items-center gap-2.5 pt-2 md:pt-0">
+            <span className="text-[10px] sm:text-[11px] uppercase tracking-widest text-white/60 font-medium">
+              Powered by
+            </span>
+            <a
+              href="https://visioncraftmedia.co.in/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center group transition"
+              title="Vision Craft Media - Social Media Agency"
+            >
+              <img
+                src="/images/vision-craft-media-white.png"
+                alt="Vision Craft Media"
+                className="h-7 sm:h-8 w-auto object-contain opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-200"
+              />
+            </a>
           </div>
         </div>
       </div>

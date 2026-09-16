@@ -320,9 +320,9 @@ function ShopContent() {
         {/* PRODUCT GRID CONTAINER */}
         <div className="lg:col-span-3">
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
               {[1, 2, 3, 4, 5, 6].map((n) => (
-                <div key={n} className="bg-white p-4 h-96 animate-pulse rounded border border-border" />
+                <div key={n} className="bg-white p-4 h-80 sm:h-96 animate-pulse rounded-md border border-border" />
               ))}
             </div>
           ) : products.length === 0 ? (
@@ -341,7 +341,7 @@ function ShopContent() {
               </button>
             </div>
           ) : viewLayout === 'grid' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
               {products.map((product) => (
                 <ProductCard key={product.id} product={product} layout="grid" />
               ))}

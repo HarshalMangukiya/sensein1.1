@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, ShoppingBag } from 'lucide-react';
 
 interface ComparisonItem {
   id: string;
@@ -22,7 +22,7 @@ const COMPARISONS: ComparisonItem[] = [
     badge: 'FRIZZ DEFENSE',
     price: 1299,
     title: 'Frizz & Wavy to Mirror-Smooth Glass Hair',
-    used: 'SENSEIN Keratin Bond Restorative Mask',
+    used: 'Sensein Damage Repair Conditioner',
     productSlug: '/product/keratin-bond-intense-restorative-hair-mask',
     beforeImage: '/images/transformations/frizz-before.jpg',
     afterImage: '/images/transformations/frizz-after.jpg',
@@ -33,18 +33,18 @@ const COMPARISONS: ComparisonItem[] = [
     badge: 'CURL MOISTURE',
     price: 1499,
     title: 'Dry Strands to Defined Bouncy Curls',
-    used: 'SENSEIN Intense Hydration Mask',
+    used: 'Sensein Intense Hydration Mask',
     productSlug: '/shop?category=Mask',
     beforeImage: '/images/transformations/curls-before.jpg',
     afterImage: '/images/transformations/curls-after.jpg',
-    initialPos: 40,
+    initialPos: 45,
   },
   {
     id: 'bond-repair',
     badge: 'BOND REPAIR',
-    price: 1149,
-    title: 'Chemically Treated Hair to Deep Rebuilt Strength',
-    used: 'SENSEIN Bond Repair Shampoo',
+    price: 1299,
+    title: 'Chemically Treated Hair to Deep Rebuilt...',
+    used: 'Sensein Bond Repair Shampoo',
     productSlug: '/product/black-caviar-cellular-cleansing-shampoo',
     beforeImage: '/images/transformations/men-before.jpg',
     afterImage: '/images/transformations/men-after.jpg',
@@ -113,17 +113,17 @@ function BeforeAfterCard({ item }: { item: ComparisonItem }) {
   }, [isDragging, updatePosition]);
 
   return (
-    <div className="bg-white rounded-2xl border border-border/80 overflow-hidden shadow-xs hover:shadow-luxury transition-all duration-300 flex flex-col">
+    <div className="bg-white rounded-2xl border border-border/80 overflow-hidden shadow-xs hover:shadow-md transition-all duration-300 flex flex-col">
       {/* Top Header Labels */}
-      <div className="flex items-center justify-between px-5 py-3 text-[11px] font-bold tracking-[0.2em] text-charcoal uppercase select-none">
+      <div className="flex items-center justify-between px-3.5 py-2 text-[10px] font-bold tracking-widest text-charcoal/70 uppercase select-none">
         <span>BEFORE</span>
         <span>AFTER</span>
       </div>
 
-      {/* Interactive Image Split Stage (touch-pan-y enables smooth mobile vertical scrolling) */}
+      {/* Interactive Image Split Stage (Compact aspect ratio & touch-pan-y for smooth mobile scroll) */}
       <div
         ref={containerRef}
-        className="relative aspect-[3/4] w-full overflow-hidden select-none touch-pan-y"
+        className="relative aspect-[4/4.3] w-full overflow-hidden select-none touch-pan-y"
       >
         {/* After Image (Full Background) */}
         <img
@@ -152,21 +152,21 @@ function BeforeAfterCard({ item }: { item: ComparisonItem }) {
           onPointerMove={handleLinePointerMove}
           onPointerUp={handleLinePointerUp}
           onPointerCancel={handleLinePointerUp}
-          className="absolute top-0 bottom-0 w-12 -ml-6 z-30 cursor-ew-resize touch-none flex items-center justify-center group select-none"
+          className="absolute top-0 bottom-0 w-10 -ml-5 z-30 cursor-ew-resize touch-none flex items-center justify-center group select-none"
           style={{ left: `${sliderPos}%` }}
         >
           {/* Visible Vertical Divider Line */}
-          <div className="w-[2px] h-full bg-white shadow-[0_0_8px_rgba(0,0,0,0.6)] pointer-events-none" />
+          <div className="w-[2px] h-full bg-white shadow-[0_0_6px_rgba(0,0,0,0.6)] pointer-events-none" />
 
           {/* Circular Drag Handle */}
           <div
-            className={`absolute top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white shadow-xl border border-border/80 flex items-center justify-center text-charcoal pointer-events-none transition-transform duration-150 ${
+            className={`absolute top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white shadow-lg border border-border/80 flex items-center justify-center text-charcoal pointer-events-none transition-transform duration-150 ${
               isDragging ? 'scale-115 shadow-plum/40 ring-2 ring-plum/20' : 'scale-100 group-hover:scale-110'
             }`}
           >
             {/* Custom SVG double arrow <> */}
             <svg
-              className="w-3.5 h-3.5 text-charcoal"
+              className="w-3 h-3 text-charcoal"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -182,31 +182,41 @@ function BeforeAfterCard({ item }: { item: ComparisonItem }) {
       </div>
 
       {/* Card Info Details */}
-      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between bg-white">
+      <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between bg-white">
         <div>
           {/* Badge & Price */}
           <div className="flex items-center justify-between gap-2">
-            <span className="bg-[#F4EFF3] text-plum text-[10px] sm:text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-[4px]">
+            <span className="bg-[#F4EFF3] text-plum text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-[3px]">
               {item.badge}
             </span>
-            <span className="text-base sm:text-lg font-bold text-charcoal tracking-tight">
+            <span className="text-xs sm:text-sm font-bold text-charcoal tracking-tight">
               ₹{item.price.toLocaleString('en-IN')}
             </span>
           </div>
 
           {/* Title */}
-          <h3 className="font-serif text-[15px] sm:text-base font-bold text-charcoal mt-2.5 leading-snug line-clamp-2">
+          <h3 className="font-serif text-xs sm:text-[13px] font-bold text-charcoal mt-2 leading-snug line-clamp-1">
             {item.title}
           </h3>
 
           {/* Used Product */}
-          <p className="text-xs text-charcoal-muted mt-1.5 font-light">
+          <p className="text-[10px] sm:text-[11px] text-charcoal-muted mt-0.5 font-light line-clamp-1">
             Used:{' '}
             <Link href={item.productSlug} className="font-medium text-plum hover:underline">
               {item.used}
             </Link>
           </p>
         </div>
+
+        {/* Shop Solution Button (Matching Reference Screenshot) */}
+        <Link
+          href={item.productSlug}
+          className="mt-3 w-full py-2 px-3 bg-[#1A1A1A] hover:bg-plum text-white text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors shadow-xs group/btn"
+        >
+          <ShoppingBag className="w-3.5 h-3.5" />
+          <span>Shop Solution</span>
+          <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-0.5 transition-transform" />
+        </Link>
       </div>
     </div>
   );
@@ -303,8 +313,8 @@ export function BeforeAfterSection() {
           </p>
         </div>
 
-        {/* 3 Interactive Split Cards (Single-Row Carousel on Mobile, 3-Col Grid on Desktop) */}
-        <div className="relative group mt-10 sm:mt-14">
+        {/* 3 Interactive Split Cards (Compact Max-Width & Single-Row Carousel on Mobile) */}
+        <div className="relative group mt-8 sm:mt-12 max-w-4xl mx-auto">
           {/* Circular Previous Button (Mobile/Tablet) */}
           <button
             onClick={() => handleScroll('left')}
@@ -332,12 +342,12 @@ export function BeforeAfterSection() {
           {/* Scrollable Cards Container */}
           <div
             ref={scrollContainerRef}
-            className="flex md:grid md:grid-cols-3 gap-5 sm:gap-6 md:gap-8 overflow-x-auto md:overflow-visible scroll-smooth snap-x snap-mandatory no-scrollbar pb-3 pt-1 px-1 -mx-1"
+            className="flex md:grid md:grid-cols-3 gap-4 sm:gap-5 md:gap-6 overflow-x-auto md:overflow-visible scroll-smooth snap-x snap-mandatory no-scrollbar pb-3 pt-1 px-1 -mx-1"
           >
             {COMPARISONS.map((item) => (
               <div
                 key={item.id}
-                className="w-[86vw] sm:w-[360px] md:w-auto shrink-0 snap-center md:shrink md:snap-align-none"
+                className="w-[260px] sm:w-[280px] md:w-auto shrink-0 snap-center md:shrink md:snap-align-none"
               >
                 <BeforeAfterCard item={item} />
               </div>
