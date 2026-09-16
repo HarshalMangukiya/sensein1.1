@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Star, Heart, Plus, Minus, Check, ShoppingBag } from 'lucide-react';
+import { Star, Heart, Plus, Minus, Check, ShoppingBag, Sparkles } from 'lucide-react';
 import { useCartStore } from '@/store/cart-store';
 import { useFlyToCart } from '@/components/fly-to-cart';
 
@@ -177,14 +177,14 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
   return (
     <div
       data-product-card
-      className="bg-white rounded-sm border border-border hover:border-plum/40 hover:shadow-luxury transition-all duration-300 flex flex-col group relative overflow-hidden"
+      className="bg-white rounded-md border border-border hover:border-plum/40 hover:shadow-luxury transition-all duration-300 flex flex-col group relative overflow-hidden h-full"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Product Image Stage */}
       <Link
         href={`/product/${product.slug}`}
-        className="relative aspect-square w-full bg-[#FAF7F5] overflow-hidden flex items-center justify-center p-4 block"
+        className="relative aspect-square w-full bg-[#FAF7F5] overflow-hidden flex items-center justify-center p-2.5 sm:p-4 block"
       >
         <img
           src={isHovered && product.images[1] ? product.images[1] : product.images[0]}
@@ -192,85 +192,96 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
           className="object-contain w-full h-full transform group-hover:scale-105 transition-transform duration-500 ease-out"
         />
 
-        {/* Top Badges */}
-        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1 z-10">
+        {/* Top Left Badges */}
+        <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
           {discountPercent > 0 && (
-            <span className="bg-plum text-white text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-[1px] shadow-sm">
+            <span className="bg-plum text-white text-[9px] sm:text-[10px] font-bold tracking-wider uppercase px-1.5 sm:px-2 py-0.5 rounded-[2px] shadow-sm">
               -{discountPercent}% OFF
             </span>
           )}
           {product.curatedCollection === 'Bestsellers' && (
-            <span className="bg-charcoal text-white text-[9px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-[1px]">
+            <span className="bg-charcoal text-white text-[8px] sm:text-[9px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded-[2px]">
               BESTSELLER
             </span>
           )}
         </div>
 
-        {/* Wishlist Button */}
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsWishlisted(!isWishlisted);
-          }}
-          className={`absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm border border-border/70 flex items-center justify-center transition-all duration-200 z-10 ${
-            isWishlisted
-              ? 'text-plum bg-white shadow-sm'
-              : 'text-charcoal hover:text-plum hover:bg-white'
-          }`}
-          aria-label="Wishlist toggle"
-        >
-          <Heart className={`w-3.5 h-3.5 ${isWishlisted ? 'fill-plum text-plum' : ''}`} />
-        </button>
+        {/* Top Right Badges / Wishlist */}
+        <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
+          <span className="inline-flex items-center gap-0.5 bg-plum/10 text-plum border border-plum/20 text-[8px] sm:text-[9px] font-bold px-1.5 sm:px-2 py-0.5 rounded-[2px] uppercase tracking-wider backdrop-blur-xs">
+            <Sparkles className="w-2.5 h-2.5" />
+            {product.curatedCollection === 'Bestsellers' ? 'MOST RE-ORDERED' : 'SALON CARE'}
+          </span>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsWishlisted(!isWishlisted);
+            }}
+            className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white/90 backdrop-blur-sm border border-border/70 flex items-center justify-center transition-all duration-200 ${
+              isWishlisted
+                ? 'text-plum bg-white shadow-sm'
+                : 'text-charcoal hover:text-plum hover:bg-white'
+            }`}
+            aria-label="Wishlist toggle"
+          >
+            <Heart className={`w-3 h-3 ${isWishlisted ? 'fill-plum text-plum' : ''}`} />
+          </button>
+        </div>
 
         {/* Net Volume Tag overlay bottom right */}
         {product.netVolume && (
-          <span className="absolute bottom-2.5 right-2.5 bg-white/85 backdrop-blur-xs text-[10px] text-charcoal font-medium px-2 py-0.5 rounded-[2px] border border-border/80">
+          <span className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-xs text-[9px] sm:text-[10px] text-charcoal font-medium px-1.5 py-0.5 rounded-[2px] border border-border/80">
             {product.netVolume}
           </span>
         )}
       </Link>
 
       {/* Card Content Details */}
-      <div className="p-4 flex-1 flex flex-col justify-between">
+      <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between">
         <div>
           {/* Category Tag */}
-          <div className="text-[10px] uppercase tracking-[0.16em] text-charcoal-muted font-semibold mb-1">
+          <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] text-charcoal-muted font-semibold mb-0.5 sm:mb-1">
             {product.category}
           </div>
 
           {/* Product Title */}
           <Link href={`/product/${product.slug}`} className="block group-hover:text-plum transition-colors">
-            <h3 className="font-serif text-[15px] font-semibold text-charcoal leading-snug line-clamp-2 min-h-[40px]">
+            <h3 className="font-serif text-xs sm:text-sm md:text-[15px] font-semibold text-charcoal leading-snug line-clamp-2 min-h-[32px] sm:min-h-[40px]">
               {product.name}
             </h3>
           </Link>
 
-          {/* Ratings & Reviews */}
-          <div className="flex items-center gap-1.5 mt-2">
+          {/* Ratings & Volume & Reviews */}
+          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
             <div className="flex items-center text-gold">
               <Star className="w-3 h-3 fill-gold text-gold" />
-              <span className="text-xs font-bold text-charcoal ml-1">{product.rating}</span>
+              <span className="text-[11px] sm:text-xs font-bold text-charcoal ml-0.5">{product.rating}</span>
             </div>
-            <span className="text-charcoal-subtle text-[11px]">({product.reviewCount})</span>
+            {product.netVolume && (
+              <span className="text-[9px] sm:text-[10px] bg-neutral-100 text-charcoal-muted px-1.5 py-0.2 rounded border border-neutral-200">
+                {product.netVolume}
+              </span>
+            )}
+            <span className="text-charcoal-subtle text-[10px] sm:text-[11px]">({product.reviewCount})</span>
           </div>
         </div>
 
         {/* Pricing & Interactive Add to Cart / Counter */}
-        <div className="mt-4 pt-3 border-t border-border/60">
-          <div className="flex items-baseline justify-between mb-3">
-            <div className="flex items-baseline gap-2">
-              <span className="text-base font-bold text-charcoal tracking-tight">
+        <div className="mt-2.5 sm:mt-3 pt-2 sm:pt-2.5 border-t border-border/60">
+          <div className="flex items-baseline justify-between mb-2 sm:mb-2.5">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-sm sm:text-base font-bold text-charcoal tracking-tight">
                 ₹{product.price.toLocaleString('en-IN')}
               </span>
               {product.mrp > product.price && (
-                <span className="text-xs text-charcoal-muted line-through">
+                <span className="text-[10px] sm:text-xs text-charcoal-muted line-through">
                   ₹{product.mrp.toLocaleString('en-IN')}
                 </span>
               )}
             </div>
             {discountPercent > 0 && (
-              <span className="text-[11px] text-emerald-accent font-semibold">
+              <span className="text-[9px] sm:text-[10px] text-emerald-accent font-semibold hidden xs:inline">
                 Save ₹{(product.mrp - product.price).toLocaleString('en-IN')}
               </span>
             )}
@@ -278,20 +289,20 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
 
           {/* Interactive Stepper or Button */}
           {quantityInCart > 0 ? (
-            <div className="w-full flex items-center justify-between border-2 border-plum rounded-sm bg-plum/5 py-1.5 px-3">
+            <div className="w-full flex items-center justify-between bg-plum text-white rounded-sm py-1.5 px-2.5 shadow-sm">
               <button
                 onClick={handleDecrement}
-                className="w-7 h-7 rounded-sm flex items-center justify-center text-plum hover:bg-plum hover:text-white transition font-bold"
+                className="w-6 h-6 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/20 rounded transition active:scale-90 font-bold"
                 aria-label="Decrease quantity"
               >
                 <Minus className="w-3.5 h-3.5" />
               </button>
-              <span className="text-xs font-bold text-plum tracking-wider">
-                {quantityInCart} IN BAG
+              <span className="text-xs font-bold text-white tracking-wider">
+                {quantityInCart}
               </span>
               <button
                 onClick={handleIncrement}
-                className="w-7 h-7 rounded-sm flex items-center justify-center text-plum hover:bg-plum hover:text-white transition font-bold"
+                className="w-6 h-6 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/20 rounded transition active:scale-90 font-bold"
                 aria-label="Increase quantity"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -300,7 +311,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
           ) : (
             <button
               onClick={handleAddToCart}
-              className="w-full py-2.5 px-4 bg-plum hover:bg-plum-dark text-white text-xs font-semibold uppercase tracking-[0.14em] transition-all duration-200 rounded-sm flex items-center justify-center gap-2 shadow-sm hover:shadow active:scale-[0.99]"
+              className="w-full py-2 px-3 bg-plum hover:bg-plum-dark text-white text-[10px] sm:text-xs font-semibold uppercase tracking-[0.12em] transition-all duration-200 rounded-sm flex items-center justify-center gap-1.5 shadow-sm hover:shadow active:scale-[0.99]"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
               Add to Bag

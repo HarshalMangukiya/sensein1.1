@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowRight, ShieldCheck, Award, Heart, CheckCircle2, Star, Gift } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Award, Heart, CheckCircle2, Star, Gift, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ProductCard } from '@/components/product-card';
 import { RealResultsCarousel } from '@/components/real-results-carousel';
 import { BeforeAfterSection } from '@/components/before-after-section';
@@ -10,15 +10,39 @@ import { fetchProducts } from '@/lib/api';
 import { LUXURY_PRODUCTS } from '@/lib/products-data';
 
 export default function HomePage() {
-  const [bestsellers, setBestsellers] = useState<any[]>(LUXURY_PRODUCTS.slice(0, 4));
+  const [bestsellers, setBestsellers] = useState<any[]>(LUXURY_PRODUCTS);
   const [loading, setLoading] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const checkScrollButtons = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setCanScrollLeft(scrollLeft > 10);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
+
+  const handleScroll = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const cardWidth = container.clientWidth < 640 
+        ? container.clientWidth * 0.85 
+        : container.clientWidth * 0.5;
+      container.scrollBy({
+        left: direction === 'left' ? -cardWidth : cardWidth,
+        behavior: 'smooth',
+      });
+    }
+  };
 
   useEffect(() => {
     async function loadData() {
       try {
         const data = await fetchProducts({ sort: 'featured' });
         if (data.products && data.products.length > 0) {
-          setBestsellers(data.products.slice(0, 4));
+          setBestsellers(data.products);
         }
       } catch (err) {
         console.error('Failed to load bestsellers', err);
@@ -28,6 +52,19 @@ export default function HomePage() {
     }
     loadData();
   }, []);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      checkScrollButtons();
+      container.addEventListener('scroll', checkScrollButtons, { passive: true });
+      window.addEventListener('resize', checkScrollButtons);
+      return () => {
+        container.removeEventListener('scroll', checkScrollButtons);
+        window.removeEventListener('resize', checkScrollButtons);
+      };
+    }
+  }, [bestsellers]);
 
   return (
     <div className="space-y-12 sm:space-y-20 lg:space-y-24">
@@ -133,9 +170,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 4. BESTSELLER FORMULATIONS SHOWCASE */}
+      {/* 4. BESTSELLER FORMULATIONS SHOWCASE (Single-Row Carousel with Next/Prev Controls) */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 sm:mb-8 pb-3 sm:pb-4 border-b border-border">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-4 sm:mb-8 pb-3 sm:pb-4 border-b border-border">
           <div>
             <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-plum block">
               Curated Formulations
@@ -153,20 +190,58 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {/* Product Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {[1, 2, 3, 4].map((n) => (
-              <div key={n} className="bg-white p-4 h-96 animate-pulse rounded border border-border" />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {bestsellers.slice(0, 4).map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        )}
+        {/* Carousel Container */}
+        <div className="relative group">
+          {/* Circular Previous Button */}
+          <button
+            onClick={() => handleScroll('left')}
+            disabled={!canScrollLeft}
+            className={`absolute -left-2 sm:-left-4 top-[36%] -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white shadow-md border border-neutral-200/90 flex items-center justify-center text-charcoal hover:bg-neutral-50 hover:scale-105 active:scale-95 transition-all duration-200 ${
+              !canScrollLeft ? 'opacity-30 cursor-not-allowed pointer-events-none' : 'opacity-90 hover:opacity-100'
+            }`}
+            aria-label="Previous products"
+          >
+            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-charcoal" />
+          </button>
+
+          {/* Circular Next Button */}
+          <button
+            onClick={() => handleScroll('right')}
+            disabled={!canScrollRight}
+            className={`absolute -right-2 sm:-right-4 top-[36%] -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white shadow-md border border-neutral-200/90 flex items-center justify-center text-charcoal hover:bg-neutral-50 hover:scale-105 active:scale-95 transition-all duration-200 ${
+              !canScrollRight ? 'opacity-30 cursor-not-allowed pointer-events-none' : 'opacity-90 hover:opacity-100'
+            }`}
+            aria-label="Next products"
+          >
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-charcoal" />
+          </button>
+
+          {/* Single-Row Product Carousel */}
+          {loading ? (
+            <div className="flex gap-3 sm:gap-4 lg:gap-6 overflow-hidden py-1">
+              {[1, 2, 3, 4].map((n) => (
+                <div
+                  key={n}
+                  className="shrink-0 w-[calc(50%-6px)] sm:w-[calc(33.333%-11px)] lg:w-[calc(25%-18px)] bg-white p-4 h-80 animate-pulse rounded-md border border-border"
+                />
+              ))}
+            </div>
+          ) : (
+            <div
+              ref={scrollContainerRef}
+              className="flex gap-3 sm:gap-4 lg:gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory no-scrollbar pb-3 pt-1 px-1 -mx-1"
+            >
+              {bestsellers.map((product) => (
+                <div
+                  key={product.id}
+                  className="shrink-0 snap-start w-[calc(50%-6px)] sm:w-[calc(33.333%-11px)] lg:w-[calc(25%-18px)] flex flex-col"
+                >
+                  <ProductCard product={product} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* 5. SCIENCE OF BOTANICAL FORMULATIONS STORY */}
