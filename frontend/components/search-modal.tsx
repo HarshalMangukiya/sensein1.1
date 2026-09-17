@@ -127,7 +127,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                     <span className="text-[9px] uppercase tracking-widest text-plum font-semibold block">
                       {product.category}
                     </span>
-                    <h4 className="font-serif text-sm font-semibold text-charcoal group-hover:text-plum transition-colors truncate">
+                    <h4 className="font-sans text-sm font-semibold text-charcoal group-hover:text-plum transition-colors truncate tracking-tight">
                       {product.name}
                     </h4>
                     <div className="flex items-center gap-2 mt-0.5">

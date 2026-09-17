@@ -10,36 +10,45 @@ interface BrandLogoProps {
    * 'light' for dark backgrounds (e.g. Footer)
    */
   variant?: 'dark' | 'light';
+  src?: string;
   className?: string;
   imgClassName?: string;
   href?: string;
   width?: number;
   height?: number;
   priority?: boolean;
+  unoptimized?: boolean;
+  quality?: number;
 }
 
 export function BrandLogo({
   variant = 'dark',
+  src,
   className = '',
   imgClassName = '',
   href = '/',
   width = 170,
   height = 52,
   priority = false,
+  unoptimized = true,
+  quality = 100,
 }: BrandLogoProps) {
-  const src =
-    variant === 'light'
+  const logoSrc =
+    src ||
+    (variant === 'light'
       ? '/images/sensein-logo-white.png'
-      : '/images/sensein-logo-dark.png';
+      : '/images/sensein-logo-dark.png');
 
   const logoImage = (
     <div className={`relative inline-flex items-center justify-center ${className}`}>
       <Image
-        src={src}
-        alt="SENSEIN® PROFESSIONAL"
+        src={logoSrc}
+        alt="SENSEIN®"
         width={width}
         height={height}
         priority={priority}
+        unoptimized={unoptimized}
+        quality={quality}
         className={`object-contain transition-opacity duration-300 ${imgClassName}`}
       />
     </div>

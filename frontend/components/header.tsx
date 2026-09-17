@@ -42,22 +42,22 @@ export function Header({ onOpenSearch }: HeaderProps) {
     <>
       <header
         className={`sticky top-0 z-40 transition-all duration-300 bg-white border-b border-[#EAE5E0] ${
-          isScrolled ? 'py-3 shadow-sm' : 'py-3.5'
+          isScrolled ? 'py-2.5 sm:py-3 shadow-sm' : 'py-3 sm:py-3.5'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             {/* Left: Wave Icon Menu Toggle */}
             <div className="flex items-center">
               <button
                 type="button"
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="text-charcoal hover:text-plum transition p-2 focus:outline-none cursor-pointer rounded-sm hover:bg-black/5"
+                className="text-charcoal hover:text-plum transition p-1.5 sm:p-2 focus:outline-none cursor-pointer rounded-md hover:bg-black/5"
                 aria-label="Open menu drawer"
               >
                 {/* 3-Wavy lines icon matching reference exactly */}
                 <svg
-                  className="w-6 h-5"
+                  className="w-5 h-4 sm:w-6 sm:h-5"
                   viewBox="0 0 24 18"
                   fill="none"
                   stroke="currentColor"
@@ -71,40 +71,42 @@ export function Header({ onOpenSearch }: HeaderProps) {
               </button>
             </div>
 
-            {/* Center: Luxury SENSEIN® PROFESSIONAL Logo */}
-            <div className="text-center absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
+            {/* Center: Luxury SENSEIN Logo */}
+            <div className="text-center absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-auto">
               <BrandLogo
+                src="/images/sensein-navbar-logo.png"
                 variant="dark"
-                width={175}
-                height={54}
+                width={240}
+                height={45}
                 priority
-                imgClassName="h-7 sm:h-8 md:h-9 w-auto"
+                unoptimized
+                imgClassName="h-[21px] sm:h-7 md:h-9 lg:h-10 w-auto max-w-[125px] xs:max-w-[155px] sm:max-w-none object-contain"
               />
             </div>
 
             {/* Right: Search, User, Cart Icons */}
-            <div className="flex items-center space-x-4 sm:space-x-5">
+            <div className="flex items-center space-x-1.5 sm:space-x-3.5 md:space-x-5">
               {/* Quick Search */}
               <button
                 onClick={onOpenSearch}
-                className="text-charcoal hover:text-plum transition p-1"
+                className="text-charcoal hover:text-plum transition p-1.5 sm:p-2 focus:outline-none rounded-full hover:bg-black/5"
                 aria-label="Search catalog"
               >
-                <Search className="w-5 h-5 stroke-[1.8]" />
+                <Search className="w-[18px] h-[18px] sm:w-5 sm:h-5 stroke-[1.8]" />
               </button>
 
               {/* User Profile / OTP Modal */}
               <button
                 onClick={openAuthModal}
-                className="text-charcoal hover:text-plum transition p-1"
+                className="text-charcoal hover:text-plum transition p-1.5 sm:p-2 focus:outline-none rounded-full hover:bg-black/5"
                 aria-label="Account login"
               >
                 {user ? (
-                  <div className="w-6 h-6 rounded-full bg-plum text-white text-[11px] font-semibold flex items-center justify-center shadow-xs">
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-plum text-white text-[10px] sm:text-[11px] font-semibold flex items-center justify-center shadow-xs">
                     {user.name.charAt(0)}
                   </div>
                 ) : (
-                  <UserIcon className="w-5 h-5 stroke-[1.8]" />
+                  <UserIcon className="w-[18px] h-[18px] sm:w-5 sm:h-5 stroke-[1.8]" />
                 )}
               </button>
 
@@ -112,22 +114,22 @@ export function Header({ onOpenSearch }: HeaderProps) {
               <button
                 id="header-cart-btn"
                 onClick={openCart}
-                className={`relative text-charcoal hover:text-plum transition-all duration-300 p-1 flex items-center ${
-                  isCartBouncing ? 'scale-125 text-plum ring-2 ring-plum/20 rounded-full' : 'scale-100'
+                className={`relative text-charcoal hover:text-plum transition-all duration-300 p-1.5 sm:p-2 flex items-center rounded-full hover:bg-black/5 ${
+                  isCartBouncing ? 'scale-125 text-plum ring-2 ring-plum/20' : 'scale-100'
                 }`}
                 aria-label="Shopping Cart"
               >
-                <ShoppingCart className={`w-5 h-5 stroke-[1.8] transition-transform duration-300 ${
+                <ShoppingCart className={`w-[18px] h-[18px] sm:w-5 sm:h-5 stroke-[1.8] transition-transform duration-300 ${
                   isCartBouncing ? 'rotate-[-12deg]' : ''
                 }`} />
                 {itemCount > 0 ? (
-                  <span className={`absolute -top-1.5 -right-2 bg-plum text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-xs transition-all duration-300 ${
+                  <span className={`absolute -top-0.5 -right-0.5 sm:-top-1.5 sm:-right-2 bg-plum text-white text-[9px] sm:text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-xs transition-all duration-300 ${
                     isCartBouncing ? 'scale-125 bg-plum-dark ring-2 ring-gold' : 'scale-100'
                   }`}>
                     {itemCount}
                   </span>
                 ) : (
-                  <span className={`absolute -top-1.5 -right-2 bg-plum text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-xs transition-all duration-300 ${
+                  <span className={`absolute -top-0.5 -right-0.5 sm:-top-1.5 sm:-right-2 bg-plum text-white text-[9px] sm:text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-xs transition-all duration-300 ${
                     isCartBouncing ? 'scale-125 bg-plum-dark ring-2 ring-gold' : 'scale-100'
                   }`}>
                     0

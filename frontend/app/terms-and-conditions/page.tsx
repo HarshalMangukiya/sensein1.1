@@ -29,7 +29,7 @@ export default function TermsAndConditionsPage() {
             <Scale className="w-5 h-5 text-[#5A3859]" />
             <span className="text-xs uppercase tracking-widest font-bold">Client Agreement</span>
           </div>
-          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-neutral-900 mb-3">
+          <h1 className="font-sans tracking-tight text-3xl sm:text-4xl font-bold text-neutral-900 mb-3">
             Terms & Conditions
           </h1>
           <p className="text-xs sm:text-sm text-neutral-500">
@@ -41,7 +41,7 @@ export default function TermsAndConditionsPage() {
         <div className="bg-white border border-neutral-200 rounded-2xl p-6 sm:p-10 shadow-xs space-y-8 text-neutral-700 text-sm leading-relaxed">
           
           <section>
-            <h2 className="font-serif text-xl font-bold text-neutral-900 mb-3 flex items-center gap-2">
+            <h2 className="font-sans tracking-tight text-xl font-bold text-neutral-900 mb-3 flex items-center gap-2">
               <Award className="w-4 h-4 text-[#5A3859]" /> 1. Acceptance of Terms
             </h2>
             <p>
@@ -50,7 +50,7 @@ export default function TermsAndConditionsPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="font-serif text-xl font-bold text-neutral-900 flex items-center gap-2">
+            <h2 className="font-sans tracking-tight text-xl font-bold text-neutral-900 flex items-center gap-2">
               <Package className="w-4 h-4 text-[#5A3859]" /> 2. Formulations & Authenticity
             </h2>
             <p>
@@ -64,7 +64,7 @@ export default function TermsAndConditionsPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="font-serif text-xl font-bold text-neutral-900 flex items-center gap-2">
+            <h2 className="font-sans tracking-tight text-xl font-bold text-neutral-900 flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-[#5A3859]" /> 3. Pricing, Orders & Payments
             </h2>
             <p>
@@ -78,7 +78,7 @@ export default function TermsAndConditionsPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="font-serif text-xl font-bold text-neutral-900 mb-3">
+            <h2 className="font-sans tracking-tight text-xl font-bold text-neutral-900 mb-3">
               4. Pan-India Dispatch & Delivery
             </h2>
             <p>
@@ -92,7 +92,7 @@ export default function TermsAndConditionsPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="font-serif text-xl font-bold text-neutral-900 flex items-center gap-2">
+            <h2 className="font-sans tracking-tight text-xl font-bold text-neutral-900 flex items-center gap-2">
               <RotateCcw className="w-4 h-4 text-[#5A3859]" /> 5. Replacement & Return Policy
             </h2>
             <p>
@@ -105,7 +105,7 @@ export default function TermsAndConditionsPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="font-serif text-xl font-bold text-neutral-900 mb-3">
+            <h2 className="font-sans tracking-tight text-xl font-bold text-neutral-900 mb-3">
               6. Intellectual Property & Trademarks
             </h2>
             <p>
@@ -114,7 +114,7 @@ export default function TermsAndConditionsPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="font-serif text-xl font-bold text-neutral-900 flex items-center gap-2">
+            <h2 className="font-sans tracking-tight text-xl font-bold text-neutral-900 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-[#5A3859]" /> 7. Governing Law & Dispute Resolution
             </h2>
             <p>
@@ -123,7 +123,7 @@ export default function TermsAndConditionsPage() {
           </section>
 
           <section className="pt-6 border-t border-neutral-200">
-            <h2 className="font-serif text-xl font-bold text-neutral-900 mb-4">
+            <h2 className="font-sans tracking-tight text-xl font-bold text-neutral-900 mb-4">
               8. Customer Concierge Support
             </h2>
             <div className="bg-[#FAF7F5] p-5 rounded-xl space-y-2 text-xs sm:text-sm text-neutral-700">

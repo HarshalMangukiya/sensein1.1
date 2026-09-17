@@ -91,7 +91,7 @@ export default function WholesalePage() {
         <div className="inline-flex items-center gap-2 bg-plum/10 text-plum text-xs uppercase tracking-widest font-semibold px-4 py-1 rounded-full">
           <Building2 className="w-4 h-4" /> B2B Enterprise & Salon Distribution
         </div>
-        <h1 className="font-serif text-4xl sm:text-5xl font-bold text-charcoal tracking-tight">
+        <h1 className="font-sans text-4xl sm:text-5xl font-bold text-charcoal tracking-tight">
           Partner with SENSEIN PROFESSIONAL
         </h1>
         <p className="text-sm sm:text-base text-charcoal-muted leading-relaxed font-light">
@@ -103,7 +103,7 @@ export default function WholesalePage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
         <div className="p-6 bg-white border border-border rounded-sm space-y-2">
           <Award className="w-6 h-6 text-plum" />
-          <h4 className="font-serif text-base font-bold text-charcoal">Direct Salon Tier Pricing</h4>
+          <h4 className="font-sans text-base font-bold text-charcoal tracking-tight">Direct Salon Tier Pricing</h4>
           <p className="text-xs text-charcoal-muted leading-relaxed">
             Tier discounts up to 45% off retail MRP with dedicated credit line arrangements for established salon networks.
           </p>
@@ -111,7 +111,7 @@ export default function WholesalePage() {
 
         <div className="p-6 bg-white border border-border rounded-sm space-y-2">
           <Sparkles className="w-6 h-6 text-plum" />
-          <h4 className="font-serif text-base font-bold text-charcoal">Stylist Masterclass Training</h4>
+          <h4 className="font-sans text-base font-bold text-charcoal tracking-tight">Stylist Masterclass Training</h4>
           <p className="text-xs text-charcoal-muted leading-relaxed">
             Complimentary in-salon formulation masterclasses and certified protocol training by senior French salon educators.
           </p>
@@ -119,7 +119,7 @@ export default function WholesalePage() {
 
         <div className="p-6 bg-white border border-border rounded-sm space-y-2">
           <Shield className="w-6 h-6 text-plum" />
-          <h4 className="font-serif text-base font-bold text-charcoal">Custom Amenity Formulations</h4>
+          <h4 className="font-sans text-base font-bold text-charcoal tracking-tight">Custom Amenity Formulations</h4>
           <p className="text-xs text-charcoal-muted leading-relaxed">
             Co-branded 300ml pump dispensers and zero-waste refill carboys for five-star hotel suites and wellness retreats.
           </p>
@@ -136,7 +136,7 @@ export default function WholesalePage() {
             <span className="text-xs font-bold uppercase tracking-widest text-plum">
               Reference: {submittedResponse.referenceCode}
             </span>
-            <h3 className="font-serif text-3xl font-bold text-charcoal">
+            <h3 className="font-sans text-3xl font-bold text-charcoal tracking-tight">
               Partnership Inquiry Received
             </h3>
             <p className="text-xs sm:text-sm text-charcoal-muted max-w-lg mx-auto leading-relaxed">
@@ -159,7 +159,7 @@ export default function WholesalePage() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="border-b border-border pb-4">
-              <h3 className="font-serif text-2xl font-bold text-charcoal">
+              <h3 className="font-sans text-2xl font-bold text-charcoal tracking-tight">
                 Corporate Wholesale Application
               </h3>
               <p className="text-xs text-charcoal-muted mt-1">

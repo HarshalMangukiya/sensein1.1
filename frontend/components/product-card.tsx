@@ -110,7 +110,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
             </div>
 
             <Link href={`/product/${product.slug}`}>
-              <h3 className="font-serif text-lg font-semibold text-charcoal group-hover:text-plum transition-colors line-clamp-1">
+              <h3 className="font-sans text-lg font-bold text-charcoal group-hover:text-plum transition-colors line-clamp-1 tracking-tight">
                 {product.name}
               </h3>
             </Link>
@@ -247,7 +247,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
 
           {/* Product Title */}
           <Link href={`/product/${product.slug}`} className="block group-hover:text-plum transition-colors">
-            <h3 className="font-serif text-xs sm:text-sm md:text-[15px] font-semibold text-charcoal leading-snug line-clamp-2 min-h-[32px] sm:min-h-[40px]">
+            <h3 className="font-sans text-xs sm:text-sm md:text-[15px] font-bold text-charcoal leading-snug line-clamp-2 min-h-[32px] sm:min-h-[40px] tracking-tight">
               {product.name}
             </h3>
           </Link>

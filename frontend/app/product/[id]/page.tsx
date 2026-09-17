@@ -92,7 +92,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center">
         <div className="w-12 h-12 border-4 border-plum border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="font-serif text-lg text-charcoal">Loading luxury formulation...</p>
+        <p className="font-sans text-lg font-bold text-charcoal tracking-tight">Loading luxury formulation...</p>
       </div>
     );
   }
@@ -100,7 +100,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   if (!product) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-        <h2 className="font-serif text-2xl font-bold text-charcoal">Formulation Not Found</h2>
+        <h2 className="font-sans text-2xl font-bold text-charcoal tracking-tight">Formulation Not Found</h2>
         <Link href="/shop" className="mt-4 inline-block px-6 py-2 bg-plum text-white text-xs font-semibold rounded">
           Return to Catalog
         </Link>
@@ -227,7 +227,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                 </span>
               </div>
 
-              <h1 className="font-serif text-3xl sm:text-4xl font-bold text-charcoal leading-tight mt-1">
+              <h1 className="font-sans text-3xl sm:text-4xl font-bold text-charcoal leading-tight mt-1 tracking-tight">
                 {product.name}
               </h1>
 
@@ -254,7 +254,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
             {/* Price Block */}
             <div className="p-4 bg-white border border-border rounded-sm">
               <div className="flex items-baseline gap-3">
-                <span className="font-serif text-3xl font-bold text-charcoal">
+                <span className="font-sans text-3xl font-extrabold text-charcoal tracking-tight">
                   ₹{currentPrice.toLocaleString('en-IN')}
                 </span>
                 {currentMrp > currentPrice && (
@@ -472,12 +472,12 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
           <div className="py-8 bg-white p-6 sm:p-8 rounded-b-sm border-x border-b border-border shadow-xs">
             {activeTab === 'overview' && (
               <div className="max-w-3xl space-y-6">
-                <h3 className="font-serif text-2xl font-bold text-charcoal">Formulation Overview</h3>
+                <h3 className="font-sans text-2xl font-bold text-charcoal tracking-tight">Formulation Overview</h3>
                 <p className="text-sm text-charcoal leading-relaxed font-light">
                   {product.description}
                 </p>
                 <div className="p-4 bg-alabaster rounded border border-border">
-                  <h4 className="font-serif text-base font-semibold text-charcoal mb-1">Clinical Trial Observations</h4>
+                  <h4 className="font-sans text-base font-semibold text-charcoal mb-1 tracking-tight">Clinical Trial Observations</h4>
                   <p className="text-xs text-charcoal-muted leading-relaxed">
                     {product.overview}
                   </p>
@@ -487,7 +487,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
 
             {activeTab === 'ingredients' && (
               <div className="max-w-3xl space-y-6">
-                <h3 className="font-serif text-2xl font-bold text-charcoal">Botanical & Bio-Active Actives</h3>
+                <h3 className="font-sans text-2xl font-bold text-charcoal tracking-tight">Botanical & Bio-Active Actives</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {product.ingredients?.keyActives?.map((active: string, idx: number) => (
                     <div key={idx} className="p-3 bg-alabaster rounded border border-border flex items-center gap-3">
@@ -507,14 +507,14 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
 
             {activeTab === 'howToUse' && (
               <div className="max-w-3xl space-y-6">
-                <h3 className="font-serif text-2xl font-bold text-charcoal">3-Step Salon Ritual</h3>
+                <h3 className="font-sans text-2xl font-bold text-charcoal tracking-tight">3-Step Salon Ritual</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {product.howToUse?.map((step: any) => (
                     <div key={step.step} className="p-4 bg-alabaster rounded border border-border space-y-2">
                       <div className="w-7 h-7 rounded-full bg-plum text-white text-xs font-bold flex items-center justify-center">
                         {step.step}
                       </div>
-                      <h4 className="font-serif text-base font-bold text-charcoal">{step.title}</h4>
+                      <h4 className="font-sans text-base font-bold text-charcoal tracking-tight">{step.title}</h4>
                       <p className="text-xs text-charcoal-muted leading-relaxed">{step.instruction}</p>
                     </div>
                   ))}
@@ -527,7 +527,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                 {/* Rating summary bar graphs */}
                 <div className="flex flex-col sm:flex-row items-center gap-8 p-6 bg-alabaster rounded border border-border">
                   <div className="text-center sm:text-left">
-                    <div className="font-serif text-5xl font-bold text-charcoal">{product.rating}</div>
+                    <div className="font-mono text-5xl font-black text-charcoal tracking-tight">{product.rating}</div>
                     <div className="flex items-center text-gold my-1 justify-center sm:justify-start">
                       {[...Array(5)].map((_, i) => (
                         <Star key={i} className="w-4 h-4 fill-gold text-gold" />
@@ -582,7 +582,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                           <Star key={i} className="w-3.5 h-3.5 fill-gold text-gold" />
                         ))}
                       </div>
-                      <h5 className="font-serif text-sm font-bold text-charcoal">{rev.title}</h5>
+                      <h5 className="font-sans text-sm font-bold text-charcoal tracking-tight">{rev.title}</h5>
                       <p className="text-xs text-charcoal-muted leading-relaxed">{rev.content}</p>
                     </div>
                   ))}
@@ -604,7 +604,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                 className="w-12 h-12 object-contain bg-alabaster rounded p-1 border border-border flex-shrink-0"
               />
               <div className="min-w-0">
-                <h4 className="font-serif text-sm font-bold text-charcoal truncate">
+                <h4 className="font-sans text-sm font-bold text-charcoal truncate tracking-tight">
                   {product.name}
                 </h4>
                 <div className="flex items-center gap-2 text-xs">

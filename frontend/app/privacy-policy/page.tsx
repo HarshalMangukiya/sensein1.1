@@ -29,7 +29,7 @@ export default function PrivacyPolicyPage() {
             <Shield className="w-5 h-5 text-[#5A3859]" />
             <span className="text-xs uppercase tracking-widest font-bold">Legal & Security</span>
           </div>
-          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-neutral-900 mb-3">
+          <h1 className="font-sans tracking-tight text-3xl sm:text-4xl font-bold text-neutral-900 mb-3">
             Privacy Policy
           </h1>
           <p className="text-xs sm:text-sm text-neutral-500">
@@ -41,7 +41,7 @@ export default function PrivacyPolicyPage() {
         <div className="bg-white border border-neutral-200 rounded-2xl p-6 sm:p-10 shadow-xs space-y-8 text-neutral-700 text-sm leading-relaxed">
           
           <section>
-            <h2 className="font-serif text-xl font-bold text-neutral-900 mb-3 flex items-center gap-2">
+            <h2 className="font-sans tracking-tight text-xl font-bold text-neutral-900 mb-3 flex items-center gap-2">
               <Lock className="w-4 h-4 text-[#5A3859]" /> 1. Commitment to Your Privacy
             </h2>
             <p>
@@ -51,7 +51,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="font-serif text-xl font-bold text-neutral-900 flex items-center gap-2">
+            <h2 className="font-sans tracking-tight text-xl font-bold text-neutral-900 flex items-center gap-2">
               <Eye className="w-4 h-4 text-[#5A3859]" /> 2. Information We Collect
             </h2>
             <p>We collect only information essential to delivering bespoke haircare and seamless transactions:</p>
@@ -72,7 +72,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="font-serif text-xl font-bold text-neutral-900 flex items-center gap-2">
+            <h2 className="font-sans tracking-tight text-xl font-bold text-neutral-900 flex items-center gap-2">
               <FileText className="w-4 h-4 text-[#5A3859]" /> 3. How We Use Your Data
             </h2>
             <p>Your data enables us to curate an elevated experience:</p>
@@ -85,7 +85,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="font-serif text-xl font-bold text-neutral-900 mb-3">
+            <h2 className="font-sans tracking-tight text-xl font-bold text-neutral-900 mb-3">
               4. Data Protection & 256-Bit Encryption
             </h2>
             <p>
@@ -94,7 +94,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="font-serif text-xl font-bold text-neutral-900 mb-3">
+            <h2 className="font-sans tracking-tight text-xl font-bold text-neutral-900 mb-3">
               5. Third-Party Sharing & Logistics
             </h2>
             <p>
@@ -108,7 +108,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="font-serif text-xl font-bold text-neutral-900 mb-3">
+            <h2 className="font-sans tracking-tight text-xl font-bold text-neutral-900 mb-3">
               6. Client Rights & Communications Opt-Out
             </h2>
             <p>
@@ -117,7 +117,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="pt-6 border-t border-neutral-200">
-            <h2 className="font-serif text-xl font-bold text-neutral-900 mb-4">
+            <h2 className="font-sans tracking-tight text-xl font-bold text-neutral-900 mb-4">
               7. Concierge & Grievance Contact
             </h2>
             <div className="bg-[#FAF7F5] p-5 rounded-xl space-y-2 text-xs sm:text-sm text-neutral-700">

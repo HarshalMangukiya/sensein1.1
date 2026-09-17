@@ -42,7 +42,7 @@ export function CartDrawer() {
   const discount = getTotalDiscount();
   const shipping = getShippingFee();
   const finalTotal = getFinalTotal();
-  const { milestones, nextMilestone, amountNeededForNext, progressPercentage } = getMilestones();
+  const { milestones, nextMilestone, productsNeededForNext, progressPercentage } = getMilestones();
 
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +68,7 @@ export function CartDrawer() {
         <div className="px-6 py-4 bg-white border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ShoppingBag className="w-5 h-5 text-plum" />
-            <h2 className="font-serif text-lg font-bold text-charcoal tracking-wide">
+            <h2 className="font-sans text-base sm:text-lg font-bold text-charcoal tracking-wide">
               YOUR LUXURY BAG ({items.reduce((s, i) => s + i.quantity, 0)})
             </h2>
           </div>
@@ -87,7 +87,11 @@ export function CartDrawer() {
             {nextMilestone ? (
               <span className="text-charcoal flex items-center gap-1.5">
                 <Gift className="w-3.5 h-3.5 text-plum" />
-                Add <strong className="text-plum font-bold">₹{amountNeededForNext}</strong> more to unlock{' '}
+                Add{' '}
+                <strong className="text-plum font-bold">
+                  {productsNeededForNext || 1} more {productsNeededForNext === 1 ? 'product' : 'products'}
+                </strong>{' '}
+                to unlock{' '}
                 <span className="text-emerald font-semibold">{nextMilestone.reward.split('(')[0]}</span>!
               </span>
             ) : (
@@ -118,7 +122,10 @@ export function CartDrawer() {
                     : 'bg-white/60 border-border text-charcoal-muted'
                 }`}
               >
-                <div className="font-bold">₹{m.threshold}</div>
+                <div className="font-bold text-[10.5px]">₹{m.threshold}</div>
+                <div className="text-[8.5px] opacity-75 font-semibold leading-tight">
+                  {idx === 0 ? '1 Product' : idx === 1 ? '2 Products' : '3+ Products'}
+                </div>
                 <div className="truncate text-[9px] mt-0.5" title={m.reward}>
                   {m.unlocked ? '✓ ' : ''}
                   {idx === 0 ? 'Sample Vial' : idx === 1 ? 'Travel Kit' : 'Luxury Elixir'}
@@ -133,7 +140,7 @@ export function CartDrawer() {
           {items.length === 0 ? (
             <div className="text-center py-16">
               <ShoppingBag className="w-12 h-12 text-charcoal-muted mx-auto mb-4 opacity-40" />
-              <p className="font-serif text-lg font-medium text-charcoal mb-1">
+              <p className="font-sans text-lg font-bold text-charcoal mb-1 tracking-tight">
                 Your Luxury Bag is Empty
               </p>
               <p className="text-xs text-charcoal-muted max-w-xs mx-auto mb-6">
@@ -165,7 +172,7 @@ export function CartDrawer() {
                 {/* Details */}
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start">
-                    <h4 className="font-serif text-sm font-semibold text-charcoal truncate pr-2">
+                    <h4 className="font-sans text-sm font-semibold text-charcoal truncate pr-2">
                       {item.name}
                     </h4>
                     <button
@@ -291,7 +298,7 @@ export function CartDrawer() {
               </div>
 
               <div className="pt-2 border-t border-border flex justify-between items-baseline">
-                <span className="font-serif text-base font-bold text-charcoal">Total Amount</span>
+                <span className="font-sans text-base font-bold text-charcoal">Total Amount</span>
                 <span className="text-lg font-bold text-plum">
                   ₹{finalTotal.toLocaleString('en-IN')}
                 </span>

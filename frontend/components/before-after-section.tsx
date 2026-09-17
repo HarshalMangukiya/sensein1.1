@@ -195,7 +195,7 @@ function BeforeAfterCard({ item }: { item: ComparisonItem }) {
           </div>
 
           {/* Title */}
-          <h3 className="font-serif text-xs sm:text-[13px] font-bold text-charcoal mt-2 leading-snug line-clamp-1">
+          <h3 className="font-sans text-xs sm:text-[13px] font-bold text-charcoal mt-2 leading-snug line-clamp-1 tracking-tight">
             {item.title}
           </h3>
 
@@ -270,7 +270,7 @@ export function BeforeAfterSection() {
         {/* Section Heading */}
         <div className="text-center">
           <h2 className="font-sans text-3xl sm:text-5xl font-black text-charcoal uppercase tracking-tight">
-            DIGITS <span className="italic font-serif font-light text-plum">DON'T LIE</span>
+            DIGITS <span className="italic font-black text-plum">DON'T LIE</span>
           </h2>
 
           {/* Clinical Proof Statistics Bar */}
@@ -278,7 +278,7 @@ export function BeforeAfterSection() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
               {/* Stat 1 */}
               <div className="flex items-center justify-center gap-3 pt-2 sm:pt-0 sm:px-4">
-                <span className="text-3xl sm:text-4xl font-serif font-bold text-charcoal tracking-tight">
+                <span className="text-3xl sm:text-4xl font-mono font-black text-charcoal tracking-tight">
                   97%
                 </span>
                 <span className="text-xs text-charcoal-muted leading-tight text-left max-w-[130px]">
@@ -288,7 +288,7 @@ export function BeforeAfterSection() {
 
               {/* Stat 2 */}
               <div className="flex items-center justify-center gap-3 pt-4 sm:pt-0 sm:px-4">
-                <span className="text-3xl sm:text-4xl font-serif font-bold text-charcoal tracking-tight">
+                <span className="text-3xl sm:text-4xl font-mono font-black text-charcoal tracking-tight">
                   92%
                 </span>
                 <span className="text-xs text-charcoal-muted leading-tight text-left max-w-[130px]">
@@ -298,7 +298,7 @@ export function BeforeAfterSection() {
 
               {/* Stat 3 */}
               <div className="flex items-center justify-center gap-3 pt-4 sm:pt-0 sm:px-4">
-                <span className="text-3xl sm:text-4xl font-serif font-bold text-charcoal tracking-tight">
+                <span className="text-3xl sm:text-4xl font-mono font-black text-charcoal tracking-tight">
                   48%
                 </span>
                 <span className="text-xs text-charcoal-muted leading-tight text-left max-w-[130px]">

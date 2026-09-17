@@ -85,7 +85,7 @@ export default function HomePage() {
 
         {/* Hero Content Centered (Matching Reference Mockup) */}
         <div className="relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 text-center py-16 sm:py-24 lg:py-28 flex flex-col items-center">
-          <h1 className="font-serif text-3xl sm:text-5xl lg:text-[56px] font-bold tracking-tight sm:tracking-[0.02em] leading-[1.14] text-white uppercase drop-shadow-[0_4px_16px_rgba(0,0,0,0.85)]">
+          <h1 className="font-display text-3xl sm:text-5xl lg:text-[56px] font-extrabold tracking-tight leading-[1.14] text-white uppercase drop-shadow-[0_4px_16px_rgba(0,0,0,0.85)]">
             SALON LUXURY RE-ENGINEERED
           </h1>
 
@@ -127,19 +127,19 @@ export default function HomePage() {
             Recognized in Haute Editorial
           </p>
           <div className="flex flex-wrap items-center justify-center sm:justify-around gap-4 sm:gap-8 opacity-75 grayscale hover:grayscale-0 transition-all">
-            <span className="font-serif text-base sm:text-2xl font-bold tracking-widest text-charcoal">
+            <span className="font-sans text-base sm:text-2xl font-extrabold tracking-widest text-charcoal">
               VOGUE
             </span>
-            <span className="font-serif text-base sm:text-2xl font-semibold tracking-wider text-charcoal">
+            <span className="font-sans text-base sm:text-2xl font-bold tracking-wider text-charcoal">
               HARPER'S BAZAAR
             </span>
-            <span className="font-serif text-base sm:text-2xl font-bold tracking-widest text-charcoal">
+            <span className="font-sans text-base sm:text-2xl font-extrabold tracking-widest text-charcoal">
               ELLE
             </span>
-            <span className="font-serif text-base sm:text-2xl font-semibold tracking-widest text-charcoal">
+            <span className="font-sans text-base sm:text-2xl font-bold tracking-widest text-charcoal">
               L'OFFICIEL
             </span>
-            <span className="font-serif text-base sm:text-2xl font-bold tracking-wider text-charcoal">
+            <span className="font-sans text-base sm:text-2xl font-extrabold tracking-wider text-charcoal">
               GRAZIA
             </span>
           </div>
@@ -148,22 +148,22 @@ export default function HomePage() {
 
       {/* 3. GAMIFIED MILESTONE CALLOUT BANNER */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-r from-plum via-plum-dark to-plum-deep text-white rounded-sm p-5 sm:p-8 shadow-luxury relative overflow-hidden">
+        <div className="bg-[#5A3859] text-white rounded-sm p-5 sm:p-8 shadow-luxury relative overflow-hidden border border-[#764A75]/30">
           <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-6">
             <div className="space-y-1.5 sm:space-y-2 text-center md:text-left">
-              <div className="inline-flex items-center gap-1 text-gold text-[11px] sm:text-xs font-semibold uppercase tracking-widest">
-                <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Privilege Unlocks
+              <div className="inline-flex items-center gap-1.5 text-[#E8D5C4] text-[11px] sm:text-xs font-semibold uppercase tracking-[0.2em]">
+                <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#D4AF37]" /> Privilege Unlocks
               </div>
-              <h3 className="font-serif text-xl sm:text-3xl font-bold leading-snug">
+              <h3 className="font-sans text-xl sm:text-3xl font-bold leading-snug tracking-tight text-white">
                 Luxury Tier Gifts with Every Order
               </h3>
-              <p className="text-xs sm:text-sm text-white/80 max-w-xl leading-relaxed">
+              <p className="text-xs sm:text-sm text-white/85 max-w-xl leading-relaxed font-light">
                 Unlock complimentary deluxe samples at ₹999, our Rosewood & Velvet Travel Pouch at ₹1,999, and a Full-Size French Plum Elixir (₹1,499 value) at ₹2,999.
               </p>
             </div>
             <Link
               href="/shop"
-              className="w-full sm:w-auto text-center flex-shrink-0 px-6 py-3.5 bg-gold hover:bg-gold-light text-charcoal text-xs font-bold uppercase tracking-widest rounded-sm transition shadow"
+              className="w-full sm:w-auto text-center flex-shrink-0 px-7 py-3.5 bg-white hover:bg-[#FAF7F5] text-[#5A3859] hover:text-[#432542] text-xs font-bold uppercase tracking-widest rounded-sm transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 active:translate-y-0"
             >
               Start Curating Your Bag
             </Link>
@@ -178,7 +178,7 @@ export default function HomePage() {
             <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-plum block">
               Curated Formulations
             </span>
-            <h2 className="font-serif text-2xl sm:text-4xl font-bold text-charcoal mt-1">
+            <h2 className="font-sans text-2xl sm:text-4xl font-bold text-charcoal mt-1 tracking-tight">
               Bestselling Salon Rituals
             </h2>
           </div>
@@ -270,7 +270,7 @@ export default function HomePage() {
               <span className="text-[10px] uppercase tracking-[0.25em] font-bold text-plum block">
                 The Science of Radiance
               </span>
-              <h2 className="font-serif text-2xl sm:text-4xl font-bold text-charcoal leading-tight">
+              <h2 className="font-sans text-2xl sm:text-4xl font-bold text-charcoal leading-tight tracking-tight">
                 Where French Botanical Heritage Meets Molecular Hair Architecture
               </h2>
               <p className="text-xs sm:text-sm text-charcoal-muted leading-relaxed font-light">
@@ -339,7 +339,7 @@ export default function HomePage() {
             <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-plum block">
               B2B Enterprise Concierge
             </span>
-            <h3 className="font-serif text-xl sm:text-3xl font-bold text-charcoal">
+            <h3 className="font-sans text-xl sm:text-3xl font-bold text-charcoal tracking-tight">
               Partner with SENSEIN for Your Salon or Luxury Hotel
             </h3>
             <p className="text-xs sm:text-sm text-charcoal-muted max-w-xl leading-relaxed">

@@ -14,6 +14,7 @@ export interface CartItem {
 
 export interface Milestone {
   threshold: number;
+  itemsRequired: number;
   reward: string;
   rewardValue: number;
   unlocked: boolean;
@@ -59,6 +60,7 @@ interface CartStore {
     milestones: Milestone[];
     nextMilestone: Milestone | null;
     amountNeededForNext: number;
+    productsNeededForNext: number;
     currentTierIndex: number;
     progressPercentage: number;
   };
@@ -217,36 +219,39 @@ export const useCartStore = create<CartStore>((set, get) => ({
   },
 
   getMilestones: () => {
-    const subtotal = get().getSubtotal();
+    const itemCount = get().getItemCount();
     const milestones: Milestone[] = [
       {
         threshold: 999,
+        itemsRequired: 1,
         reward: 'Complimentary Botanical Sample Vial (15ml)',
         rewardValue: 299,
-        unlocked: subtotal >= 999,
+        unlocked: itemCount >= 1,
       },
       {
         threshold: 1999,
+        itemsRequired: 2,
         reward: 'Velvet Travel Pouch & Rosewood Styling Comb',
         rewardValue: 599,
-        unlocked: subtotal >= 1999,
+        unlocked: itemCount >= 2,
       },
       {
         threshold: 2999,
+        itemsRequired: 3,
         reward: 'Full-Size Luxury French Plum Hair Elixir',
         rewardValue: 1499,
-        unlocked: subtotal >= 2999,
+        unlocked: itemCount >= 3,
       },
     ];
 
     let nextMilestone: Milestone | null = null;
-    let amountNeededForNext = 0;
+    let productsNeededForNext = 0;
     let currentTierIndex = 0;
 
     for (let i = 0; i < milestones.length; i++) {
-      if (subtotal < milestones[i].threshold) {
+      if (itemCount < milestones[i].itemsRequired) {
         nextMilestone = milestones[i];
-        amountNeededForNext = milestones[i].threshold - subtotal;
+        productsNeededForNext = milestones[i].itemsRequired - itemCount;
         currentTierIndex = i;
         break;
       }
@@ -256,14 +261,14 @@ export const useCartStore = create<CartStore>((set, get) => ({
       currentTierIndex = milestones.length;
     }
 
-    // Progress bar calculations (0 to 100)
-    const maxThreshold = 2999;
-    const progressPercentage = Math.min(100, Math.round((subtotal / maxThreshold) * 100));
+    // Progress bar calculations (0% for 0, 33% for 1, 67% for 2, 100% for 3+)
+    const progressPercentage = Math.min(100, Math.round((itemCount / 3) * 100));
 
     return {
       milestones,
       nextMilestone,
-      amountNeededForNext,
+      amountNeededForNext: productsNeededForNext,
+      productsNeededForNext,
       currentTierIndex,
       progressPercentage,
     };

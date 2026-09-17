@@ -120,7 +120,7 @@ function ShopContent() {
         <div className="text-xs text-charcoal-muted uppercase tracking-widest mb-2">
           Home / Catalog / <span className="text-plum font-semibold">{selectedCategory}</span>
         </div>
-        <h1 className="font-serif text-3xl sm:text-4xl font-bold text-charcoal tracking-tight">
+        <h1 className="font-sans text-3xl sm:text-4xl font-bold text-charcoal tracking-tight">
           Formulation Archives
         </h1>
         <p className="text-xs sm:text-sm text-charcoal-muted max-w-2xl mt-1.5 font-light">
@@ -185,7 +185,7 @@ function ShopContent() {
         {/* DESKTOP FILTER SIDEBAR */}
         <aside className="hidden lg:block space-y-6 bg-white p-6 rounded-sm border border-border">
           <div className="flex items-center justify-between pb-4 border-b border-border">
-            <h3 className="font-serif text-base font-bold text-charcoal tracking-wide flex items-center gap-2">
+            <h3 className="font-sans text-base font-bold text-charcoal tracking-tight flex items-center gap-2">
               <SlidersHorizontal className="w-4 h-4 text-plum" />
               Refine Catalog
             </h3>
@@ -327,7 +327,7 @@ function ShopContent() {
             </div>
           ) : products.length === 0 ? (
             <div className="bg-white border border-border p-12 text-center rounded-sm">
-              <p className="font-serif text-xl font-medium text-charcoal mb-2">
+              <p className="font-sans text-xl font-bold text-charcoal mb-2 tracking-tight">
                 No Formulations Found
               </p>
               <p className="text-xs text-charcoal-muted max-w-sm mx-auto mb-6">
@@ -366,7 +366,7 @@ function ShopContent() {
           <div className="fixed inset-y-0 right-0 max-w-xs w-full bg-white shadow-xl p-6 flex flex-col justify-between z-10 animate-in slide-in-from-right duration-300">
             <div className="overflow-y-auto pr-1">
               <div className="flex items-center justify-between pb-4 border-b border-border mb-4">
-                <h3 className="font-serif text-lg font-bold text-charcoal">Filter Catalog</h3>
+                <h3 className="font-sans text-lg font-bold text-charcoal tracking-tight">Filter Catalog</h3>
                 <button
                   onClick={() => setIsMobileFilterOpen(false)}
                   className="p-1 text-charcoal hover:text-plum"

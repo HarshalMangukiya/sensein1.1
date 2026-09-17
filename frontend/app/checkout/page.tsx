@@ -227,7 +227,7 @@ export default function CheckoutPage() {
         <span className="text-xs uppercase tracking-widest text-plum font-bold block mb-1">
           Payment Confirmed
         </span>
-        <h1 className="font-serif text-3xl sm:text-4xl font-bold text-charcoal">
+        <h1 className="font-sans text-3xl sm:text-4xl font-bold text-charcoal tracking-tight">
           Thank you for choosing SENSEIN
         </h1>
         <p className="text-xs sm:text-sm text-charcoal-muted mt-2 max-w-md mx-auto">
@@ -274,7 +274,7 @@ export default function CheckoutPage() {
     return (
       <div className="max-w-xl mx-auto px-4 py-20 text-center">
         <ShoppingBag className="w-16 h-16 text-charcoal-muted mx-auto mb-4 opacity-40" />
-        <h2 className="font-serif text-2xl font-bold text-charcoal">Your Bag is Empty</h2>
+        <h2 className="font-sans text-2xl font-bold text-charcoal tracking-tight">Your Bag is Empty</h2>
         <p className="text-xs text-charcoal-muted mt-2 mb-6">
           Add items to your bag before proceeding to luxury checkout.
         </p>
@@ -295,7 +295,7 @@ export default function CheckoutPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="mb-8">
           <span className="text-[11px] uppercase tracking-widest text-plum font-bold">Frictionless Checkout</span>
-          <h1 className="font-serif text-3xl font-bold text-charcoal mt-1">Delivery & Payment Details</h1>
+          <h1 className="font-sans text-3xl font-bold text-charcoal mt-1 tracking-tight">Delivery & Payment Details</h1>
         </div>
 
         <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
@@ -304,7 +304,7 @@ export default function CheckoutPage() {
             {/* Step 1: Customer Contact */}
             <div className="bg-white p-6 rounded-sm border border-border space-y-4">
               <div className="flex items-center justify-between border-b border-border pb-3">
-                <h3 className="font-serif text-lg font-bold text-charcoal">
+                <h3 className="font-sans text-lg font-bold text-charcoal tracking-tight">
                   1. Customer Contact & Identification
                 </h3>
                 {user ? (
@@ -326,7 +326,7 @@ export default function CheckoutPage() {
               {user ? (
                 <div className="p-3 bg-emerald-light/40 border border-emerald/20 rounded-sm flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-plum text-white text-xs font-serif font-bold flex items-center justify-center shadow-xs shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-plum text-white text-xs font-sans font-bold flex items-center justify-center shadow-xs shrink-0">
                       {user.name.charAt(0)}
                     </div>
                     <div>
@@ -410,7 +410,7 @@ export default function CheckoutPage() {
 
             {/* Step 2: Delivery Address with Pincode lookup */}
             <div className="bg-white p-6 rounded-sm border border-border space-y-4">
-              <h3 className="font-serif text-lg font-bold text-charcoal border-b border-border pb-3 flex items-center justify-between">
+              <h3 className="font-sans text-lg font-bold text-charcoal border-b border-border pb-3 flex items-center justify-between tracking-tight">
                 <span>2. Delivery Address (Pan-India)</span>
                 {pincodeLoading && <span className="text-[10px] text-plum font-sans font-normal animate-pulse">Detecting Zone...</span>}
               </h3>
@@ -485,7 +485,7 @@ export default function CheckoutPage() {
 
             {/* Step 3: Payment Method Selection */}
             <div className="bg-white p-6 rounded-sm border border-border space-y-4">
-              <h3 className="font-serif text-lg font-bold text-charcoal border-b border-border pb-3">
+              <h3 className="font-sans text-lg font-bold text-charcoal border-b border-border pb-3 tracking-tight">
                 3. Payment Method
               </h3>
               <div className="space-y-3 text-xs">
@@ -547,7 +547,7 @@ export default function CheckoutPage() {
           {/* RIGHT COLUMN: STICKY ORDER SUMMARY */}
           <div className="lg:col-span-5 sticky top-24 space-y-6">
             <div className="bg-white p-6 rounded-sm border border-border space-y-6 shadow-xs">
-              <h3 className="font-serif text-lg font-bold text-charcoal border-b border-border pb-3">
+              <h3 className="font-sans text-lg font-bold text-charcoal border-b border-border pb-3 tracking-tight">
                 Order Summary ({items.length} Items)
               </h3>
 
@@ -561,7 +561,7 @@ export default function CheckoutPage() {
                       className="w-12 h-12 object-contain bg-alabaster rounded p-1 border border-border"
                     />
                     <div className="flex-1 min-w-0">
-                      <h5 className="font-serif font-semibold text-charcoal truncate">{item.name}</h5>
+                      <h5 className="font-sans font-semibold text-charcoal truncate tracking-tight">{item.name}</h5>
                       <span className="text-charcoal-muted text-[11px]">
                         Qty: {item.quantity} • {item.size}
                       </span>
@@ -646,7 +646,7 @@ export default function CheckoutPage() {
                 )}
 
                 <div className="pt-3 border-t border-border flex justify-between items-baseline">
-                  <span className="font-serif text-lg font-bold text-charcoal">Total Amount</span>
+                  <span className="font-sans text-lg font-bold text-charcoal tracking-tight">Total Amount</span>
                   <span className="text-2xl font-bold text-plum">
                     ₹{(paymentMethod === 'cod' ? finalTotal + 49 : finalTotal).toLocaleString('en-IN')}
                   </span>

@@ -146,10 +146,10 @@ export function AuthModal() {
           {user ? (
             /* User Profile View */
             <div className="text-center py-4">
-              <div className="w-16 h-16 rounded-full bg-[#5A3859] text-white text-2xl font-serif font-bold flex items-center justify-center mx-auto mb-4 shadow">
+              <div className="w-16 h-16 rounded-full bg-[#5A3859] text-white text-2xl font-sans font-bold flex items-center justify-center mx-auto mb-4 shadow">
                 {user.name.charAt(0)}
               </div>
-              <h3 className="font-serif text-2xl font-bold text-neutral-900">{user.name}</h3>
+              <h3 className="font-sans text-2xl font-bold text-neutral-900 tracking-tight">{user.name}</h3>
               <p className="text-xs text-neutral-500 mt-1">{user.email}</p>
               <div className="inline-flex items-center gap-1 mt-3 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium border border-emerald-200">
                 <CheckCircle className="w-3.5 h-3.5" /> SENSEIN VIP Patron

@@ -44,8 +44,11 @@ const config: Config = {
         },
       },
       fontFamily: {
+        sans: ['var(--font-sans)', 'Plus Jakarta Sans', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['var(--font-sans)', 'Plus Jakarta Sans', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['var(--font-mono)', 'Outfit', 'monospace'],
+        luxury: ['var(--font-luxury)', 'Cinzel', 'serif'],
         serif: ['var(--font-serif)', 'Playfair Display', 'Cormorant Garamond', 'Georgia', 'serif'],
-        sans: ['var(--font-sans)', 'Plus Jakarta Sans', 'Inter', 'sans-serif'],
       },
       boxShadow: {
         luxury: '0 10px 30px -10px rgba(74, 21, 40, 0.08)',
