@@ -1,4 +1,5 @@
-import { IsArray, IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString, ValidateNested, IsDefined } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateOrderCustomerDto {
@@ -41,34 +42,52 @@ export class CreateOrderCustomerDto {
   @IsString()
   @IsNotEmpty()
   state: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }
 
 export class OrderItemDto {
   @ApiProperty()
+  @IsString()
   id: string;
 
   @ApiProperty()
+  @IsString()
   name: string;
 
   @ApiProperty()
+  @IsNumber()
   price: number;
 
   @ApiProperty()
+  @IsNumber()
   quantity: number;
 
   @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   size?: string;
 
   @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   image?: string;
 }
 
 export class CreateOrderDto {
   @ApiProperty({ type: CreateOrderCustomerDto })
+  @ValidateNested()
+  @Type(() => CreateOrderCustomerDto)
+  @IsDefined()
   customer: CreateOrderCustomerDto;
 
   @ApiProperty({ type: [OrderItemDto] })
   @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OrderItemDto)
   items: OrderItemDto[];
 
   @ApiProperty({ example: 2598 })
@@ -107,4 +126,9 @@ export class CreateOrderDto {
   @ApiProperty({ type: [String], required: false })
   @IsOptional()
   freeGifts?: string[];
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }

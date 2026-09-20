@@ -217,7 +217,7 @@ export function Footer() {
               title="Vision Craft Media - Social Media Agency"
             >
               <img
-                src="/images/vision-craft-media-white.png"
+                src="https://res.cloudinary.com/dqddawu42/image/upload/v1789820767/sensein/brand/vision-craft-media-white.png"
                 alt="Vision Craft Media"
                 className="h-7 sm:h-8 w-auto object-contain opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-200"
               />

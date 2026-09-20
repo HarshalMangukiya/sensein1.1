@@ -58,7 +58,7 @@ export default function CheckoutPage() {
     state: 'Haryana',
   });
 
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
+  const paymentMethod = 'razorpay' as const;
   const [loading, setLoading] = useState(false);
   const [pincodeLoading, setPincodeLoading] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState<any | null>(null);
@@ -132,70 +132,53 @@ export default function CheckoutPage() {
 
     setLoading(true);
     try {
-      if (paymentMethod === 'razorpay') {
-        // 1. Create order on NestJS backend
-        const orderRes = await createRazorpayOrder(finalTotal, {
-          customerName: formData.name,
-          email: formData.email,
-          userId: user.id,
-        });
+      // 1. Create order on NestJS backend
+      const orderRes = await createRazorpayOrder(finalTotal, {
+        customerName: formData.name,
+        email: formData.email,
+        userId: user.id,
+      });
 
-        // 2. Open Razorpay or dev simulation
-        if (window.Razorpay && !orderRes.simulated) {
-          const options = {
-            key: orderRes.keyId,
-            amount: orderRes.order.amount,
-            currency: 'INR',
-            name: 'SENSEIN PROFESSIONAL',
-            description: 'Luxury Haircare Ritual Order',
-            image: '/images/products/mask-1.png',
-            order_id: orderRes.order.id,
-            handler: async (response: any) => {
-              const orderRecord = await placeOrder({
-                customer: { ...formData, userId: user.id },
-                items,
-                subtotal,
-                discount,
-                couponCode,
-                shippingFee: shipping,
-                total: finalTotal,
-                paymentMethod: 'razorpay',
-                razorpayOrderId: response.razorpay_order_id,
-                razorpayPaymentId: response.razorpay_payment_id,
-                freeGifts: unlockedGifts,
-              });
-              setOrderConfirmed(orderRecord);
-              clearCart();
-            },
-            prefill: {
-              name: formData.name,
-              email: formData.email,
-              contact: formData.phone,
-            },
-            theme: {
-              color: '#5A3859',
-            },
-          };
-          const rzp = new window.Razorpay(options);
-          rzp.open();
-        } else {
-          // Simulation confirmation for instant dev testing
-          const orderRecord = await placeOrder({
-            customer: { ...formData, userId: user.id },
-            items,
-            subtotal,
-            discount,
-            couponCode,
-            shippingFee: shipping,
-            total: finalTotal,
-            paymentMethod: 'razorpay',
-            freeGifts: unlockedGifts,
-          });
-          setOrderConfirmed(orderRecord);
-          clearCart();
-        }
+      // 2. Open Razorpay or fallback
+      if (window.Razorpay && !orderRes.simulated) {
+        const options = {
+          key: orderRes.keyId,
+          amount: orderRes.order.amount,
+          currency: 'INR',
+          name: 'SENSEIN PROFESSIONAL',
+          description: 'Luxury Haircare Ritual Order',
+          image: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820271/sensein/products/mask-1.jpg',
+          order_id: orderRes.order.id,
+          handler: async (response: any) => {
+            const orderRecord = await placeOrder({
+              customer: { ...formData, userId: user.id },
+              items,
+              subtotal,
+              discount,
+              couponCode,
+              shippingFee: shipping,
+              total: finalTotal,
+              paymentMethod: 'razorpay',
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              freeGifts: unlockedGifts,
+            });
+            setOrderConfirmed(orderRecord);
+            clearCart();
+          },
+          prefill: {
+            name: formData.name,
+            email: formData.email,
+            contact: formData.phone,
+          },
+          theme: {
+            color: '#5A3859',
+          },
+        };
+        const rzp = new window.Razorpay(options);
+        rzp.open();
       } else {
-        // COD
+        // Direct placement fallback
         const orderRecord = await placeOrder({
           customer: { ...formData, userId: user.id },
           items,
@@ -203,8 +186,8 @@ export default function CheckoutPage() {
           discount,
           couponCode,
           shippingFee: shipping,
-          total: finalTotal + 49,
-          paymentMethod: 'cod',
+          total: finalTotal,
+          paymentMethod: 'razorpay',
           freeGifts: unlockedGifts,
         });
         setOrderConfirmed(orderRecord);
@@ -485,61 +468,37 @@ export default function CheckoutPage() {
 
             {/* Step 3: Payment Method Selection */}
             <div className="bg-white p-6 rounded-sm border border-border space-y-4">
-              <h3 className="font-sans text-lg font-bold text-charcoal border-b border-border pb-3 tracking-tight">
-                3. Payment Method
-              </h3>
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <h3 className="font-sans text-lg font-bold text-charcoal tracking-tight">
+                  3. Payment Method (Prepaid Only)
+                </h3>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-plum/10 text-plum border border-plum/20">
+                  Guaranteed Dispatch
+                </span>
+              </div>
               <div className="space-y-3 text-xs">
-                <label
-                  className={`flex items-center justify-between p-4 rounded border cursor-pointer transition ${
-                    paymentMethod === 'razorpay'
-                      ? 'border-plum bg-plum/5 ring-1 ring-plum'
-                      : 'border-border bg-[#FAF7F5]'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="radio"
-                      name="payment"
-                      checked={paymentMethod === 'razorpay'}
-                      onChange={() => setPaymentMethod('razorpay')}
-                      className="text-plum"
-                    />
+                <div className="p-4 rounded border border-plum bg-plum/5 ring-1 ring-plum flex items-center justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="w-4 h-4 rounded-full bg-plum text-white flex items-center justify-center text-[10px] font-bold mt-0.5">
+                      ✓
+                    </div>
                     <div>
-                      <span className="font-bold text-charcoal block">
-                        Razorpay Secure Online Payment
+                      <span className="font-bold text-charcoal block text-sm">
+                        Razorpay Secure Online Payment (Prepaid)
                       </span>
-                      <span className="text-[11px] text-charcoal-muted">
-                        UPI (GPay, PhonePe, Paytm), Credit/Debit Cards, NetBanking, Cred
+                      <span className="text-[11px] text-charcoal-muted block mt-0.5">
+                        Instant priority dispatch via Blue Dart Express
                       </span>
+                      <div className="flex flex-wrap gap-2 mt-2 text-[10px] text-charcoal-subtle font-medium">
+                        <span className="px-2 py-0.5 bg-white border border-border rounded">UPI (GPay / PhonePe / Paytm)</span>
+                        <span className="px-2 py-0.5 bg-white border border-border rounded">Credit / Debit Cards</span>
+                        <span className="px-2 py-0.5 bg-white border border-border rounded">NetBanking</span>
+                        <span className="px-2 py-0.5 bg-white border border-border rounded">Cred</span>
+                      </div>
                     </div>
                   </div>
-                  <CreditCard className="w-5 h-5 text-plum" />
-                </label>
-
-                <label
-                  className={`flex items-center justify-between p-4 rounded border cursor-pointer transition ${
-                    paymentMethod === 'cod'
-                      ? 'border-plum bg-plum/5 ring-1 ring-plum'
-                      : 'border-border bg-[#FAF7F5]'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="radio"
-                      name="payment"
-                      checked={paymentMethod === 'cod'}
-                      onChange={() => setPaymentMethod('cod')}
-                      className="text-plum"
-                    />
-                    <div>
-                      <span className="font-bold text-charcoal block">Cash on Delivery (COD)</span>
-                      <span className="text-[11px] text-charcoal-muted">
-                        Pay upon doorstep arrival (+₹49 convenience verification charge)
-                      </span>
-                    </div>
-                  </div>
-                  <Banknote className="w-5 h-5 text-charcoal" />
-                </label>
+                  <CreditCard className="w-6 h-6 text-plum shrink-0" />
+                </div>
               </div>
             </div>
           </div>
@@ -638,17 +597,11 @@ export default function CheckoutPage() {
                   <span>Shipping</span>
                   <span>{shipping === 0 ? <strong className="text-emerald">FREE</strong> : `₹${shipping}`}</span>
                 </div>
-                {paymentMethod === 'cod' && (
-                  <div className="flex justify-between text-charcoal">
-                    <span>COD Convenience Charge</span>
-                    <span>₹49</span>
-                  </div>
-                )}
 
                 <div className="pt-3 border-t border-border flex justify-between items-baseline">
                   <span className="font-sans text-lg font-bold text-charcoal tracking-tight">Total Amount</span>
                   <span className="text-2xl font-bold text-plum">
-                    ₹{(paymentMethod === 'cod' ? finalTotal + 49 : finalTotal).toLocaleString('en-IN')}
+                    ₹{finalTotal.toLocaleString('en-IN')}
                   </span>
                 </div>
               </div>
@@ -697,8 +650,8 @@ export default function CheckoutPage() {
                 {loading
                   ? 'Processing Order...'
                   : !user
-                  ? (paymentMethod === 'razorpay' ? 'Log In & Pay with Razorpay' : 'Log In & Confirm COD Order')
-                  : (paymentMethod === 'razorpay' ? 'Pay with Razorpay' : 'Confirm COD Order')}
+                  ? 'Log In & Pay with Razorpay'
+                  : 'Pay with Razorpay (Prepaid)'}
                 {!user ? <Lock className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
               </button>
 

@@ -1,31 +1,32 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
-import Razorpay from 'razorpay';
+const Razorpay = require('razorpay');
 import { CreateOrderDto, VerifyPaymentDto } from './payments.dto';
 
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
-  private razorpayClient: Razorpay | null = null;
+  private razorpayClient: any = null;
   private keyId: string;
   private keySecret: string;
 
   constructor() {
-    this.keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_sensein_luxury';
-    this.keySecret = process.env.RAZORPAY_KEY_SECRET || 'secret_sensein_2026';
+    this.keyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_TdsVEj2PTlSRUc';
+    this.keySecret = process.env.RAZORPAY_KEY_SECRET || 'lCXn6EqZx3rYYZBF7HJZ5d7F';
 
-    if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+    if (this.keyId && this.keySecret) {
       try {
-        this.razorpayClient = new Razorpay({
+        const RazorpayClass = (Razorpay && (Razorpay as any).default) ? (Razorpay as any).default : Razorpay;
+        this.razorpayClient = new RazorpayClass({
           key_id: this.keyId,
           key_secret: this.keySecret,
         });
-        this.logger.log('Razorpay live client initialized');
-      } catch (err) {
+        this.logger.log(`Razorpay live client successfully initialized for key: ${this.keyId}`);
+      } catch (err: any) {
         this.logger.warn(`Razorpay client init warning: ${err.message}`);
       }
     } else {
-      this.logger.warn('Razorpay live keys not found in .env, running with development simulation mode');
+      this.logger.warn('Razorpay live keys not found, running with development simulation mode');
     }
   }
 

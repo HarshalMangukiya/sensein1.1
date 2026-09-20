@@ -24,8 +24,8 @@ const COMPARISONS: ComparisonItem[] = [
     title: 'Frizz & Wavy to Mirror-Smooth Glass Hair',
     used: 'Sensein Damage Repair Conditioner',
     productSlug: '/product/keratin-bond-intense-restorative-hair-mask',
-    beforeImage: '/images/transformations/frizz-before.jpg',
-    afterImage: '/images/transformations/frizz-after.jpg',
+    beforeImage: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820363/sensein/transformations/frizz-before.jpg',
+    afterImage: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820361/sensein/transformations/frizz-after.jpg',
     initialPos: 50,
   },
   {
@@ -35,8 +35,8 @@ const COMPARISONS: ComparisonItem[] = [
     title: 'Dry Strands to Defined Bouncy Curls',
     used: 'Sensein Intense Hydration Mask',
     productSlug: '/shop?category=Mask',
-    beforeImage: '/images/transformations/curls-before.jpg',
-    afterImage: '/images/transformations/curls-after.jpg',
+    beforeImage: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820359/sensein/transformations/curls-before.jpg',
+    afterImage: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820358/sensein/transformations/curls-after.jpg',
     initialPos: 45,
   },
   {
@@ -46,8 +46,8 @@ const COMPARISONS: ComparisonItem[] = [
     title: 'Chemically Treated Hair to Deep Rebuilt...',
     used: 'Sensein Bond Repair Shampoo',
     productSlug: '/product/black-caviar-cellular-cleansing-shampoo',
-    beforeImage: '/images/transformations/men-before.jpg',
-    afterImage: '/images/transformations/men-after.jpg',
+    beforeImage: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820366/sensein/transformations/men-before.jpg',
+    afterImage: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820364/sensein/transformations/men-after.jpg',
     initialPos: 50,
   },
 ];

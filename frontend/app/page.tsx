@@ -8,11 +8,10 @@ import { RealResultsCarousel } from '@/components/real-results-carousel';
 import { BeforeAfterSection } from '@/components/before-after-section';
 import { WhyChooseSensein } from '@/components/why-choose-sensein';
 import { fetchProducts } from '@/lib/api';
-import { LUXURY_PRODUCTS } from '@/lib/products-data';
 
 export default function HomePage() {
-  const [bestsellers, setBestsellers] = useState<any[]>(LUXURY_PRODUCTS);
-  const [loading, setLoading] = useState(false);
+  const [bestsellers, setBestsellers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -74,7 +73,7 @@ export default function HomePage() {
         {/* Background Image: SENSEIN Luxury Perfume Bottle */}
         <div className="absolute inset-0 z-0">
           <img
-            src="/images/hero/sensein-perfume-bottle.jpg"
+            src="https://res.cloudinary.com/dqddawu42/image/upload/v1789820352/sensein/hero/sensein-perfume-bottle.jpg"
             alt="SENSEIN Luxury Fragrance & Elixir"
             className="w-full h-full object-cover object-center filter brightness-[0.82] contrast-[1.08]"
           />
@@ -252,14 +251,14 @@ export default function HomePage() {
             <div className="relative max-w-md mx-auto lg:max-w-none w-full">
               <div className="aspect-[4/3] rounded-sm overflow-hidden border border-border shadow-luxury">
                 <img
-                  src="/images/products/mask-1.png" 
+                  src="https://res.cloudinary.com/dqddawu42/image/upload/v1789820271/sensein/products/mask-1.jpg" 
                   alt="SENSEIN Keratin Bond Restorative Mask"
                   className="w-full h-full object-cover"
                 />
               </div>
               <div className="absolute -bottom-4 -right-4 sm:-bottom-6 sm:-right-6 w-36 h-36 sm:w-48 sm:h-48 bg-[#FAF7F5] p-2.5 sm:p-3 rounded-sm border border-border shadow-lg">
                 <img
-                  src="/images/products/serum-1.png"
+                  src="https://res.cloudinary.com/dqddawu42/image/upload/v1789820326/sensein/products/serum-1.jpg"
                   alt="SENSEIN French Plum Serum"
                   className="w-full h-full object-contain"
                 />

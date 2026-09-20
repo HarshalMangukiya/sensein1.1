@@ -74,7 +74,7 @@ export function Header({ onOpenSearch }: HeaderProps) {
             {/* Center: Luxury SENSEIN Logo */}
             <div className="text-center absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-auto">
               <BrandLogo
-                src="/images/sensein-navbar-logo.png"
+                src="https://res.cloudinary.com/dqddawu42/image/upload/v1789820764/sensein/brand/sensein-navbar-logo.png"
                 variant="dark"
                 width={240}
                 height={45}
@@ -96,19 +96,25 @@ export function Header({ onOpenSearch }: HeaderProps) {
               </button>
 
               {/* User Profile / OTP Modal */}
-              <button
-                onClick={openAuthModal}
-                className="text-charcoal hover:text-plum transition p-1.5 sm:p-2 focus:outline-none rounded-full hover:bg-black/5"
-                aria-label="Account login"
-              >
-                {user ? (
+              {user ? (
+                <Link
+                  href="/dashboard"
+                  className="text-charcoal hover:text-plum transition p-1.5 sm:p-2 focus:outline-none rounded-full hover:bg-black/5 flex items-center justify-center"
+                  aria-label="Go to Dashboard"
+                >
                   <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-plum text-white text-[10px] sm:text-[11px] font-semibold flex items-center justify-center shadow-xs">
                     {user.name.charAt(0)}
                   </div>
-                ) : (
+                </Link>
+              ) : (
+                <button
+                  onClick={openAuthModal}
+                  className="text-charcoal hover:text-plum transition p-1.5 sm:p-2 focus:outline-none rounded-full hover:bg-black/5"
+                  aria-label="Account login"
+                >
                   <UserIcon className="w-[18px] h-[18px] sm:w-5 sm:h-5 stroke-[1.8]" />
-                )}
-              </button>
+                </button>
+              )}
 
               {/* Shopping Cart with circular Badge */}
               <button

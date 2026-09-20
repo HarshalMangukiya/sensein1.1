@@ -39,7 +39,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const productImage = product.images[0] || '/images/products/mask-1.png';
+    const productImage = product.images[0] || 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820271/sensein/products/mask-1.jpg';
     flyToCart(e, productImage);
     addItem({
       id: product.id,

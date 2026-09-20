@@ -23,7 +23,7 @@ const CAROUSEL_CARDS: CarouselCard[] = [
     name: 'SENSEIN® Volumizing Hair Style Powder',
     price: 749,
     mrp: 1199,
-    image: '/images/carousel/card-powder.jpg',
+    image: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820337/sensein/carousel/card-powder.jpg',
     href: '/shop',
   },
   {
@@ -33,7 +33,7 @@ const CAROUSEL_CARDS: CarouselCard[] = [
     name: 'SENSEIN® Soft Touch Hair Cream Wax',
     price: 749,
     mrp: 1099,
-    image: '/images/carousel/card-wax.jpg',
+    image: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820343/sensein/carousel/card-wax.jpg',
     href: '/shop',
   },
   {
@@ -43,7 +43,7 @@ const CAROUSEL_CARDS: CarouselCard[] = [
     name: 'SENSEIN® French Plum Illuminating Serum',
     price: 1499,
     mrp: 2199,
-    image: '/images/carousel/card-serum.jpg',
+    image: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820339/sensein/carousel/card-serum.jpg',
     href: '/product/bio-active-french-plum-illuminating-hair-serum',
   },
   {
@@ -53,7 +53,7 @@ const CAROUSEL_CARDS: CarouselCard[] = [
     name: 'SENSEIN® Keratin Bond Restorative Mask',
     price: 1299,
     mrp: 1999,
-    image: '/images/carousel/card-mask.jpg',
+    image: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820335/sensein/carousel/card-mask.jpg',
     href: '/product/keratin-bond-intense-restorative-hair-mask',
   },
   {
@@ -63,7 +63,7 @@ const CAROUSEL_CARDS: CarouselCard[] = [
     name: 'SENSEIN® Black Caviar Cleansing Shampoo',
     price: 1149,
     mrp: 1699,
-    image: '/images/carousel/card-shampoo.jpg',
+    image: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820341/sensein/carousel/card-shampoo.jpg',
     href: '/product/black-caviar-cellular-cleansing-shampoo',
   },
 ];

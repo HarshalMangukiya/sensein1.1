@@ -1,11 +1,7 @@
 import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans, Outfit, Cinzel, Playfair_Display } from 'next/font/google';
 import './globals.css';
-import { AnnouncementBar } from '@/components/announcement-bar';
-import { Header } from '@/components/header';
-import { Footer } from '@/components/footer';
-import { CartDrawer } from '@/components/cart-drawer';
-import { AuthModal } from '@/components/auth-modal';
+import { StoreLayoutWrapper } from '@/components/store-layout-wrapper';
 import { FlyToCartProvider } from '@/components/fly-to-cart';
 
 const jakarta = Plus_Jakarta_Sans({
@@ -48,14 +44,9 @@ export default function RootLayout({
       lang="en"
       className={`${jakarta.variable} ${outfit.variable} ${cinzel.variable} ${playfair.variable}`}
     >
-      <body className="min-h-screen flex flex-col bg-[#FAF7F5] text-charcoal antialiased">
+      <body className="antialiased">
         <FlyToCartProvider>
-          <AnnouncementBar />
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
-          <CartDrawer />
-          <AuthModal />
+          <StoreLayoutWrapper>{children}</StoreLayoutWrapper>
         </FlyToCartProvider>
       </body>
     </html>

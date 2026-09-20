@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { ProductCard } from '@/components/product-card';
 import { fetchProducts } from '@/lib/api';
-import { LUXURY_PRODUCTS } from '@/lib/products-data';
 
 function ShopContent() {
   const searchParams = useSearchParams();
@@ -41,8 +40,8 @@ function ShopContent() {
     ratings: true,
   });
 
-  const [products, setProducts] = useState<any[]>(LUXURY_PRODUCTS);
-  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const categories = [
     { label: 'All Formulations', value: 'All' },
@@ -54,6 +53,7 @@ function ShopContent() {
     { label: 'Texturizing Waxes', value: 'Wax' },
     { label: 'Fine Fragrances', value: 'Perfume' },
     { label: 'Facewash', value: 'Facewash' },
+    { label: '₹1 Live Payment Test', value: 'Testing & Samples' },
   ];
 
   const collections = [
@@ -126,6 +126,31 @@ function ShopContent() {
         <p className="text-xs sm:text-sm text-charcoal-muted max-w-2xl mt-1.5 font-light">
           Discover clinical salon-grade rituals, molecular peptide masks, and bioactive botanical elixirs engineered in Paris.
         </p>
+      </div>
+
+      {/* Live Payment Gateway Verification Banner */}
+      <div className="mb-8 p-4 bg-plum/5 border border-plum/20 rounded-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-3">
+          <span className="w-8 h-8 rounded-full bg-plum text-white flex items-center justify-center text-xs font-bold shrink-0">
+            ₹1
+          </span>
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-plum">
+              Live Gateway Verification Mode Active
+            </h4>
+            <p className="text-[11px] text-charcoal-muted">
+              Add the official ₹1 Test Item to verify live Razorpay checkout, UPI / Card capture, and Blue Dart AWB generation.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => {
+            setSelectedCategory('Testing & Samples');
+          }}
+          className="self-start sm:self-auto px-4 py-2 bg-plum hover:bg-plum-dark text-white text-[11px] font-bold uppercase tracking-widest rounded-sm transition shrink-0"
+        >
+          View ₹1 Test Item
+        </button>
       </div>
 
       {/* Top Controls Bar */}

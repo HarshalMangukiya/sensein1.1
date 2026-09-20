@@ -118,7 +118,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   const discountPercent = Math.round((savings / currentMrp) * 100);
 
   const handleAddToBag = (e?: React.MouseEvent) => {
-    const activeImage = product.images[selectedImageIndex] || product.images[0] || '/images/products/mask-1.png';
+    const activeImage = product.images[selectedImageIndex] || product.images[0] || 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820271/sensein/products/mask-1.jpg';
     if (e) {
       flyToCart(e, activeImage);
     } else {

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Query, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 
@@ -8,7 +8,7 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List and filter luxury products' })
+  @ApiOperation({ summary: 'List and filter luxury products from MongoDB Atlas' })
   @ApiQuery({ name: 'category', required: false, description: 'Category name or all' })
   @ApiQuery({ name: 'collection', required: false, description: 'Curated collection' })
   @ApiQuery({ name: 'minPrice', required: false, type: Number })
@@ -37,16 +37,40 @@ export class ProductsController {
   }
 
   @Get('categories')
-  @ApiOperation({ summary: 'Get list of categories with product counts' })
+  @ApiOperation({ summary: 'Get list of categories with product counts from MongoDB Atlas' })
   async getCategories() {
     return this.productsService.getCategories();
   }
 
   @Get(':idOrSlug')
-  @ApiOperation({ summary: 'Get single product details by id or slug' })
+  @ApiOperation({ summary: 'Get single product details by id or slug from MongoDB Atlas' })
   @ApiResponse({ status: 200, description: 'Product details' })
   @ApiResponse({ status: 404, description: 'Product not found' })
   async findOne(@Param('idOrSlug') idOrSlug: string) {
     return this.productsService.findOne(idOrSlug);
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'Create new product in MongoDB Atlas (Admin)' })
+  async create(@Body() dto: any) {
+    return this.productsService.create(dto);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update product in MongoDB Atlas (Admin)' })
+  async update(@Param('id') id: string, @Body() dto: any) {
+    return this.productsService.update(id, dto);
+  }
+
+  @Patch(':id/stock')
+  @ApiOperation({ summary: 'Adjust product stock in MongoDB Atlas (Admin)' })
+  async updateStock(@Param('id') id: string, @Body('delta') delta: number) {
+    return this.productsService.updateStock(id, delta);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete product from MongoDB Atlas (Admin)' })
+  async delete(@Param('id') id: string) {
+    return this.productsService.delete(id);
   }
 }

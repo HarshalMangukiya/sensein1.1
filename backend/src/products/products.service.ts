@@ -1,4 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, OnModuleInit, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Product, ProductDocument } from './product.schema';
 
 export interface ProductItem {
   id: string;
@@ -45,7 +48,29 @@ export interface ProductItem {
 }
 
 @Injectable()
-export class ProductsService {
+export class ProductsService implements OnModuleInit {
+  private readonly logger = new Logger(ProductsService.name);
+
+  constructor(
+    @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
+  ) {}
+
+  async onModuleInit() {
+    try {
+      for (const prod of this.products) {
+        await this.productModel.updateOne(
+          { $or: [{ id: prod.id }, { slug: prod.slug }] },
+          { $set: prod },
+          { upsert: true }
+        );
+      }
+      const count = await this.productModel.countDocuments();
+      this.logger.log(`MongoDB Atlas product catalog synchronized (${count} total products).`);
+    } catch (err: any) {
+      this.logger.warn(`MongoDB product sync skipped: ${err.message}`);
+    }
+  }
+
   private products: ProductItem[] = [
     {
       id: 'sensein-mask-01',
@@ -66,10 +91,10 @@ export class ProductsService {
       rating: 4.9,
       reviewCount: 142,
       images: [
-        '/images/products/mask-1.png',
-        '/images/products/mask-2.png',
-        '/images/products/mask-texture.png',
-        '/images/products/mask-lifestyle.png'
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820271/sensein/products/mask-1.jpg',
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820322/sensein/products/mask-2.jpg',
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820271/sensein/products/mask-1.jpg',
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820322/sensein/products/mask-2.jpg'
       ],
       badges: ['-35% OFF', 'BESTSELLER'],
       inStock: true,
@@ -113,8 +138,8 @@ export class ProductsService {
       rating: 4.8,
       reviewCount: 98,
       images: [
-        '/images/products/shampoo-1.png',
-        '/images/products/shampoo-2.png'
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820329/sensein/products/shampoo-1.jpg',
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820331/sensein/products/shampoo-2.jpg'
       ],
       badges: ['-32% OFF', 'BESTSELLER'],
       inStock: true,
@@ -156,8 +181,8 @@ export class ProductsService {
       rating: 4.9,
       reviewCount: 176,
       images: [
-        '/images/products/serum-1.png',
-        '/images/products/serum-2.png'
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820326/sensein/products/serum-1.jpg',
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820327/sensein/products/serum-2.jpg'
       ],
       badges: ['-31% OFF', 'SALON CHOICE'],
       inStock: true,
@@ -198,8 +223,8 @@ export class ProductsService {
       rating: 4.8,
       reviewCount: 64,
       images: [
-        '/images/products/elixir-1.png',
-        '/images/products/elixir-2.png'
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820309/sensein/products/elixir-1.jpg',
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820309/sensein/products/elixir-1.jpg'
       ],
       badges: ['-28% OFF', 'CLINICAL LAB'],
       inStock: true,
@@ -240,7 +265,7 @@ export class ProductsService {
       rating: 4.7,
       reviewCount: 52,
       images: [
-        '/images/products/cream-1.png'
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820303/sensein/products/cream-1.jpg'
       ],
       badges: ['-33% OFF'],
       inStock: true,
@@ -273,7 +298,7 @@ export class ProductsService {
       rating: 4.6,
       reviewCount: 41,
       images: [
-        '/images/products/wax-1.png'
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820332/sensein/products/wax-1.jpg'
       ],
       badges: ['-30% OFF'],
       inStock: true,
@@ -306,7 +331,7 @@ export class ProductsService {
       rating: 4.9,
       reviewCount: 110,
       images: [
-        '/images/products/perfume-1.png'
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820324/sensein/products/perfume-1.jpg'
       ],
       badges: ['-30% OFF', 'LIMITED EDITION'],
       inStock: true,
@@ -338,7 +363,7 @@ export class ProductsService {
       rating: 4.7,
       reviewCount: 38,
       images: [
-        '/images/products/facewash-1.png'
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820315/sensein/products/facewash-1.jpg'
       ],
       badges: ['-33% OFF'],
       inStock: true,
@@ -352,10 +377,53 @@ export class ProductsService {
         { step: 2, title: 'Rinse with Cool Water', instruction: 'Splash clean and pat dry with a soft face towel.' }
       ],
       reviews: []
+    },
+    {
+      id: 'sensein-test-pay-01',
+      name: 'SENSEIN Live Payment Verification Sample • ₹1 Test Item',
+      slug: 'sensein-payment-verification-test',
+      subtitle: 'Live Razorpay Gateway Connectivity Test • Instant ₹1 Verification Token',
+      description: 'Special ₹1 verification formulation token designed for testing live Razorpay prepaid payment integration, instant Blue Dart priority tracking assignment, and live automated email receipts.',
+      category: 'Testing & Samples',
+      curatedCollection: 'Bestsellers',
+      price: 1,
+      mrp: 99,
+      discountPercentage: 99,
+      netVolume: '1 Unit Test Sample',
+      variants: [
+        { size: '1 Unit Live Test Token', price: 1, mrp: 99, inStock: true }
+      ],
+      rating: 5.0,
+      reviewCount: 142,
+      images: [
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789818163/sensein/products/bxsjmi3kfmsq7jigqkfv.png'
+      ],
+      badges: ['₹1 TEST ITEM', 'LIVE GATEWAY TEST'],
+      inStock: true,
+      ingredients: {
+        keyActives: ['Live Payment Verification', 'Razorpay Gateway Testing', 'Instant Delivery Protocol'],
+        fullList: 'Aqua, Bio-Active Botanical Extract, Tocopherol, SENSEIN Quality Verification Assurance.'
+      },
+      overview: 'Designed exclusively for testing real checkout, live payment capture via UPI / Cards / NetBanking, and MongoDB order creation.',
+      howToUse: [
+        { step: 1, title: 'Add to Bag', instruction: 'Click Add to Bag to place the ₹1 test item into your luxury cart.' },
+        { step: 2, title: 'Complete Checkout', instruction: 'Proceed to checkout and complete the ₹1 live payment via UPI, Card, or NetBanking.' }
+      ],
+      reviews: [
+        {
+          id: 'rev-test-1',
+          author: 'SENSEIN Quality Lab',
+          rating: 5,
+          title: 'Payment gateway verification successful',
+          content: 'Razorpay prepaid live transactions and MongoDB order syncing tested seamlessly.',
+          date: 'Today',
+          verifiedBuyer: true
+        }
+      ]
     }
   ];
 
-  findAll(filters?: {
+  async findAll(filters?: {
     category?: string;
     collection?: string;
     minPrice?: number;
@@ -363,85 +431,100 @@ export class ProductsService {
     minRating?: number;
     search?: string;
     sort?: string;
-  }): { products: ProductItem[]; total: number } {
-    let result = [...this.products];
-
+  }): Promise<{ products: any[]; total: number }> {
+    const query: any = {};
     if (filters?.category && filters.category.toLowerCase() !== 'all') {
-      result = result.filter(p => p.category.toLowerCase() === filters.category.toLowerCase());
+      query.category = new RegExp(`^${filters.category}$`, 'i');
     }
-
     if (filters?.collection && filters.collection.toLowerCase() !== 'all') {
-      result = result.filter(p => p.curatedCollection.toLowerCase() === filters.collection.toLowerCase());
+      query.curatedCollection = new RegExp(`^${filters.collection}$`, 'i');
     }
-
     if (filters?.minPrice !== undefined && !isNaN(filters.minPrice)) {
-      result = result.filter(p => p.price >= filters.minPrice);
+      query.price = { ...(query.price || {}), $gte: filters.minPrice };
     }
-
     if (filters?.maxPrice !== undefined && !isNaN(filters.maxPrice)) {
-      result = result.filter(p => p.price <= filters.maxPrice);
+      query.price = { ...(query.price || {}), $lte: filters.maxPrice };
     }
-
     if (filters?.minRating !== undefined && !isNaN(filters.minRating)) {
-      result = result.filter(p => p.rating >= filters.minRating);
+      query.rating = { $gte: filters.minRating };
     }
-
     if (filters?.search && filters.search.trim()) {
-      const q = filters.search.toLowerCase().trim();
-      result = result.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q)
-      );
+      const regex = new RegExp(filters.search.trim(), 'i');
+      query.$or = [{ name: regex }, { description: regex }, { category: regex }];
     }
 
-    // Sorting
-    if (filters?.sort) {
-      switch (filters.sort) {
-        case 'price-low':
-          result.sort((a, b) => a.price - b.price);
-          break;
-        case 'price-high':
-          result.sort((a, b) => b.price - a.price);
-          break;
-        case 'rating':
-          result.sort((a, b) => b.rating - a.rating);
-          break;
-        case 'discount':
-          result.sort((a, b) => b.discountPercentage - a.discountPercentage);
-          break;
-        default:
-          // featured: bestsellers first
-          result.sort((a, b) => (b.curatedCollection === 'Bestsellers' ? 1 : 0) - (a.curatedCollection === 'Bestsellers' ? 1 : 0));
-          break;
-      }
-    }
+    let sortOption: any = { createdAt: -1 };
+    if (filters?.sort === 'price-low') sortOption = { price: 1 };
+    else if (filters?.sort === 'price-high') sortOption = { price: -1 };
+    else if (filters?.sort === 'rating') sortOption = { rating: -1 };
+    else if (filters?.sort === 'discount') sortOption = { discountPercentage: -1 };
 
-    return { products: result, total: result.length };
+    const dbProducts = await this.productModel.find(query).sort(sortOption).lean();
+    const mapped = (dbProducts || []).map((p: any) => ({
+      ...p,
+      id: p._id?.toString() || p.id,
+    }));
+    return { products: mapped, total: mapped.length };
   }
 
-  findOne(idOrSlug: string): ProductItem {
-    const product = this.products.find(p => p.id === idOrSlug || p.slug === idOrSlug);
-    if (!product) {
-      throw new NotFoundException(`Product not found with identifier: ${idOrSlug}`);
+  async findOne(idOrSlug: string): Promise<any> {
+    const isObjectId = idOrSlug.match(/^[0-9a-fA-F]{24}$/);
+    const condition: any = { $or: [{ slug: idOrSlug }] };
+    if (isObjectId) condition.$or.push({ _id: idOrSlug });
+    else condition.$or.push({ id: idOrSlug });
+
+    const found = await this.productModel.findOne(condition).lean();
+    if (found) {
+      return { ...(found as any), id: (found as any)._id?.toString() || (found as any).id };
     }
-    return product;
+    throw new NotFoundException(`Product not found with identifier: ${idOrSlug}`);
   }
 
-  getCategories(): Array<{ name: string; count: number; slug: string }> {
+  async getCategories(): Promise<Array<{ name: string; count: number; slug: string }>> {
+    const dbProducts = await this.productModel.find().lean();
     const categoriesMap = new Map<string, number>();
-    this.products.forEach(p => {
-      categoriesMap.set(p.category, (categoriesMap.get(p.category) || 0) + 1);
+    (dbProducts || []).forEach((p: any) => {
+      if (p.category) {
+        categoriesMap.set(p.category, (categoriesMap.get(p.category) || 0) + 1);
+      }
     });
 
-    const list = [
-      { name: 'All Products', count: this.products.length, slug: 'all' },
+    return [
+      { name: 'All Products', count: (dbProducts || []).length, slug: 'all' },
       ...Array.from(categoriesMap.entries()).map(([name, count]) => ({
         name,
         count,
         slug: name.toLowerCase(),
       })),
     ];
-    return list;
+  }
+
+  async create(dto: any) {
+    return this.productModel.create(dto);
+  }
+
+  async update(id: string, dto: any) {
+    const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+    const query: any = { $or: [{ id }] };
+    if (isObjectId) query.$or.push({ _id: id });
+    return this.productModel.findOneAndUpdate(query, dto, { new: true });
+  }
+
+  async updateStock(id: string, delta: number) {
+    const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+    const query: any = { $or: [{ id }] };
+    if (isObjectId) query.$or.push({ _id: id });
+    return this.productModel.findOneAndUpdate(
+      query,
+      { $inc: { stock: delta } },
+      { new: true }
+    );
+  }
+
+  async delete(id: string) {
+    const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+    const query: any = { $or: [{ id }] };
+    if (isObjectId) query.$or.push({ _id: id });
+    return this.productModel.findOneAndDelete(query);
   }
 }

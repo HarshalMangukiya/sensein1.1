@@ -163,7 +163,7 @@ export function CartDrawer() {
                 {/* Product Thumbnail */}
                 <div className="w-16 h-16 bg-[#FAF7F5] flex-shrink-0 rounded flex items-center justify-center p-1 border border-border/50">
                   <img
-                    src={item.image || '/images/products/mask-1.png'}
+                    src={item.image || 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820271/sensein/products/mask-1.jpg'}
                     alt={item.name}
                     className="w-full h-full object-contain"
                   />

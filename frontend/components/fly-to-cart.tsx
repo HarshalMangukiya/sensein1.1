@@ -73,7 +73,7 @@ export function FlyToCartProvider({ children }: { children: React.ReactNode }) {
       }
 
       const id = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-      const resolvedImg = imageUrl || '/images/products/mask-1.png';
+      const resolvedImg = imageUrl || 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820271/sensein/products/mask-1.jpg';
 
       setFlyingItems((prev) => [
         ...prev,

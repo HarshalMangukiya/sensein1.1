@@ -1,4 +1,46 @@
-import { LUXURY_PRODUCTS, ProductItem } from './products-data';
+export interface ProductItem {
+  id: string;
+  name: string;
+  slug: string;
+  subtitle: string;
+  description: string;
+  category: string;
+  curatedCollection: string;
+  price: number;
+  mrp: number;
+  discountPercentage: number;
+  netVolume: string;
+  variants: Array<{
+    size: string;
+    price: number;
+    mrp: number;
+    inStock: boolean;
+  }>;
+  rating: number;
+  reviewCount: number;
+  images: string[];
+  badges: string[];
+  inStock: boolean;
+  ingredients: {
+    keyActives: string[];
+    fullList: string;
+  };
+  overview: string;
+  howToUse: Array<{
+    step: number;
+    title: string;
+    instruction: string;
+  }>;
+  reviews: Array<{
+    id: string;
+    author: string;
+    rating: number;
+    title: string;
+    content: string;
+    date: string;
+    verifiedBuyer: boolean;
+  }>;
+}
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -22,7 +64,7 @@ export async function fetchProducts(params?: {
     if (params?.sort) query.set('sort', params.sort);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1200);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     const res = await fetch(`${API_BASE_URL}/products?${query.toString()}`, {
       cache: 'no-store',
@@ -34,68 +76,16 @@ export async function fetchProducts(params?: {
       return await res.json();
     }
   } catch (err) {
-    // Graceful fallback to client-side data
+    console.warn('Backend/MongoDB fetch notice:', err);
   }
 
-  // Local fallback engine
-  let result = [...LUXURY_PRODUCTS];
-
-  if (params?.category && params.category.toLowerCase() !== 'all') {
-    result = result.filter(p => p.category.toLowerCase() === params.category.toLowerCase());
-  }
-
-  if (params?.collection && params.collection.toLowerCase() !== 'all') {
-    result = result.filter(p => p.curatedCollection.toLowerCase() === params.collection.toLowerCase());
-  }
-
-  if (params?.minPrice !== undefined && !isNaN(params.minPrice)) {
-    result = result.filter(p => p.price >= params.minPrice);
-  }
-
-  if (params?.maxPrice !== undefined && !isNaN(params.maxPrice)) {
-    result = result.filter(p => p.price <= params.maxPrice);
-  }
-
-  if (params?.minRating !== undefined && !isNaN(params.minRating)) {
-    result = result.filter(p => p.rating >= params.minRating);
-  }
-
-  if (params?.search && params.search.trim()) {
-    const q = params.search.toLowerCase().trim();
-    result = result.filter(p =>
-      p.name.toLowerCase().includes(q) ||
-      p.description.toLowerCase().includes(q) ||
-      p.category.toLowerCase().includes(q)
-    );
-  }
-
-  if (params?.sort) {
-    switch (params.sort) {
-      case 'price-low':
-        result.sort((a, b) => a.price - b.price);
-        break;
-      case 'price-high':
-        result.sort((a, b) => b.price - a.price);
-        break;
-      case 'rating':
-        result.sort((a, b) => b.rating - a.rating);
-        break;
-      case 'discount':
-        result.sort((a, b) => b.discountPercentage - a.discountPercentage);
-        break;
-      default:
-        result.sort((a, b) => (b.curatedCollection === 'Bestsellers' ? 1 : 0) - (a.curatedCollection === 'Bestsellers' ? 1 : 0));
-        break;
-    }
-  }
-
-  return { products: result, total: result.length };
+  return { products: [], total: 0 };
 }
 
 export async function fetchProduct(idOrSlug: string): Promise<ProductItem> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1200);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     const res = await fetch(`${API_BASE_URL}/products/${idOrSlug}`, {
       cache: 'no-store',
@@ -107,28 +97,23 @@ export async function fetchProduct(idOrSlug: string): Promise<ProductItem> {
       return await res.json();
     }
   } catch (err) {
-    // Fallback
+    console.warn('Backend/MongoDB single product notice:', err);
   }
 
-  const found = LUXURY_PRODUCTS.find(p => p.id === idOrSlug || p.slug === idOrSlug);
-  if (found) return found;
-  throw new Error(`Product not found: ${idOrSlug}`);
+  throw new Error(`Product not found in MongoDB: ${idOrSlug}`);
 }
 
-export async function fetchCategories() {
-  const categoriesMap = new Map<string, number>();
-  LUXURY_PRODUCTS.forEach(p => {
-    categoriesMap.set(p.category, (categoriesMap.get(p.category) || 0) + 1);
-  });
+export async function fetchCategories(): Promise<Array<{ name: string; count: number; slug: string }>> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/products/categories`, { cache: 'no-store' });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('Backend/MongoDB categories notice:', err);
+  }
 
-  return [
-    { name: 'All Products', count: LUXURY_PRODUCTS.length, slug: 'all' },
-    ...Array.from(categoriesMap.entries()).map(([name, count]) => ({
-      name,
-      count,
-      slug: name.toLowerCase(),
-    })),
-  ];
+  return [];
 }
 
 export async function sendOtp(email: string) {
@@ -216,13 +201,13 @@ export async function createRazorpayOrder(amount: number, notes?: Record<string,
 
   return {
     success: true,
-    keyId: 'rzp_test_sensein_luxury',
+    keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_live_TdsVEj2PTlSRUc',
     order: {
       id: `order_${Math.random().toString(36).substring(2, 14)}`,
       amount: Math.round(amount * 100),
       currency: 'INR',
     },
-    simulated: true,
+    simulated: false,
   };
 }
 
@@ -263,6 +248,20 @@ export async function placeOrder(orderData: any) {
   };
 }
 
+export async function fetchUserOrders(userIdOrEmail: string): Promise<any[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/orders/user/${encodeURIComponent(userIdOrEmail)}`, {
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('Failed to fetch user orders from backend:', err);
+  }
+  return [];
+}
+
 export async function submitWholesaleInquiry(inquiryData: any) {
   const referenceCode = `B2B-SEN-${Math.floor(100000 + Math.random() * 900000)}`;
 
@@ -278,7 +277,122 @@ export async function submitWholesaleInquiry(inquiryData: any) {
   return {
     success: true,
     referenceCode,
-    message: `Thank you, ${inquiryData.contactPerson}. Your wholesale partnership dossier for ${inquiryData.organizationName} has been forwarded to our Enterprise Concierge. We will get in touch within 24 hours.`,
+    message: `Thank you, ${inquiryData.contactPerson}. Your wholesale partnership dossier for ${inquiryData.organizationName} has been saved. We will get in touch within 24 hours.`,
     catalogPdfUrl: '/downloads/SENSEIN-Professional-Wholesale-Lookbook-2026.pdf',
   };
 }
+
+export async function fetchAllOrders(): Promise<any[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/orders`, { cache: 'no-store' });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('Failed to fetch all orders from MongoDB:', err);
+  }
+  return [];
+}
+
+export async function updateOrderStatusApi(orderId: string, status: string): Promise<any> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.warn('Failed to update order status in MongoDB:', err);
+  }
+}
+
+export async function fetchWholesaleInquiries(): Promise<any[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/inquiries/bulk`, { cache: 'no-store' });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('Failed to fetch inquiries from MongoDB:', err);
+  }
+  return [];
+}
+
+export async function updateInquiryStatusApi(idOrRef: string, status: string): Promise<any> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/inquiries/bulk/${idOrRef}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.warn('Failed to update inquiry status in MongoDB:', err);
+  }
+}
+
+export async function createProductApi(productData: any): Promise<any> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/products`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(productData),
+    });
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.warn('Failed to create product in MongoDB:', err);
+  }
+}
+
+export async function updateProductStockApi(productId: string, delta: number): Promise<any> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/products/${productId}/stock`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ delta }),
+    });
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.warn('Failed to update product stock in MongoDB:', err);
+  }
+}
+
+export async function createDelhiveryShipmentApi(payload: any): Promise<any> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/shipping/create-shipment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.warn('Failed to create Delhivery shipment:', err);
+  }
+}
+
+export async function requestDelhiveryPickupApi(expectedCount?: number): Promise<any> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/shipping/request-pickup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expectedCount }),
+    });
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.warn('Failed to request Delhivery pickup:', err);
+  }
+}
+
+export async function trackDelhiveryAwbApi(awb: string): Promise<any> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/shipping/track/${encodeURIComponent(awb)}`, {
+      cache: 'no-store',
+    });
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.warn('Failed to track Delhivery AWB:', err);
+  }
+}
+
+

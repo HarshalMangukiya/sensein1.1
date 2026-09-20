@@ -36,8 +36,8 @@ export function BrandLogo({
   const logoSrc =
     src ||
     (variant === 'light'
-      ? '/images/sensein-logo-white.png'
-      : '/images/sensein-logo-dark.png');
+      ? 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820762/sensein/brand/sensein-logo-white.png'
+      : 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820760/sensein/brand/sensein-logo-dark.png');
 
   const logoImage = (
     <div className={`relative inline-flex items-center justify-center ${className}`}>

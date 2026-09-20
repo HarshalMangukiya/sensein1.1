@@ -1,0 +1,37 @@
+{
+  "products": {
+    "cream-1.png": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820303/sensein/products/cream-1.jpg",
+    "elixir-1.png": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820309/sensein/products/elixir-1.jpg",
+    "facewash-1.png": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820315/sensein/products/facewash-1.jpg",
+    "mask-1.png": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820271/sensein/products/mask-1.jpg",
+    "mask-2.png": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820322/sensein/products/mask-2.jpg",
+    "perfume-1.png": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820324/sensein/products/perfume-1.jpg",
+    "serum-1.png": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820326/sensein/products/serum-1.jpg",
+    "serum-2.png": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820327/sensein/products/serum-2.jpg",
+    "shampoo-1.png": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820329/sensein/products/shampoo-1.jpg",
+    "shampoo-2.png": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820331/sensein/products/shampoo-2.jpg",
+    "wax-1.png": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820332/sensein/products/wax-1.jpg"
+  },
+  "carousel": {
+    "card-mask.jpg": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820335/sensein/carousel/card-mask.jpg",
+    "card-powder.jpg": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820337/sensein/carousel/card-powder.jpg",
+    "card-serum.jpg": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820339/sensein/carousel/card-serum.jpg",
+    "card-shampoo.jpg": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820341/sensein/carousel/card-shampoo.jpg",
+    "card-wax.jpg": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820343/sensein/carousel/card-wax.jpg"
+  },
+  "hero": {
+    "editorial-hero.jpg": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820345/sensein/hero/editorial-hero.jpg",
+    "model-center.jpg": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820347/sensein/hero/model-center.jpg",
+    "model-spray.jpg": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820348/sensein/hero/model-spray.jpg",
+    "model-walk-left.jpg": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820350/sensein/hero/model-walk-left.jpg",
+    "sensein-perfume-bottle.jpg": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820352/sensein/hero/sensein-perfume-bottle.jpg"
+  },
+  "transformations": {
+    "curls-after.jpg": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820358/sensein/transformations/curls-after.jpg",
+    "curls-before.jpg": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820359/sensein/transformations/curls-before.jpg",
+    "frizz-after.jpg": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820361/sensein/transformations/frizz-after.jpg",
+    "frizz-before.jpg": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820363/sensein/transformations/frizz-before.jpg",
+    "men-after.jpg": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820364/sensein/transformations/men-after.jpg",
+    "men-before.jpg": "https://res.cloudinary.com/dqddawu42/image/upload/v1789820366/sensein/transformations/men-before.jpg"
+  }
+}

@@ -105,7 +105,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
           mrp: product.mrp,
           quantity,
           size: product.size || '250ml',
-          image: product.image || '/images/products/mask-1.png',
+          image: product.image || 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820271/sensein/products/mask-1.jpg',
           category: product.category,
         },
       ];
@@ -204,6 +204,11 @@ export const useCartStore = create<CartStore>((set, get) => ({
   getShippingFee: () => {
     const subtotal = get().getSubtotal();
     if (subtotal === 0) return 0;
+    // Waive shipping fee for ₹1 test verification items so testing is exactly ₹1
+    const items = get().items;
+    if (items.length > 0 && items.every((i) => i.id === 'sensein-test-pay-01' || i.slug === 'sensein-payment-verification-test' || i.price <= 1)) {
+      return 0;
+    }
     return subtotal >= 499 ? 0 : 99;
   },
 
