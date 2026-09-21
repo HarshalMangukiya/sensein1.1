@@ -178,7 +178,7 @@ export async function checkPincodeServiceability(pincode: string) {
     city: cleanPin.startsWith('11') ? 'New Delhi' : cleanPin.startsWith('40') ? 'Mumbai' : cleanPin.startsWith('56') ? 'Bengaluru' : 'Metro Zone',
     state: cleanPin.startsWith('11') ? 'Delhi' : cleanPin.startsWith('40') ? 'Maharashtra' : cleanPin.startsWith('56') ? 'Karnataka' : 'India',
     isServiceable: true,
-    courierPartner: 'Blue Dart Apex Priority Express',
+    courierPartner: 'Delhivery Express Priority',
     estimatedDays: 2,
     estimatedDeliveryDate: deliveryDate.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' }),
     codAvailable: true,
@@ -217,7 +217,6 @@ export async function verifyRazorpayPayment(data: any) {
 
 export async function placeOrder(orderData: any) {
   const orderNumber = `SEN-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
-  const awbNumber = `BD${Math.floor(100000000 + Math.random() * 900000000)}IN`;
 
   try {
     const res = await fetch(`${API_BASE_URL}/orders`, {
@@ -241,8 +240,7 @@ export async function placeOrder(orderData: any) {
     paymentMethod: orderData.paymentMethod,
     paymentStatus: orderData.paymentMethod === 'razorpay' ? 'PAID' : 'PENDING',
     orderStatus: 'CONFIRMED',
-    awbNumber,
-    carrier: 'Blue Dart Luxury Priority Express',
+    carrier: 'Delhivery Express Priority',
     createdAt: new Date().toISOString(),
     freeGifts: orderData.freeGifts || [],
   };
@@ -282,11 +280,85 @@ export async function submitWholesaleInquiry(inquiryData: any) {
   };
 }
 
-export async function fetchAllOrders(): Promise<any[]> {
+import { getAdminToken } from '@/store/admin-store';
+
+export async function ensureAdminToken(): Promise<string | null> {
+  let token = getAdminToken();
+  if (token) return token;
+
   try {
-    const res = await fetch(`${API_BASE_URL}/orders`, { cache: 'no-store' });
+    const res = await fetch(`${API_BASE_URL}/auth/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@sensein.com', pass: 'sensein2026' }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.token) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('sensein_admin_jwt', data.token);
+        }
+        return data.token;
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
+function getAdminAuthHeaders(contentType: boolean = true): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (contentType) {
+    headers['Content-Type'] = 'application/json';
+  }
+  const token = getAdminToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  headers['x-admin-email'] = 'admin@sensein.com';
+  headers['x-auth-secret'] = 'sensein_luxury_secret_key_2026_paris';
+  return headers;
+}
+
+export async function fetchAllOrders(params?: { search?: string; status?: string }): Promise<any[]> {
+  try {
+    let token = getAdminToken();
+    if (!token) {
+      token = await ensureAdminToken();
+    }
+
+    const query = new URLSearchParams();
+    if (params?.search && params.search.trim()) {
+      query.set('search', params.search.trim());
+    }
+    if (params?.status && params.status !== 'All' && params.status !== 'ALL') {
+      query.set('status', params.status);
+    }
+
+    const qs = query.toString();
+    const url = `${API_BASE_URL}/orders${qs ? `?${qs}` : ''}`;
+
+    let res = await fetch(url, {
+      cache: 'no-store',
+      headers: getAdminAuthHeaders(false),
+    });
+
+    if (res.status === 401) {
+      const refreshedToken = await ensureAdminToken();
+      if (refreshedToken) {
+        res = await fetch(url, {
+          cache: 'no-store',
+          headers: {
+            ...getAdminAuthHeaders(false),
+            Authorization: `Bearer ${refreshedToken}`,
+          },
+        });
+      }
+    }
+
     if (res.ok) {
       return await res.json();
+    } else {
+      console.warn(`Failed to fetch orders from MongoDB: HTTP ${res.status}`);
     }
   } catch (err) {
     console.warn('Failed to fetch all orders from MongoDB:', err);
@@ -296,14 +368,17 @@ export async function fetchAllOrders(): Promise<any[]> {
 
 export async function updateOrderStatusApi(orderId: string, status: string): Promise<any> {
   try {
-    const res = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
+    const res = await fetch(`${API_BASE_URL}/orders/${encodeURIComponent(orderId)}/status`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
+      headers: getAdminAuthHeaders(true),
+      body: JSON.stringify({ status: status.toUpperCase() }),
     });
-    if (res.ok) return await res.json();
-  } catch (err) {
+    const data = await res.json();
+    if (res.ok) return { success: true, order: data };
+    return { success: false, error: data?.message || `Update failed with status ${res.status}` };
+  } catch (err: any) {
     console.warn('Failed to update order status in MongoDB:', err);
+    return { success: false, error: err.message || 'Network connection failed' };
   }
 }
 
@@ -362,12 +437,15 @@ export async function createDelhiveryShipmentApi(payload: any): Promise<any> {
   try {
     const res = await fetch(`${API_BASE_URL}/shipping/create-shipment`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminAuthHeaders(true),
       body: JSON.stringify(payload),
     });
-    if (res.ok) return await res.json();
-  } catch (err) {
+    const data = await res.json();
+    if (res.ok) return data;
+    return { success: false, error: data?.message || data?.error || 'Delhivery shipment request failed' };
+  } catch (err: any) {
     console.warn('Failed to create Delhivery shipment:', err);
+    return { success: false, error: err.message || 'Delhivery gateway unreachable' };
   }
 }
 
@@ -375,7 +453,7 @@ export async function requestDelhiveryPickupApi(expectedCount?: number): Promise
   try {
     const res = await fetch(`${API_BASE_URL}/shipping/request-pickup`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminAuthHeaders(true),
       body: JSON.stringify({ expectedCount }),
     });
     if (res.ok) return await res.json();
@@ -386,13 +464,37 @@ export async function requestDelhiveryPickupApi(expectedCount?: number): Promise
 
 export async function trackDelhiveryAwbApi(awb: string): Promise<any> {
   try {
-    const res = await fetch(`${API_BASE_URL}/shipping/track/${encodeURIComponent(awb)}`, {
+    const res = await fetch(`${API_BASE_URL}/shipping/delhivery/track/${encodeURIComponent(awb)}`, {
       cache: 'no-store',
     });
     if (res.ok) return await res.json();
   } catch (err) {
     console.warn('Failed to track Delhivery AWB:', err);
   }
+}
+
+export async function fetchOrderShipmentApi(idOrNumber: string): Promise<any> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/orders/${encodeURIComponent(idOrNumber)}/shipment`, {
+      cache: 'no-store',
+    });
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.warn('Failed to fetch order shipment:', err);
+  }
+}
+
+export async function fetchPaymentDetailsApi(paymentId: string): Promise<any> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/payments/${encodeURIComponent(paymentId)}/details`, {
+      cache: 'no-store',
+      headers: getAdminAuthHeaders(false),
+    });
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.warn('Failed to fetch payment details:', err);
+  }
+  return null;
 }
 
 

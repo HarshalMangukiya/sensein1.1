@@ -6,6 +6,8 @@ import { User, UserSchema } from './user.schema';
 import { RedisModule } from '../redis/redis.module';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
+import { AdminGuard } from './admin.guard';
+
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
@@ -13,7 +15,7 @@ import { CloudinaryModule } from '../cloudinary/cloudinary.module';
     CloudinaryModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService],
-  exports: [AuthService],
+  providers: [AuthService, AdminGuard],
+  exports: [AuthService, AdminGuard],
 })
 export class AuthModule {}

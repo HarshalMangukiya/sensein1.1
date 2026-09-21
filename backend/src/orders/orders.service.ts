@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Order, OrderDocument } from './order.schema';
 import { CreateOrderDto } from './orders.dto';
+import { ShippingService } from '../shipping/shipping.service';
 
 export interface OrderRecord {
   id: string;
@@ -17,8 +18,10 @@ export interface OrderRecord {
   paymentMethod: string;
   paymentStatus: 'PAID' | 'PENDING' | 'FAILED';
   orderStatus: 'CONFIRMED' | 'PROCESSING' | 'DISPATCHED' | 'DELIVERED';
-  awbNumber: string;
-  carrier: string;
+  awbNumber?: string;
+  carrier?: string;
+  trackingUrl?: string;
+  shipment?: any;
   createdAt: string;
   freeGifts: string[];
 }
@@ -30,6 +33,7 @@ export class OrdersService implements OnModuleInit {
 
   constructor(
     @InjectModel(Order.name) private readonly orderModel: Model<OrderDocument>,
+    private readonly shippingService: ShippingService,
   ) {}
 
   async onModuleInit() {
@@ -71,9 +75,8 @@ export class OrdersService implements OnModuleInit {
             total: 3498,
             paymentMethod: 'Prepaid (Razorpay)',
             paymentStatus: 'PAID',
-            orderStatus: 'DISPATCHED',
-            awbNumber: 'BD982341120IN',
-            carrier: 'Blue Dart Luxury Priority Express',
+            orderStatus: 'CONFIRMED',
+            carrier: 'Delhivery Express Priority',
             freeGifts: ['Silk Hair Wrap (Complimentary)'],
           },
           {
@@ -104,8 +107,7 @@ export class OrdersService implements OnModuleInit {
             paymentMethod: 'Prepaid (Razorpay)',
             paymentStatus: 'PAID',
             orderStatus: 'CONFIRMED',
-            awbNumber: 'BD449210492IN',
-            carrier: 'Blue Dart Luxury Priority Express',
+            carrier: 'Delhivery Express Priority',
             freeGifts: [],
           },
         ];
@@ -120,10 +122,9 @@ export class OrdersService implements OnModuleInit {
   async create(dto: CreateOrderDto): Promise<OrderRecord> {
     const orderNumber = `SEN-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
     const id = `ord_${Math.random().toString(36).substring(2, 10)}`;
-    const awbNumber = `BD${Math.floor(100000000 + Math.random() * 900000000)}IN`;
     const finalUserId = dto.userId || dto.customer?.userId || (dto.customer?.email ? String(dto.customer.email).toLowerCase().trim() : undefined);
 
-    const orderData = {
+    const orderData: any = {
       orderNumber,
       userId: finalUserId,
       customer: {
@@ -137,12 +138,11 @@ export class OrdersService implements OnModuleInit {
       shippingFee: dto.shippingFee,
       total: dto.total,
       paymentMethod: dto.paymentMethod || 'razorpay',
-      paymentStatus: (dto.paymentMethod === 'razorpay' || !dto.paymentMethod) ? 'PAID' : 'PENDING',
+      paymentStatus: (dto.paymentMethod || '').toLowerCase() === 'cod' ? 'PENDING' : ((dto.paymentMethod === 'razorpay' || !dto.paymentMethod) ? 'PAID' : 'PENDING'),
       orderStatus: 'CONFIRMED',
       razorpayOrderId: (dto as any).razorpayOrderId,
       razorpayPaymentId: (dto as any).razorpayPaymentId,
-      awbNumber,
-      carrier: 'Blue Dart Luxury Priority Express',
+      carrier: 'Delhivery Express Priority',
       freeGifts: dto.freeGifts || [],
     };
 
@@ -153,6 +153,48 @@ export class OrdersService implements OnModuleInit {
       this.logger.log(`Order successfully stored in MongoDB Atlas: ${orderNumber} (ID: ${savedId})`);
     } catch (err: any) {
       this.logger.warn(`MongoDB order storage error: ${err.message}`);
+    }
+
+    // Automatically attempt live Delhivery shipment manifest if order is paid or COD
+    const isCod = (orderData.paymentMethod || '').toLowerCase() === 'cod';
+    const shouldShip = orderData.paymentStatus === 'PAID' || isCod;
+
+    if (shouldShip) {
+      try {
+        const shipRes = await this.shippingService.createShipment({
+          orderNumber,
+          customerName: orderData.customer?.name || 'Patron',
+          address: orderData.customer?.address || '',
+          pincode: orderData.customer?.pincode || '',
+          city: orderData.customer?.city || '',
+          state: orderData.customer?.state || '',
+          phone: orderData.customer?.phone || '',
+          totalAmount: orderData.total,
+          items: orderData.items,
+          paymentMode: isCod ? 'COD' : 'Prepaid',
+          codAmount: isCod ? orderData.total : 0,
+        });
+
+        if (shipRes?.success && shipRes?.waybill) {
+          orderData.awbNumber = shipRes.waybill;
+          orderData.trackingUrl = shipRes.trackingUrl;
+          orderData.orderStatus = 'SHIPPED';
+
+          // Persist generated AWB into MongoDB Atlas
+          try {
+            await this.orderModel.findByIdAndUpdate(savedId, {
+              awbNumber: shipRes.waybill,
+              trackingUrl: shipRes.trackingUrl,
+              orderStatus: 'SHIPPED',
+            });
+            this.logger.log(`Live Delhivery AWB ${shipRes.waybill} saved to MongoDB order ${orderNumber}`);
+          } catch (dbErr: any) {
+            this.logger.warn(`Failed to update MongoDB with AWB for order ${orderNumber}: ${dbErr.message}`);
+          }
+        }
+      } catch (shipErr: any) {
+        this.logger.warn(`Delhivery automatic shipment dispatch deferred for ${orderNumber}: ${shipErr.message}`);
+      }
     }
 
     const orderRecord: OrderRecord = {
@@ -167,9 +209,10 @@ export class OrdersService implements OnModuleInit {
       total: orderData.total,
       paymentMethod: orderData.paymentMethod,
       paymentStatus: orderData.paymentStatus as any,
-      orderStatus: 'CONFIRMED',
-      awbNumber,
+      orderStatus: orderData.orderStatus || 'CONFIRMED',
+      awbNumber: orderData.awbNumber,
       carrier: orderData.carrier,
+      trackingUrl: orderData.trackingUrl,
       createdAt: new Date().toISOString(),
       freeGifts: orderData.freeGifts,
     };
@@ -178,6 +221,50 @@ export class OrdersService implements OnModuleInit {
     this.ordersStore.set(orderNumber, orderRecord);
 
     return orderRecord;
+  }
+
+  /**
+   * Get complete real-time shipment information for an order
+   */
+  async getShipment(idOrNumber: string): Promise<any> {
+    const isObjectId = idOrNumber && idOrNumber.match(/^[0-9a-fA-F]{24}$/);
+    const query: any = { $or: [{ orderNumber: idOrNumber }, { id: idOrNumber }] };
+    if (isObjectId) query.$or.push({ _id: idOrNumber });
+
+    const order = await this.orderModel.findOne(query).lean();
+    if (!order) {
+      throw new NotFoundException(`Order ${idOrNumber} not found.`);
+    }
+
+    if (order.awbNumber) {
+      const tracking = await this.shippingService.trackShipment(order.awbNumber);
+      return {
+        orderId: order.orderNumber,
+        awb: order.awbNumber,
+        courier: tracking.courier || order.carrier || 'Delhivery Express Priority',
+        status: tracking.status || order.orderStatus || 'In Transit',
+        trackingUrl: tracking.trackingUrl || `https://www.delhivery.com/track/package/${order.awbNumber}`,
+        currentLocation: tracking.currentLocation || null,
+        estimatedDelivery: tracking.estimatedDelivery || null,
+        origin: tracking.origin || null,
+        destination: tracking.destination || null,
+        message: tracking.message || (tracking.events?.length ? 'In Transit' : 'Shipment created. Tracking updates will appear after the first scan.'),
+        events: tracking.events || [],
+        lastSyncedAt: new Date(),
+      };
+    }
+
+    return {
+      orderId: order.orderNumber,
+      awb: null,
+      courier: order.carrier || 'Delhivery Express Priority',
+      status: order.orderStatus || 'Order Confirmed',
+      trackingUrl: null,
+      currentLocation: null,
+      estimatedDelivery: null,
+      message: 'Shipment tracking is not available yet.',
+      events: [],
+    };
   }
 
   async findOne(idOrNumber: string): Promise<OrderRecord> {
@@ -202,17 +289,72 @@ export class OrdersService implements OnModuleInit {
     return localOrder;
   }
 
-  async findAll(): Promise<any[]> {
+  async findAll(filter?: { search?: string; status?: string }): Promise<any[]> {
     try {
-      const list = await this.orderModel.find().sort({ createdAt: -1 }).lean();
+      const query: any = {};
+
+      if (filter?.status && filter.status.toUpperCase() !== 'ALL') {
+        const s = filter.status.trim().toUpperCase();
+        if (s === 'SHIPPED') {
+          query.orderStatus = { $in: ['SHIPPED', 'DISPATCHED', 'shipped', 'dispatched'] };
+        } else {
+          query.orderStatus = { $regex: new RegExp(`^${s}$`, 'i') };
+        }
+      }
+
+      if (filter?.search && filter.search.trim() !== '') {
+        const term = filter.search.trim();
+        const regex = { $regex: term, $options: 'i' };
+        const searchConditions: any[] = [
+          { orderNumber: regex },
+          { awbNumber: regex },
+          { 'customer.name': regex },
+          { 'customer.phone': regex },
+          { 'customer.city': regex },
+          { 'customer.email': regex },
+        ];
+        if (term.match(/^[0-9a-fA-F]{24}$/)) {
+          searchConditions.push({ _id: term });
+        }
+        query.$or = searchConditions;
+      }
+
+      const list = await this.orderModel.find(query).sort({ createdAt: -1 }).lean();
       if (list && list.length > 0) {
         return list.map((ord: any) => ({
           ...ord,
           id: ord._id?.toString() || ord.orderNumber,
         }));
+      } else if (Object.keys(query).length > 0) {
+        return [];
       }
-    } catch (e) {}
-    return Array.from(this.ordersStore.values());
+    } catch (e: any) {
+      this.logger.warn(`Error querying orders from MongoDB Atlas: ${e.message}`);
+    }
+
+    // Fallback to in-memory store if DB is unreachable
+    let result = Array.from(this.ordersStore.values());
+    if (filter?.status && filter.status.toUpperCase() !== 'ALL') {
+      const s = filter.status.trim().toUpperCase();
+      result = result.filter((o) => {
+        const ordStatus = (o.orderStatus || '').toUpperCase();
+        return s === 'SHIPPED'
+          ? ordStatus === 'SHIPPED' || ordStatus === 'DISPATCHED'
+          : ordStatus === s;
+      });
+    }
+    if (filter?.search && filter.search.trim() !== '') {
+      const term = filter.search.trim().toLowerCase();
+      result = result.filter(
+        (o) =>
+          (o.orderNumber || '').toLowerCase().includes(term) ||
+          (o.awbNumber || '').toLowerCase().includes(term) ||
+          (o.customer?.name || '').toLowerCase().includes(term) ||
+          (o.customer?.phone || '').toLowerCase().includes(term) ||
+          (o.customer?.city || '').toLowerCase().includes(term),
+      );
+    }
+    return result;
   }
 
   async findByUser(userIdOrEmail: string): Promise<any[]> {
@@ -259,8 +401,29 @@ export class OrdersService implements OnModuleInit {
     const query: any = { $or: [{ orderNumber: idOrNumber }] };
     if (isObjectId) query.$or.push({ _id: idOrNumber });
 
-    const updated = await this.orderModel.findOneAndUpdate(query, { orderStatus: status }, { new: true });
-    this.logger.log(`Order status updated in MongoDB Atlas: ${idOrNumber} -> ${status}`);
-    return updated;
+    const normalizedStatus = status.trim().toUpperCase();
+    const updated = await this.orderModel.findOneAndUpdate(
+      query,
+      { orderStatus: normalizedStatus },
+      { new: true },
+    ).lean();
+
+    if (updated) {
+      this.logger.log(`Order status updated in MongoDB Atlas: ${idOrNumber} -> ${normalizedStatus}`);
+      return {
+        ...updated,
+        id: (updated as any)._id?.toString() || (updated as any).orderNumber,
+      };
+    }
+
+    // Check memory store
+    const local = this.ordersStore.get(idOrNumber);
+    if (local) {
+      local.orderStatus = normalizedStatus as any;
+      this.ordersStore.set(idOrNumber, local);
+      return local;
+    }
+
+    throw new NotFoundException(`Order not found: ${idOrNumber}`);
   }
 }

@@ -1,92 +1,79 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
 export interface AdminUser {
   id: string;
   name: string;
   email: string;
-  role: 'Super Administrator' | 'Executive Director' | 'Operations Manager';
+  role: 'Super Administrator' | 'Executive Director' | 'Operations Manager' | string;
   lastLogin: string;
 }
 
 interface AdminStore {
   isAdminAuthenticated: boolean;
   adminUser: AdminUser | null;
+  adminToken: string | null;
   login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
-
-// Pre-authorized Executive Credentials
-const VALID_ADMINS = [
-  {
-    email: 'admin@sensein.com',
-    pass: 'sensein2026',
-    name: 'Executive Concierge & Director',
-    role: 'Super Administrator' as const,
-  },
-  {
-    email: 'admin@sensein.com',
-    pass: 'admin123',
-    name: 'Executive Concierge & Director',
-    role: 'Super Administrator' as const,
-  },
-  {
-    email: 'director@sensein.com',
-    pass: 'sensein2026',
-    name: 'Alexander Sterling',
-    role: 'Executive Director' as const,
-  },
-];
 
 export const useAdminStore = create<AdminStore>()(
   persist(
     (set) => ({
       isAdminAuthenticated: false,
       adminUser: null,
+      adminToken: null,
 
       login: async (email: string, pass: string) => {
         const cleanEmail = email.trim().toLowerCase();
         const cleanPass = pass.trim();
 
-        const match = VALID_ADMINS.find(
-          (a) => a.email.toLowerCase() === cleanEmail && a.pass === cleanPass
-        );
-
-        if (match) {
-          const user: AdminUser = {
-            id: 'adm_' + Math.random().toString(36).substring(2, 9),
-            name: match.name,
-            email: match.email,
-            role: match.role,
-            lastLogin: new Date().toLocaleTimeString('en-IN', {
-              hour: '2-digit',
-              minute: '2-digit',
-              day: 'numeric',
-              month: 'short',
-            }),
-          };
-
-          set({
-            isAdminAuthenticated: true,
-            adminUser: user,
+        try {
+          const res = await fetch(`${API_BASE_URL}/auth/admin/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: cleanEmail, pass: cleanPass }),
           });
 
-          return { success: true };
-        }
+          const data = await res.json();
 
-        return {
-          success: false,
-          error: 'Access Denied: Invalid executive email or cryptographic passkey.',
-        };
+          if (res.ok && data.success && data.token) {
+            set({
+              isAdminAuthenticated: true,
+              adminUser: data.user,
+              adminToken: data.token,
+            });
+
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('sensein_admin_jwt', data.token);
+            }
+
+            return { success: true };
+          }
+
+          return {
+            success: false,
+            error: data.message || 'Access Denied: Invalid executive email or cryptographic passkey.',
+          };
+        } catch (err: any) {
+          return {
+            success: false,
+            error: 'Unable to connect to SENSEIN Authentication Gateway. Ensure backend is running.',
+          };
+        }
       },
 
       logout: () => {
         if (typeof window !== 'undefined') {
           localStorage.removeItem('sensein_admin_session');
+          localStorage.removeItem('sensein_admin_jwt');
         }
         set({
           isAdminAuthenticated: false,
           adminUser: null,
+          adminToken: null,
         });
       },
     }),
@@ -96,7 +83,22 @@ export const useAdminStore = create<AdminStore>()(
       partialize: (state) => ({
         isAdminAuthenticated: state.isAdminAuthenticated,
         adminUser: state.adminUser,
+        adminToken: state.adminToken,
       }),
     }
   )
 );
+
+export function getAdminToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const directToken = localStorage.getItem('sensein_admin_jwt');
+    if (directToken) return directToken;
+    const sessionStr = localStorage.getItem('sensein_admin_session');
+    if (sessionStr) {
+      const parsed = JSON.parse(sessionStr);
+      return parsed.state?.adminToken || null;
+    }
+  } catch (e) {}
+  return null;
+}

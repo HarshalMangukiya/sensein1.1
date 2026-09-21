@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Package, ExternalLink, ChevronRight, Truck, CheckCircle2, Copy, Check, Clock, ShieldCheck, X } from 'lucide-react';
+import { Package, ExternalLink, ChevronRight, Truck, CheckCircle2, Copy, Check, Clock, ShieldCheck, X, Loader2, MapPin, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth-store';
-import { fetchUserOrders } from '@/lib/api';
+import { fetchUserOrders, fetchOrderShipmentApi } from '@/lib/api';
 
 export default function OrdersPage() {
   const { user } = useAuthStore();
@@ -12,6 +12,8 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
   const [selectedTracking, setSelectedTracking] = useState<any | null>(null);
+  const [trackingData, setTrackingData] = useState<any | null>(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
   const [copiedAWB, setCopiedAWB] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,6 +40,20 @@ export default function OrdersPage() {
     navigator.clipboard.writeText(text);
     setCopiedAWB(text);
     setTimeout(() => setCopiedAWB(null), 2000);
+  };
+
+  const handleOpenTracking = async (order: any) => {
+    setSelectedTracking(order);
+    setTrackingLoading(true);
+    setTrackingData(null);
+    try {
+      const ship = await fetchOrderShipmentApi(order.orderNumber || order.id);
+      setTrackingData(ship);
+    } catch (e) {
+      console.warn('Tracking fetch error:', e);
+    } finally {
+      setTrackingLoading(false);
+    }
   };
 
   return (
@@ -217,14 +233,14 @@ export default function OrdersPage() {
                       <p>
                         {order.customer.name} • {order.customer.address}, {order.customer.city} - {order.customer.pincode}
                       </p>
-                      <p>Carrier: {order.carrier || 'Blue Dart Luxury Priority Express'}</p>
+                      <p>Carrier: {order.carrier || 'Delhivery Express Priority'}</p>
                     </div>
                   )}
 
                   {/* Actions */}
                   <div className="mt-6 pt-4 border-t border-border flex flex-wrap gap-3">
                     <button
-                      onClick={() => setSelectedTracking(order)}
+                      onClick={() => handleOpenTracking(order)}
                       className="flex-1 sm:flex-none text-center px-6 py-2.5 bg-plum hover:bg-plum-hover text-white text-xs font-bold uppercase tracking-widest rounded-sm transition-colors shadow-xs"
                     >
                       Track Package
@@ -250,63 +266,112 @@ export default function OrdersPage() {
             <div className="p-6 border-b border-border flex items-center justify-between bg-[#FAF7F5]">
               <div>
                 <h3 className="font-sans font-bold text-lg text-charcoal">Airway Bill Tracking</h3>
-                <p className="text-xs text-charcoal-muted font-mono">{selectedTracking.awbNumber}</p>
+                <p className="text-xs text-charcoal-muted font-mono">
+                  {selectedTracking.awbNumber || trackingData?.awb || 'Pending Allocation'}
+                </p>
               </div>
               <button
-                onClick={() => setSelectedTracking(null)}
+                onClick={() => {
+                  setSelectedTracking(null);
+                  setTrackingData(null);
+                }}
                 className="p-1 text-charcoal-muted hover:text-charcoal transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-5">
               <div className="p-4 bg-plum/5 rounded-lg border border-plum/20 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] uppercase font-bold text-plum block">Carrier Logistics Partner</span>
-                  <strong className="text-sm text-charcoal">{selectedTracking.carrier || 'Blue Dart Priority Express'}</strong>
+                  <strong className="text-sm text-charcoal">Delhivery Express Priority</strong>
                 </div>
                 <Truck className="w-6 h-6 text-plum" />
               </div>
 
-              {/* Tracking timeline */}
-              <div className="space-y-4 text-xs">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs shrink-0 mt-0.5">
-                    ✓
-                  </div>
-                  <div>
-                    <strong className="text-charcoal block">Order Formulated & Verified</strong>
-                    <span className="text-charcoal-muted text-[11px]">SENSEIN Parisian Clean Formulation Facility</span>
-                  </div>
+              {trackingLoading ? (
+                <div className="py-8 flex flex-col items-center justify-center gap-2 text-charcoal-muted">
+                  <Loader2 className="w-6 h-6 animate-spin text-plum" />
+                  <p className="text-xs">Querying Delhivery logistics network...</p>
                 </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-plum text-white flex items-center justify-center text-xs shrink-0 mt-0.5">
-                    ✓
-                  </div>
-                  <div>
-                    <strong className="text-charcoal block">Airway Bill Generated (Live AWB: {selectedTracking.awbNumber})</strong>
-                    <span className="text-charcoal-muted text-[11px]">Manifested with Blue Dart Express</span>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs shrink-0 mt-0.5">
-                    •
-                  </div>
-                  <div>
-                    <strong className="text-charcoal block">In Transit to Destination Hub</strong>
-                    <span className="text-charcoal-muted text-[11px]">
-                      Destination: {selectedTracking.customer?.city || 'Your Address'} ({selectedTracking.customer?.pincode})
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between text-xs px-1">
+                    <span className="text-charcoal-muted">Shipment Status:</span>
+                    <span className="font-bold text-emerald-accent uppercase tracking-wider bg-emerald-light px-2.5 py-0.5 rounded">
+                      {trackingData?.status || selectedTracking.orderStatus || 'Confirmed'}
                     </span>
                   </div>
-                </div>
-              </div>
 
-              <div className="pt-2 border-t border-border flex justify-end">
+                  {trackingData?.currentLocation && (
+                    <div className="flex items-center justify-between text-xs px-1">
+                      <span className="text-charcoal-muted">Current Hub:</span>
+                      <span className="font-semibold text-charcoal flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-plum" />
+                        {trackingData.currentLocation}
+                      </span>
+                    </div>
+                  )}
+
+                  {trackingData?.estimatedDelivery && (
+                    <div className="flex items-center justify-between text-xs px-1">
+                      <span className="text-charcoal-muted">Estimated Delivery:</span>
+                      <span className="font-semibold text-plum">{trackingData.estimatedDelivery}</span>
+                    </div>
+                  )}
+
+                  {/* Real carrier scan milestones */}
+                  <div className="pt-2 border-t border-border">
+                    <p className="text-[10px] text-charcoal-muted uppercase font-bold tracking-wider mb-2">
+                      Carrier Scans & Events
+                    </p>
+                    {trackingData?.events && trackingData.events.length > 0 ? (
+                      <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                        {trackingData.events.map((ev: any, idx: number) => (
+                          <div key={idx} className="text-xs flex items-start gap-2.5 p-2.5 bg-[#FAF7F5] rounded-lg border border-border/60">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-plum flex-shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                              <p className="font-semibold text-charcoal text-[11px]">{ev.status}</p>
+                              <p className="text-[10px] text-charcoal-muted mt-0.5">
+                                {ev.timestamp || ev.time} {ev.location ? `• ${ev.location}` : ''}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-[#FAF7F5] rounded-lg border border-border text-xs text-charcoal-muted text-center">
+                        <p className="font-medium text-charcoal">
+                          {selectedTracking.awbNumber
+                            ? 'Shipment created. Tracking updates will appear after the first scan.'
+                            : 'Shipment tracking is not available yet. We are preparing your order for dispatch.'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-border flex items-center justify-between">
+                {selectedTracking.awbNumber ? (
+                  <a
+                    href={`https://www.delhivery.com/track/package/${selectedTracking.awbNumber}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-plum hover:text-plum-hover font-semibold flex items-center gap-1.5"
+                  >
+                    <span>Open Delhivery Portal</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                ) : (
+                  <span className="text-[11px] text-charcoal-muted">Manifest in preparation</span>
+                )}
                 <button
-                  onClick={() => setSelectedTracking(null)}
+                  onClick={() => {
+                    setSelectedTracking(null);
+                    setTrackingData(null);
+                  }}
                   className="px-5 py-2 bg-charcoal text-white text-xs uppercase tracking-widest font-semibold rounded-sm"
                 >
                   Close

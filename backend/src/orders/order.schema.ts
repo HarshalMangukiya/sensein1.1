@@ -48,7 +48,7 @@ export class Order {
   @Prop({ default: 'PAID' })
   paymentStatus: string;
 
-  @Prop({ default: 'CONFIRMED' })
+  @Prop({ default: 'CONFIRMED', index: true })
   orderStatus: string;
 
   @Prop()
@@ -57,14 +57,40 @@ export class Order {
   @Prop()
   razorpayPaymentId?: string;
 
-  @Prop({ required: true })
-  awbNumber: string;
+  @Prop({ index: true })
+  awbNumber?: string;
 
-  @Prop({ default: 'Blue Dart Luxury Priority Express' })
+  @Prop({ default: 'Delhivery Express Priority' })
   carrier: string;
+
+  @Prop()
+  trackingUrl?: string;
+
+  @Prop({ type: Object })
+  shipment?: {
+    provider: string;
+    awb?: string;
+    status?: string;
+    currentLocation?: string;
+    estimatedDelivery?: string;
+    trackingUrl?: string;
+    lastSyncedAt?: Date;
+    error?: string;
+    events?: Array<{
+      status: string;
+      description?: string;
+      location?: string;
+      timestamp?: string | Date;
+    }>;
+  };
 
   @Prop({ type: [String], default: [] })
   freeGifts: string[];
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
+OrderSchema.index({ 'customer.name': 1 });
+OrderSchema.index({ 'customer.phone': 1 });
+OrderSchema.index({ 'customer.email': 1 });
+OrderSchema.index({ 'customer.city': 1 });
+OrderSchema.index({ createdAt: -1 });

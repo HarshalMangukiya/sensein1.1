@@ -23,6 +23,14 @@ export class AuthController {
     return this.authService.verifyOtp(dto.email, dto.otp);
   }
 
+  @Post('admin/login')
+  @ApiOperation({ summary: 'Executive Admin Login via Cryptographic Passkey' })
+  @ApiResponse({ status: 200, description: 'Admin authentication successful and JWT issued' })
+  async adminLogin(@Body() body: { email: string; pass?: string; password?: string }) {
+    const pass = body.pass || body.password || '';
+    return this.authService.adminLogin(body.email, pass);
+  }
+
   @Get('me')
   @ApiOperation({ summary: 'Get authenticated user profile' })
   async getMe(@Headers('authorization') authHeader: string) {

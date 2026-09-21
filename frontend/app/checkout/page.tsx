@@ -58,7 +58,7 @@ export default function CheckoutPage() {
     state: 'Haryana',
   });
 
-  const paymentMethod = 'razorpay' as const;
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
   const [loading, setLoading] = useState(false);
   const [pincodeLoading, setPincodeLoading] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState<any | null>(null);
@@ -125,14 +125,40 @@ export default function CheckoutPage() {
     if (items.length === 0) return;
 
     if (!user) {
-      setAuthNotice('Authentication required: Please log in with your email to proceed with payment.');
+      setAuthNotice('Authentication required: Please log in with your email to proceed with checkout.');
       openAuthModal();
       return;
     }
 
     setLoading(true);
+
+    // 1. Direct Placement for Cash on Delivery (COD)
+    if (paymentMethod === 'cod') {
+      try {
+        const orderRecord = await placeOrder({
+          customer: { ...formData, userId: user.id },
+          items,
+          subtotal,
+          discount,
+          couponCode,
+          shippingFee: shipping,
+          total: finalTotal,
+          paymentMethod: 'cod',
+          freeGifts: unlockedGifts,
+        });
+        setOrderConfirmed(orderRecord);
+        clearCart();
+      } catch (err) {
+        alert('Cash on Delivery order placement failed. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // 2. Razorpay Online Payment Flow
     try {
-      // 1. Create order on NestJS backend
+      // Create order on NestJS backend
       const orderRes = await createRazorpayOrder(finalTotal, {
         customerName: formData.name,
         email: formData.email,
@@ -202,19 +228,22 @@ export default function CheckoutPage() {
 
   // ORDER SUCCESS CONFIRMATION SCREEN
   if (orderConfirmed) {
+    const isCod = (orderConfirmed.paymentMethod || '').toLowerCase() === 'cod';
     return (
       <div className="max-w-3xl mx-auto px-4 py-16 text-center">
         <div className="w-20 h-20 rounded-full bg-emerald-light flex items-center justify-center mx-auto mb-6 text-emerald">
           <CheckCircle className="w-10 h-10" />
         </div>
         <span className="text-xs uppercase tracking-widest text-plum font-bold block mb-1">
-          Payment Confirmed
+          {isCod ? 'Order Confirmed (Cash on Delivery)' : 'Payment Confirmed'}
         </span>
         <h1 className="font-sans text-3xl sm:text-4xl font-bold text-charcoal tracking-tight">
           Thank you for choosing SENSEIN
         </h1>
         <p className="text-xs sm:text-sm text-charcoal-muted mt-2 max-w-md mx-auto">
-          Your ritual formulations are being hand-packaged in our climate-controlled lab.
+          {isCod
+            ? 'Your ritual formulations are scheduled for priority dispatch. Please keep cash or UPI ready upon delivery.'
+            : 'Your ritual formulations are being hand-packaged in our climate-controlled lab.'}
         </p>
 
         <div className="my-8 p-6 bg-white border border-border rounded-sm text-left space-y-4 shadow-xs">
@@ -225,7 +254,7 @@ export default function CheckoutPage() {
             </div>
             <div className="text-right">
               <span className="text-[11px] text-charcoal-muted uppercase tracking-wider block">Airway Bill (AWB)</span>
-              <strong className="font-mono text-sm text-charcoal">{orderConfirmed.awbNumber}</strong>
+              <strong className="font-mono text-sm text-charcoal">{orderConfirmed.awbNumber || 'Assigned upon dispatch'}</strong>
             </div>
           </div>
 
@@ -238,7 +267,9 @@ export default function CheckoutPage() {
           </div>
 
           <div className="pt-2 border-t border-border flex justify-between items-baseline">
-            <span className="text-xs font-semibold text-charcoal">Total Amount Paid</span>
+            <span className="text-xs font-semibold text-charcoal">
+              {isCod ? 'Payable on Delivery' : 'Total Amount Paid'}
+            </span>
             <span className="text-lg font-bold text-plum">₹{orderConfirmed.total.toLocaleString('en-IN')}</span>
           </div>
         </div>
@@ -470,24 +501,44 @@ export default function CheckoutPage() {
             <div className="bg-white p-6 rounded-sm border border-border space-y-4">
               <div className="flex items-center justify-between border-b border-border pb-3">
                 <h3 className="font-sans text-lg font-bold text-charcoal tracking-tight">
-                  3. Payment Method (Prepaid Only)
+                  3. Payment Method
                 </h3>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-plum/10 text-plum border border-plum/20">
-                  Guaranteed Dispatch
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald/10 text-emerald border border-emerald/20">
+                  DISPATCH READY
                 </span>
               </div>
+
               <div className="space-y-3 text-xs">
-                <div className="p-4 rounded border border-plum bg-plum/5 ring-1 ring-plum flex items-center justify-between">
+                {/* Option 1: Razorpay Prepaid */}
+                <div
+                  onClick={() => setPaymentMethod('razorpay')}
+                  className={`p-4 rounded border cursor-pointer transition flex items-center justify-between ${
+                    paymentMethod === 'razorpay'
+                      ? 'border-plum bg-plum/5 ring-1 ring-plum'
+                      : 'border-border bg-white hover:border-charcoal/30'
+                  }`}
+                >
                   <div className="flex items-start gap-3">
-                    <div className="w-4 h-4 rounded-full bg-plum text-white flex items-center justify-center text-[10px] font-bold mt-0.5">
+                    <div
+                      className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5 transition ${
+                        paymentMethod === 'razorpay'
+                          ? 'bg-plum text-white'
+                          : 'border border-border text-transparent'
+                      }`}
+                    >
                       ✓
                     </div>
                     <div>
-                      <span className="font-bold text-charcoal block text-sm">
-                        Razorpay Secure Online Payment (Prepaid)
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-charcoal block text-sm">
+                          Razorpay Secure Online Payment (Prepaid)
+                        </span>
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-plum/10 text-plum border border-plum/20">
+                          PRIORITY AIR
+                        </span>
+                      </div>
                       <span className="text-[11px] text-charcoal-muted block mt-0.5">
-                        Instant priority dispatch via Blue Dart Express
+                        Instant priority dispatch via Delhivery Express Air
                       </span>
                       <div className="flex flex-wrap gap-2 mt-2 text-[10px] text-charcoal-subtle font-medium">
                         <span className="px-2 py-0.5 bg-white border border-border rounded">UPI (GPay / PhonePe / Paytm)</span>
@@ -497,7 +548,48 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   </div>
-                  <CreditCard className="w-6 h-6 text-plum shrink-0" />
+                  <CreditCard className={`w-6 h-6 shrink-0 ${paymentMethod === 'razorpay' ? 'text-plum' : 'text-charcoal-muted'}`} />
+                </div>
+
+                {/* Option 2: Cash on Delivery (COD) */}
+                <div
+                  onClick={() => setPaymentMethod('cod')}
+                  className={`p-4 rounded border cursor-pointer transition flex items-center justify-between ${
+                    paymentMethod === 'cod'
+                      ? 'border-plum bg-plum/5 ring-1 ring-plum'
+                      : 'border-border bg-white hover:border-charcoal/30'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5 transition ${
+                        paymentMethod === 'cod'
+                          ? 'bg-plum text-white'
+                          : 'border border-border text-transparent'
+                      }`}
+                    >
+                      ✓
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-charcoal block text-sm">
+                          Cash on Delivery (COD)
+                        </span>
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald/10 text-emerald border border-emerald/20">
+                          PAY AT DOORSTEP
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-charcoal-muted block mt-0.5">
+                        Pay with Cash or UPI upon delivery • Handled by Delhivery Express
+                      </span>
+                      <div className="flex flex-wrap gap-2 mt-2 text-[10px] text-charcoal-subtle font-medium">
+                        <span className="px-2 py-0.5 bg-white border border-border rounded">Doorstep Cash / UPI</span>
+                        <span className="px-2 py-0.5 bg-white border border-border rounded">Delhivery Verified Manifest</span>
+                        <span className="px-2 py-0.5 bg-white border border-border rounded">Zero Advance Payment</span>
+                      </div>
+                    </div>
+                  </div>
+                  <Banknote className={`w-6 h-6 shrink-0 ${paymentMethod === 'cod' ? 'text-plum' : 'text-charcoal-muted'}`} />
                 </div>
               </div>
             </div>
@@ -650,14 +742,20 @@ export default function CheckoutPage() {
                 {loading
                   ? 'Processing Order...'
                   : !user
-                  ? 'Log In & Pay with Razorpay'
-                  : 'Pay with Razorpay (Prepaid)'}
+                  ? (paymentMethod === 'cod' ? 'Log In & Place COD Order' : 'Log In & Pay with Razorpay')
+                  : (paymentMethod === 'cod'
+                      ? `Place Order (Cash on Delivery) • ₹${finalTotal.toLocaleString('en-IN')}`
+                      : `Pay with Razorpay • ₹${finalTotal.toLocaleString('en-IN')}`)}
                 {!user ? <Lock className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
               </button>
 
               <div className="flex items-center justify-center gap-2 text-[10px] text-charcoal-muted">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald" />
-                <span>Encrypted 256-Bit SSL • Authorized Razorpay Gateway</span>
+                <span>
+                  {paymentMethod === 'cod'
+                    ? 'Verified Delhivery Express Doorstep Delivery • Zero Advance Payment'
+                    : 'Encrypted 256-Bit SSL • Authorized Razorpay Gateway'}
+                </span>
               </div>
             </div>
           </div>

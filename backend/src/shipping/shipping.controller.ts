@@ -1,9 +1,10 @@
-import { Controller, Get, Param, Post, Body } from '@nestjs/common';
+import { Controller, Get, Param, Post, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ShippingService, DelhiveryShipmentPayload } from './shipping.service';
+import { AdminGuard } from '../auth/admin.guard';
 
 @ApiTags('Delhivery Logistics & Shipping')
-@Controller('shipping')
+@Controller(['shipping', 'api/shipping'])
 export class ShippingController {
   constructor(private readonly shippingService: ShippingService) {}
 
@@ -15,6 +16,7 @@ export class ShippingController {
   }
 
   @Post('create-shipment')
+  @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Create Delhivery shipment, generate AWB and packing slip' })
   async createShipment(@Body() payload: DelhiveryShipmentPayload) {
     return this.shippingService.createShipment(payload);
@@ -26,6 +28,12 @@ export class ShippingController {
     return this.shippingService.trackShipment(awb);
   }
 
+  @Get('delhivery/track/:awb')
+  @ApiOperation({ summary: 'Track shipment status and live scans from Delhivery API' })
+  async trackDelhiveryByAwb(@Param('awb') awb: string) {
+    return this.shippingService.trackShipment(awb);
+  }
+
   @Post('track')
   @ApiOperation({ summary: 'Track shipment status (POST)' })
   async trackShipment(@Body('trackingNumber') trackingNumber: string) {
@@ -33,6 +41,7 @@ export class ShippingController {
   }
 
   @Post('request-pickup')
+  @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Schedule a Delhivery courier executive pickup' })
   async requestPickup(
     @Body('pickupDate') pickupDate?: string,

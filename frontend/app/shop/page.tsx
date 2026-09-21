@@ -139,7 +139,7 @@ function ShopContent() {
               Live Gateway Verification Mode Active
             </h4>
             <p className="text-[11px] text-charcoal-muted">
-              Add the official ₹1 Test Item to verify live Razorpay checkout, UPI / Card capture, and Blue Dart AWB generation.
+              Add the official ₹1 Test Item to verify live Razorpay checkout, UPI / Card capture, and Delhivery AWB generation.
             </p>
           </div>
         </div>

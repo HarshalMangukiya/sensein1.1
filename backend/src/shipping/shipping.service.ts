@@ -28,6 +28,8 @@ export interface DelhiveryShipmentPayload {
   state: string;
   phone: string;
   totalAmount: number;
+  paymentMode?: 'Prepaid' | 'COD' | string;
+  codAmount?: number;
   items?: Array<{ name: string; quantity: number; price: number }>;
   weightGrams?: number;
 }
@@ -188,7 +190,9 @@ export class ShippingService implements OnModuleInit {
    * Create Shipment / Generate Waybill (AWB) with Delhivery API
    */
   async createShipment(payload: DelhiveryShipmentPayload): Promise<any> {
-    const waybill = `DEL${Math.floor(10000000000 + Math.random() * 90000000000)}`;
+    const isCod = (payload.paymentMode || '').toUpperCase() === 'COD';
+    const payment_mode = isCod ? 'COD' : 'Prepaid';
+    const cod_amount = isCod ? String(payload.codAmount ?? payload.totalAmount) : '0';
 
     const shipmentData = {
       name: payload.customerName,
@@ -199,7 +203,7 @@ export class ShippingService implements OnModuleInit {
       country: 'India',
       phone: payload.phone,
       order: payload.orderNumber,
-      payment_mode: 'Prepaid',
+      payment_mode,
       return_pin: '',
       return_city: '',
       return_phone: '',
@@ -208,14 +212,14 @@ export class ShippingService implements OnModuleInit {
       return_country: '',
       products_desc: 'SENSEIN Luxury Haircare Formulations',
       hsn_code: '33059040',
-      cod_amount: '0',
+      cod_amount,
       order_date: new Date().toISOString().replace('T', ' ').substring(0, 19),
       total_amount: String(payload.totalAmount),
       seller_add: 'SENSEIN Laboratory, DLF Cyber City, Phase II',
-      seller_name: 'SENSEIN PROFESSIONAL',
+      seller_name: this.clientName || 'OLIVE ENTERPRISE B2C',
       seller_inv: `INV-${payload.orderNumber}`,
       quantity: String((payload.items || []).reduce((s, i) => s + (i.quantity || 1), 0) || 1),
-      waybill,
+      waybill: '', // Delhivery auto-assigns official waybill from client pool
       shipment_width: 12,
       shipment_height: 10,
       weight: payload.weightGrams || 500,
@@ -224,137 +228,229 @@ export class ShippingService implements OnModuleInit {
       address_type: 'home',
     };
 
-    if (this.apiToken) {
-      try {
-        const url = `${this.baseUrl}/api/cmu/create.json`;
-        const bodyData = new URLSearchParams();
-        bodyData.append('format', 'json');
-        bodyData.append(
-          'data',
-          JSON.stringify({
-            shipments: [shipmentData],
-            pickup_location: { name: this.pickupLocation },
-          }),
-        );
+    if (!this.apiToken) {
+      return {
+        success: false,
+        error: 'Delhivery integration is not configured.',
+      };
+    }
 
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: {
-            Authorization: `Token ${this.apiToken}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: bodyData.toString(),
-        });
+    try {
+      const url = `${this.baseUrl}/api/cmu/create.json`;
+      const bodyData = new URLSearchParams();
+      bodyData.append('format', 'json');
+      bodyData.append(
+        'data',
+        JSON.stringify({
+          shipments: [shipmentData],
+          pickup_location: { name: this.pickupLocation },
+        }),
+      );
 
-        if (res.ok) {
-          const data = await res.json();
-          this.logger.log(`Delhivery live shipment created: ${JSON.stringify(data)}`);
-          const liveWaybill = data?.packages?.[0]?.waybill || waybill;
-          await this.syncOrderAwb(payload.orderNumber, liveWaybill);
+      this.logger.log(`Dispatching Delhivery CMU create request for order ${payload.orderNumber} (pickup: ${this.pickupLocation})`);
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Token ${this.apiToken}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: bodyData.toString(),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (res.ok && data) {
+        const pkg = data?.packages?.[0];
+        const isSuccess = data?.success === true || (pkg && pkg.status !== 'Fail');
+        const liveWaybill = pkg?.waybill || data?.waybill;
+
+        if (!isSuccess || !liveWaybill) {
+          const errMsg = pkg?.remarks?.[0] || data?.rmk || 'Delhivery CMU manifest creation was rejected.';
+          this.logger.warn(`Delhivery shipment rejected for order ${payload.orderNumber}: ${errMsg}`);
+
+          // Update order shipment status in MongoDB
+          await this.orderModel.findOneAndUpdate(
+            { $or: [{ orderNumber: payload.orderNumber }, { id: payload.orderNumber }] },
+            {
+              shipment: {
+                provider: 'Delhivery',
+                status: 'Pending Manifest',
+                error: errMsg,
+                lastSyncedAt: new Date(),
+                events: [],
+              },
+            },
+          );
+
           return {
-            success: true,
-            waybill: liveWaybill,
-            carrier: 'Delhivery Express',
-            status: data?.packages?.[0]?.status || 'Manifest Generated',
-            packingSlipUrl: `${this.baseUrl}/api/p/packing_slip?wbns=${liveWaybill}&pdf=true`,
-            trackingUrl: `https://www.delhivery.com/track/package/${liveWaybill}`,
+            success: false,
+            error: errMsg,
             raw: data,
           };
         }
-      } catch (err: any) {
-        this.logger.warn(`Delhivery Live Create Shipment error: ${err.message}`);
+
+        // Real AWB successfully allocated by Delhivery
+        this.logger.log(`Delhivery live AWB allocated for order ${payload.orderNumber}: ${liveWaybill}`);
+        const trackingUrl = `https://www.delhivery.com/track/package/${liveWaybill}`;
+        await this.syncOrderAwb(payload.orderNumber, liveWaybill);
+
+        return {
+          success: true,
+          waybill: liveWaybill,
+          carrier: 'Delhivery Express Priority',
+          status: pkg?.status || 'Shipment Created',
+          packingSlipUrl: `${this.baseUrl}/api/p/packing_slip?wbns=${liveWaybill}&pdf=true`,
+          trackingUrl,
+          raw: data,
+        };
+      } else {
+        const errMsg = data?.rmk || data?.message || `Delhivery API HTTP ${res.status}`;
+        this.logger.warn(`Delhivery Create Shipment API error: ${errMsg}`);
+        return {
+          success: false,
+          error: errMsg,
+        };
       }
+    } catch (err: any) {
+      this.logger.error(`Delhivery Live Create Shipment connection failure: ${err.message}`);
+      return {
+        success: false,
+        error: `Delhivery API connection failure: ${err.message}`,
+      };
     }
-
-    // Simulated high-fidelity creation (ready for production)
-    await this.syncOrderAwb(payload.orderNumber, waybill);
-    this.logger.log(`Simulated Delhivery shipment generated: ${waybill} for order ${payload.orderNumber}`);
-
-    return {
-      success: true,
-      waybill,
-      carrier: 'Delhivery Express',
-      status: 'Manifest Generated',
-      packingSlipUrl: `${this.baseUrl}/api/p/packing_slip?wbns=${waybill}&pdf=true`,
-      trackingUrl: `https://www.delhivery.com/track/package/${waybill}`,
-      simulated: !this.apiToken,
-    };
   }
 
   /**
-   * Track Shipment by Delhivery Waybill / AWB Number
+   * Track Shipment by Delhivery Waybill / AWB Number (Official Real-Time API)
    */
   async trackShipment(awbOrWaybill: string) {
     const cleanAwb = (awbOrWaybill || '').trim();
 
-    if (this.apiToken) {
-      try {
-        const url = `${this.baseUrl}/api/v1/packages/json/?waybill=${encodeURIComponent(cleanAwb)}`;
-        const res = await fetch(url, {
-          headers: {
-            Authorization: `Token ${this.apiToken}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const pkg = data?.ShipmentData?.[0]?.Shipment;
-          if (pkg) {
-            return {
-              success: true,
-              awbNumber: pkg.AWB,
-              carrier: 'Delhivery Express',
-              status: pkg.Status?.Status || 'In Transit',
-              currentLocation: pkg.Status?.StatusLocation || 'Regional Sorting Center',
-              expectedDelivery: pkg.ExpectedDeliveryDate || 'Within 48 Hours',
-              origin: pkg.Origin || 'New Delhi',
-              destination: pkg.Destination || 'Metro Destination',
-              events: (pkg.Scans || []).map((s: any) => ({
-                status: s.ScanDetail?.Scan || s.ScanDetail?.Instructions || 'Scanned',
-                time: s.ScanDetail?.ScanDateTime || new Date().toISOString(),
-                location: s.ScanDetail?.ScannedLocation || 'Logistics Hub',
-              })),
-            };
-          }
-        }
-      } catch (err: any) {
-        this.logger.warn(`Delhivery Live Tracking query error: ${err.message}`);
-      }
+    if (!cleanAwb) {
+      return {
+        success: false,
+        awb: null,
+        courier: 'Delhivery Express Priority',
+        status: 'Not Shipped',
+        message: 'Shipment tracking is not available yet.',
+        events: [],
+      };
     }
 
-    // High fidelity tracking response
+    if (!this.apiToken) {
+      return {
+        success: false,
+        awb: cleanAwb,
+        courier: 'Delhivery Express Priority',
+        status: 'Unconfigured',
+        message: 'Delhivery integration is not configured.',
+        events: [],
+      };
+    }
+
+    try {
+      const url = `${this.baseUrl}/api/v1/packages/json/?waybill=${encodeURIComponent(cleanAwb)}`;
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Token ${this.apiToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const pkg = data?.ShipmentData?.[0]?.Shipment;
+
+        if (pkg) {
+          const events = (pkg.Scans || []).map((s: any) => ({
+            status: s.ScanDetail?.Scan || s.ScanDetail?.Instructions || 'Scanned',
+            description: s.ScanDetail?.Instructions || s.ScanDetail?.Scan || '',
+            location: s.ScanDetail?.ScannedLocation || '',
+            timestamp: s.ScanDetail?.ScanDateTime || '',
+          }));
+
+          const trackingUrl = `https://www.delhivery.com/track/package/${pkg.AWB || cleanAwb}`;
+          const normalizedStatus = pkg.Status?.Status || 'In Transit';
+
+          // Asynchronously synchronize real Delhivery status to MongoDB
+          this.orderModel.findOneAndUpdate(
+            { awbNumber: cleanAwb },
+            {
+              carrier: 'Delhivery Express Priority',
+              trackingUrl,
+              shipment: {
+                provider: 'Delhivery',
+                awb: cleanAwb,
+                status: normalizedStatus,
+                currentLocation: pkg.Status?.StatusLocation || null,
+                estimatedDelivery: pkg.ExpectedDeliveryDate || null,
+                trackingUrl,
+                lastSyncedAt: new Date(),
+                events,
+              },
+              ...(normalizedStatus ? { orderStatus: normalizedStatus.toUpperCase() } : {}),
+            },
+          ).catch((e) => this.logger.warn(`Could not sync Delhivery tracking to MongoDB: ${e.message}`));
+
+          return {
+            success: true,
+            awb: pkg.AWB || cleanAwb,
+            courier: 'Delhivery Express Priority',
+            status: normalizedStatus,
+            currentLocation: pkg.Status?.StatusLocation || null,
+            estimatedDelivery: pkg.ExpectedDeliveryDate || null,
+            origin: pkg.Origin || null,
+            destination: pkg.Destination || null,
+            trackingUrl,
+            events,
+          };
+        }
+
+        // Package was created/manifested but has no scans yet, or waybill not yet indexed
+        return {
+          success: true,
+          awb: cleanAwb,
+          courier: 'Delhivery Express Priority',
+          status: 'Shipment Created',
+          currentLocation: 'Pending carrier pickup / first scan',
+          estimatedDelivery: null,
+          trackingUrl: `https://www.delhivery.com/track/package/${cleanAwb}`,
+          message: 'Shipment created. Tracking updates will appear after the first scan.',
+          events: [],
+        };
+      }
+    } catch (err: any) {
+      this.logger.warn(`Delhivery Live Tracking query error: ${err.message}`);
+    }
+
+    // Fallback on network failure: Check last synchronized tracking in MongoDB
+    try {
+      const order = await this.orderModel.findOne({ awbNumber: cleanAwb }).lean();
+      if (order && order.shipment) {
+        return {
+          success: true,
+          awb: cleanAwb,
+          courier: 'Delhivery Express Priority',
+          status: order.shipment.status || 'Shipment Created',
+          currentLocation: order.shipment.currentLocation || null,
+          estimatedDelivery: order.shipment.estimatedDelivery || null,
+          trackingUrl: order.shipment.trackingUrl || `https://www.delhivery.com/track/package/${cleanAwb}`,
+          message: 'Real-time tracking service temporarily busy. Displaying last synchronized tracking data.',
+          events: order.shipment.events || [],
+        };
+      }
+    } catch (e: any) {
+      this.logger.warn(`Failed reading last known tracking from MongoDB: ${e.message}`);
+    }
+
     return {
-      success: true,
-      awbNumber: cleanAwb,
-      carrier: 'Delhivery Express',
-      status: 'In Transit',
-      currentLocation: 'Delhivery Central Sorting Gateway, Bilaspur Hub',
-      expectedDelivery: 'In 2 Business Days',
-      origin: 'Gurugram Central Hub',
-      destination: 'Customer City Express Hub',
-      events: [
-        {
-          status: 'Shipment Manifested & Package Packed',
-          time: 'Today, 09:30 AM',
-          location: 'SENSEIN Fulfillment Center',
-        },
-        {
-          status: 'Picked up by Delhivery Executive',
-          time: 'Today, 11:45 AM',
-          location: 'Delhivery Gurugram Hub',
-        },
-        {
-          status: 'Arrived at Central Air Gateway',
-          time: 'Today, 03:20 PM',
-          location: 'IGI Air Cargo Gateway, New Delhi',
-        },
-        {
-          status: 'In Transit to Destination Delivery Station',
-          time: 'Today, 06:00 PM',
-          location: 'Delhivery Express Network',
-        },
-      ],
+      success: false,
+      awb: cleanAwb,
+      courier: 'Delhivery Express Priority',
+      status: 'Unknown',
+      message: 'Unable to reach Delhivery tracking service. Please try again later.',
+      events: [],
     };
   }
 
@@ -423,12 +519,35 @@ export class ShippingService implements OnModuleInit {
    */
   private async syncOrderAwb(orderNumber: string, awb: string) {
     try {
+      const trackingUrl = `https://www.delhivery.com/track/package/${awb}`;
+      const query: any = { $or: [{ orderNumber }, { id: orderNumber }] };
+      if (orderNumber && orderNumber.match(/^[0-9a-fA-F]{24}$/)) {
+        query.$or.push({ _id: orderNumber });
+      }
+
       await this.orderModel.findOneAndUpdate(
-        { $or: [{ orderNumber }, { id: orderNumber }] },
+        query,
         {
           awbNumber: awb,
-          carrier: 'Delhivery Express',
-          orderStatus: 'DISPATCHED',
+          carrier: 'Delhivery Express Priority',
+          orderStatus: 'SHIPPED',
+          trackingUrl,
+          shipment: {
+            provider: 'Delhivery',
+            awb,
+            status: 'Shipment Created',
+            currentLocation: 'Origin Logistics Facility',
+            trackingUrl,
+            lastSyncedAt: new Date(),
+            events: [
+              {
+                status: 'Shipment Created',
+                description: 'Official Delhivery Waybill Manifested',
+                location: this.pickupLocation,
+                timestamp: new Date().toISOString(),
+              },
+            ],
+          },
         },
       );
     } catch (e: any) {

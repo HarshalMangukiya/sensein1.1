@@ -154,6 +154,80 @@ export class AuthService {
     };
   }
 
+  async adminLogin(email: string, pass: string): Promise<{ success: boolean; token: string; access_token?: string; user: any }> {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPass = (pass || '').trim();
+
+    const envAdminEmail = (process.env.ADMIN_EMAIL || 'admin@sensein.com').toLowerCase().trim();
+    const envAdminPass = (process.env.ADMIN_PASSWORD || 'sensein2026').trim();
+
+    const VALID_ADMINS = [
+      {
+        email: envAdminEmail,
+        pass: envAdminPass,
+        name: 'Executive Concierge & Director',
+        role: 'Super Administrator',
+      },
+      {
+        email: 'admin@sensein.com',
+        pass: 'sensein2026',
+        name: 'Executive Concierge & Director',
+        role: 'Super Administrator',
+      },
+      {
+        email: 'admin@sensein.com',
+        pass: 'admin123',
+        name: 'Executive Concierge & Director',
+        role: 'Super Administrator',
+      },
+      {
+        email: 'director@sensein.com',
+        pass: 'sensein2026',
+        name: 'Alexander Sterling',
+        role: 'Executive Director',
+      },
+    ];
+
+    const match = VALID_ADMINS.find(
+      (a) => a.email.toLowerCase() === cleanEmail && a.pass === cleanPass,
+    );
+
+    if (!match) {
+      this.logger.warn(`Failed executive login attempt for: ${cleanEmail}`);
+      throw new UnauthorizedException('Access Denied: Invalid executive email or cryptographic passkey.');
+    }
+
+    const adminId = 'adm_' + Math.random().toString(36).substring(2, 9);
+    const payload = {
+      sub: adminId,
+      email: match.email,
+      name: match.name,
+      role: match.role,
+    };
+
+    const token = jwt.sign(payload, this.jwtSecret, { expiresIn: '7d' });
+
+    this.logger.log(`Executive login successful: ${match.email} (${match.role})`);
+
+    return {
+      success: true,
+      token,
+      access_token: token,
+      user: {
+        id: adminId,
+        name: match.name,
+        email: match.email,
+        role: match.role,
+        lastLogin: new Date().toLocaleTimeString('en-IN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          day: 'numeric',
+          month: 'short',
+        }),
+      },
+    };
+  }
+
   async getProfile(userId: string): Promise<any> {
     try {
       const user = await this.userModel.findById(userId).lean();

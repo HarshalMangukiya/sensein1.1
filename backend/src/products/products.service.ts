@@ -383,7 +383,7 @@ export class ProductsService implements OnModuleInit {
       name: 'SENSEIN Live Payment Verification Sample • ₹1 Test Item',
       slug: 'sensein-payment-verification-test',
       subtitle: 'Live Razorpay Gateway Connectivity Test • Instant ₹1 Verification Token',
-      description: 'Special ₹1 verification formulation token designed for testing live Razorpay prepaid payment integration, instant Blue Dart priority tracking assignment, and live automated email receipts.',
+      description: 'Special ₹1 verification formulation token designed for testing live Razorpay prepaid payment integration, instant Delhivery Express Priority tracking assignment, and live automated email receipts.',
       category: 'Testing & Samples',
       curatedCollection: 'Bestsellers',
       price: 1,

@@ -4,9 +4,12 @@ import { ShippingController } from './shipping.controller';
 import { ShippingService } from './shipping.service';
 import { Order, OrderSchema } from '../orders/order.schema';
 
+import { AuthModule } from '../auth/auth.module';
+
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Order.name, schema: OrderSchema }]),
+    AuthModule,
   ],
   controllers: [ShippingController],
   providers: [ShippingService],

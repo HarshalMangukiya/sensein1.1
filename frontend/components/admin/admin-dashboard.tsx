@@ -14,6 +14,7 @@ import {
   Clock,
   Truck,
   AlertTriangle,
+  AlertCircle,
   Plus,
   ArrowUpRight,
   TrendingUp,
@@ -26,6 +27,8 @@ import {
   Edit2,
   X,
   Sparkles,
+  Loader2,
+  MapPin,
 } from 'lucide-react';
 import { useAdminStore } from '@/store/admin-store';
 import { BrandLogo } from '@/components/brand-logo';
@@ -39,6 +42,7 @@ import {
   updateProductStockApi,
   createDelhiveryShipmentApi,
   requestDelhiveryPickupApi,
+  trackDelhiveryAwbApi,
 } from '@/lib/api';
 
 const normalizeOrder = (ord: any) => {
@@ -48,9 +52,12 @@ const normalizeOrder = (ord: any) => {
       : ord.customer?.name || ord.customer?.email || 'Valued Patron';
   const customerEmail = ord.customer?.email || ord.email || '';
   const customerPhone = ord.customer?.phone || ord.phone || '';
+  const customerAddress = ord.customer?.address || ord.address || '';
   const customerCity = ord.customer?.city
-    ? `${ord.customer.city}, ${ord.customer?.state || ''}`
+    ? `${ord.customer.city}${ord.customer?.state ? `, ${ord.customer.state}` : ''}`
     : ord.city || 'India';
+  const customerState = ord.customer?.state || ord.state || '';
+  const customerPincode = ord.customer?.pincode || ord.pincode || '';
   const dateStr = ord.createdAt
     ? new Date(ord.createdAt).toLocaleDateString('en-IN', {
         day: 'numeric',
@@ -58,16 +65,21 @@ const normalizeOrder = (ord: any) => {
         year: 'numeric',
       })
     : ord.date || 'Recent';
-  const rawStatus = ord.orderStatus || ord.status || 'Confirmed';
+
+  const rawStatus = (ord.orderStatus || ord.status || 'Confirmed').toString();
+  const lowerStatus = rawStatus.toLowerCase();
   const statusStr =
-    rawStatus.toLowerCase() === 'confirmed'
+    lowerStatus === 'confirmed'
       ? 'Confirmed'
-      : rawStatus.toLowerCase() === 'shipped' || rawStatus.toLowerCase() === 'dispatched'
+      : lowerStatus === 'shipped' || lowerStatus === 'dispatched'
       ? 'Shipped'
-      : rawStatus.toLowerCase() === 'delivered'
+      : lowerStatus === 'delivered'
       ? 'Delivered'
+      : lowerStatus === 'cancelled'
+      ? 'Cancelled'
       : 'Confirmed';
-  const orderId = ord.orderNumber || ord.id;
+
+  const orderId = ord.orderNumber || ord.id || (ord._id ? ord._id.toString() : 'ORD-RECENT');
 
   return {
     ...ord,
@@ -77,18 +89,32 @@ const normalizeOrder = (ord: any) => {
     rawCustomer: ord.customer,
     email: customerEmail,
     phone: customerPhone,
+    address: customerAddress,
     city: customerCity,
+    state: customerState,
+    pincode: customerPincode,
     date: dateStr,
+    createdAt: ord.createdAt,
+    updatedAt: ord.updatedAt,
     status: statusStr,
     total: ord.total || 0,
+    subtotal: ord.subtotal || ord.total || 0,
+    shippingFee: ord.shippingFee || 0,
+    discount: ord.discount || 0,
     items: (ord.items || []).map((it: any) => ({
-      name: it.name,
+      name: it.name || 'Botanical Formulation',
       qty: it.quantity || it.qty || 1,
       price: it.price || 0,
+      size: it.size,
+      image: it.image,
     })),
-    paymentMethod: ord.paymentMethod || 'Prepaid (Razorpay)',
-    paymentStatus: ord.paymentStatus || 'PAID',
-    awbNumber: ord.awbNumber || 'BD-PENDING',
+    paymentMethod: ord.paymentMethod === 'razorpay' ? 'Prepaid (Razorpay)' : (ord.paymentMethod || 'Prepaid (Razorpay)'),
+    paymentStatus: (ord.paymentStatus || 'PAID').toUpperCase(),
+    razorpayOrderId: ord.razorpayOrderId || '',
+    awbNumber: ord.awbNumber || ord.shipment?.awb || '',
+    carrier: ord.carrier || 'Delhivery Express Priority',
+    trackingUrl: ord.trackingUrl || ord.shipment?.trackingUrl || '',
+    shipment: ord.shipment || null,
   };
 };
 
@@ -119,7 +145,29 @@ export function AdminDashboard() {
   // Orders State (Live MongoDB Atlas)
   const [orders, setOrders] = useState<any[]>([]);
   const [orderSearch, setOrderSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [orderFilter, setOrderFilter] = useState('All');
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+  const [awbGeneratingId, setAwbGeneratingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // Live Tracking Modal State
+  const [trackingModal, setTrackingModal] = useState<{
+    isOpen: boolean;
+    awb: string;
+    orderId: string;
+    loading: boolean;
+    data: any | null;
+    error: string | null;
+  }>({
+    isOpen: false,
+    awb: '',
+    orderId: '',
+    loading: false,
+    data: null,
+    error: null,
+  });
 
   // Products State (Live MongoDB Atlas)
   const [products, setProducts] = useState<any[]>([]);
@@ -138,12 +186,54 @@ export function AdminDashboard() {
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load live data from MongoDB Atlas
+  // Auto-dismiss toast
+  React.useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4500);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  // Debounce search input by 300ms
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(orderSearch);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [orderSearch]);
+
+  // Server-side orders fetch
+  const fetchOrders = async (searchVal = debouncedSearch, filterVal = orderFilter) => {
+    try {
+      setOrdersLoading(true);
+      const ordersData = await fetchAllOrders({
+        search: searchVal,
+        status: filterVal === 'All' ? undefined : filterVal,
+      });
+      if (ordersData && Array.isArray(ordersData)) {
+        setOrders(ordersData.map(normalizeOrder));
+      }
+    } catch (err) {
+      console.error('Failed to fetch orders from MongoDB Atlas:', err);
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  // Re-fetch when debounced search, filter, or activeTab changes
+  React.useEffect(() => {
+    fetchOrders(debouncedSearch, orderFilter);
+  }, [debouncedSearch, orderFilter, activeTab]);
+
+  // Load initial live data from MongoDB Atlas
   const loadData = async () => {
     try {
       setLoading(true);
       const [ordersData, prodsData, inqsData] = await Promise.all([
-        fetchAllOrders(),
+        fetchAllOrders({
+          search: debouncedSearch,
+          status: orderFilter === 'All' ? undefined : orderFilter,
+        }),
         fetchProducts(),
         fetchWholesaleInquiries(),
       ]);
@@ -175,14 +265,128 @@ export function AdminDashboard() {
 
   // Status Updater persisting directly to MongoDB Atlas
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
-    setOrders((prev) =>
-      prev.map((ord) =>
-        ord.id === orderId || ord.orderNumber === orderId
-          ? { ...ord, status: newStatus }
-          : ord
-      )
-    );
-    await updateOrderStatusApi(orderId, newStatus.toUpperCase());
+    if (statusUpdatingId) return;
+    setStatusUpdatingId(orderId);
+
+    try {
+      const res = await updateOrderStatusApi(orderId, newStatus);
+      if (res?.success && res.order) {
+        setOrders((prev) =>
+          prev.map((ord) =>
+            ord.id === orderId || ord.orderNumber === orderId
+              ? normalizeOrder(res.order)
+              : ord
+          )
+        );
+        setToast({ text: `Order ${orderId} updated to ${newStatus}`, type: 'success' });
+      } else {
+        setToast({
+          text: res?.error || `Failed to update status for order ${orderId}`,
+          type: 'error',
+        });
+      }
+    } catch (err: any) {
+      setToast({ text: err.message || 'Status update failed', type: 'error' });
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  };
+
+  // Open Delhivery Live Tracking Modal
+  const openTrackingModal = async (awb: string, orderId: string) => {
+    setTrackingModal({
+      isOpen: true,
+      awb,
+      orderId,
+      loading: true,
+      data: null,
+      error: null,
+    });
+
+    try {
+      const res = await trackDelhiveryAwbApi(awb);
+      if (res?.success) {
+        setTrackingModal((prev) => ({
+          ...prev,
+          loading: false,
+          data: res,
+          error: null,
+        }));
+      } else {
+        setTrackingModal((prev) => ({
+          ...prev,
+          loading: false,
+          error: res?.error || 'Tracking details not yet scanned by Delhivery network.',
+        }));
+      }
+    } catch (err: any) {
+      setTrackingModal((prev) => ({
+        ...prev,
+        loading: false,
+        error: 'Failed to query Delhivery tracking API: ' + err.message,
+      }));
+    }
+  };
+
+  // Delhivery AWB Generation or Tracking
+  const handleDelhiveryShipment = async (ord: any) => {
+    if (awbGeneratingId) return;
+
+    // If AWB already generated, open real-time tracking details
+    if (ord.awbNumber && ord.awbNumber.trim().length > 0) {
+      openTrackingModal(ord.awbNumber, ord.id);
+      return;
+    }
+
+    setAwbGeneratingId(ord.id);
+    const isCod = ord.paymentMethod?.toLowerCase().includes('cod');
+    try {
+      const res = await createDelhiveryShipmentApi({
+        orderNumber: ord.id || ord.orderNumber,
+        customerName: ord.customer,
+        address: ord.rawCustomer?.address || ord.address || 'Customer Delivery Address',
+        pincode: ord.rawCustomer?.pincode || ord.pincode || '400001',
+        city: ord.rawCustomer?.city || ord.city || 'Mumbai',
+        state: ord.rawCustomer?.state || ord.state || 'Maharashtra',
+        phone: ord.phone || '9820144552',
+        totalAmount: ord.total,
+        paymentMode: isCod ? 'COD' : 'Prepaid',
+        codAmount: isCod ? ord.total : 0,
+        items: ord.items,
+      });
+
+      if (res?.success && res.waybill) {
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.id === ord.id
+              ? {
+                  ...o,
+                  awbNumber: res.waybill,
+                  carrier: 'Delhivery Express Priority',
+                  status: 'Shipped',
+                  trackingUrl: res.trackingUrl,
+                }
+              : o
+          )
+        );
+        setToast({
+          text: `Delhivery Shipment Generated! Real Waybill: ${res.waybill}`,
+          type: 'success',
+        });
+      } else {
+        setToast({
+          text: `Delhivery Notice: ${res?.error || 'Manifest creation was not completed by Delhivery.'}`,
+          type: 'error',
+        });
+      }
+    } catch (err: any) {
+      setToast({
+        text: 'Delhivery integration error: ' + err.message,
+        type: 'error',
+      });
+    } finally {
+      setAwbGeneratingId(null);
+    }
   };
 
   const updateProductStock = async (productId: string, delta: number) => {
@@ -244,14 +448,11 @@ export function AdminDashboard() {
     await updateInquiryStatusApi(idOrRef, newStatus);
   };
 
-  const filteredOrders = orders.filter((ord) => {
-    const matchSearch =
-      (ord.id || '').toLowerCase().includes(orderSearch.toLowerCase()) ||
-      (ord.customer || '').toLowerCase().includes(orderSearch.toLowerCase()) ||
-      (ord.city || '').toLowerCase().includes(orderSearch.toLowerCase());
-    const matchFilter = orderFilter === 'All' || ord.status === orderFilter;
-    return matchSearch && matchFilter;
-  });
+  // Computed Real Overview Metrics
+  const grossRevenue = orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+  const totalOrdersCount = orders.length;
+  const activePatronsCount = new Set(orders.map((o) => o.email || o.phone || o.customer)).size;
+  const lowStockProductsCount = products.filter((p) => (p.stock || 0) <= 10).length;
 
   const filteredProducts = products.filter((p) =>
     (p.name || '').toLowerCase().includes(productSearch.toLowerCase()) ||
@@ -332,7 +533,10 @@ export function AdminDashboard() {
             </button>
 
             <button
-              onClick={() => setActiveTab('orders')}
+              onClick={() => {
+                setActiveTab('orders');
+                fetchOrders(debouncedSearch, orderFilter);
+              }}
               className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
                 activeTab === 'orders'
                   ? 'bg-plum text-white shadow-sm'
@@ -439,9 +643,9 @@ export function AdminDashboard() {
                       <DollarSign className="w-4 h-4" />
                     </div>
                   </div>
-                  <h3 className="text-2xl font-bold font-sans text-charcoal">₹18,45,290</h3>
+                  <h3 className="text-2xl font-bold font-sans text-charcoal">₹{grossRevenue.toLocaleString('en-IN')}</h3>
                   <p className="text-[11px] text-emerald-accent mt-2 flex items-center gap-1 font-semibold">
-                    <ArrowUpRight className="w-3 h-3" /> +28.4% vs last month
+                    <ArrowUpRight className="w-3 h-3" /> Live Verified Total
                   </p>
                 </div>
 
@@ -453,9 +657,9 @@ export function AdminDashboard() {
                       <ShoppingBag className="w-4 h-4" />
                     </div>
                   </div>
-                  <h3 className="text-2xl font-bold font-sans text-charcoal">1,428</h3>
+                  <h3 className="text-2xl font-bold font-sans text-charcoal">{totalOrdersCount}</h3>
                   <p className="text-[11px] text-emerald-accent mt-2 flex items-center gap-1 font-semibold">
-                    <ArrowUpRight className="w-3 h-3" /> +14.2% velocity
+                    <ArrowUpRight className="w-3 h-3" /> MongoDB Atlas Synchronized
                   </p>
                 </div>
 
@@ -467,9 +671,9 @@ export function AdminDashboard() {
                       <Users className="w-4 h-4" />
                     </div>
                   </div>
-                  <h3 className="text-2xl font-bold font-sans text-charcoal">982</h3>
+                  <h3 className="text-2xl font-bold font-sans text-charcoal">{activePatronsCount}</h3>
                   <p className="text-[11px] text-charcoal-muted mt-2 font-medium">
-                    84% Repeat Ritual Rate
+                    Verified Customer Profiles
                   </p>
                 </div>
 
@@ -481,9 +685,9 @@ export function AdminDashboard() {
                       <AlertTriangle className="w-4 h-4" />
                     </div>
                   </div>
-                  <h3 className="text-2xl font-bold font-sans text-amber-700">2 Low Stock</h3>
+                  <h3 className="text-2xl font-bold font-sans text-amber-700">{lowStockProductsCount} Low Stock</h3>
                   <p className="text-[11px] text-amber-600 mt-2 font-medium">
-                    Keratin Mask (4 units left)
+                    {lowStockProductsCount > 0 ? `${lowStockProductsCount} items require restocking` : 'All stocks optimal'}
                   </p>
                 </div>
               </div>
@@ -620,6 +824,15 @@ export function AdminDashboard() {
                   <h2 className="text-2xl font-serif font-bold text-charcoal tracking-tight">Order Management</h2>
                   <p className="text-xs text-charcoal-muted mt-1">Review orders, update dispatch state, and view airway bills.</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => fetchOrders('', 'All')}
+                  disabled={ordersLoading}
+                  className="px-3.5 py-2 bg-white hover:bg-[#FAF7F5] border border-border hover:border-plum text-charcoal text-xs font-semibold rounded-lg flex items-center gap-2 shadow-xs transition-colors self-start sm:self-auto cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-plum ${ordersLoading ? 'animate-spin' : ''}`} />
+                  <span>Sync Orders</span>
+                </button>
               </div>
 
               {/* Filters & Search Toolbar */}
@@ -631,14 +844,17 @@ export function AdminDashboard() {
                     type="text"
                     value={orderSearch}
                     onChange={(e) => setOrderSearch(e.target.value)}
-                    placeholder="Search by Order ID, customer, city..."
-                    className="w-full pl-9 pr-4 py-2 bg-white border border-border focus:border-plum rounded-lg text-xs text-charcoal placeholder-charcoal-subtle focus:outline-none focus:ring-1 focus:ring-plum"
+                    placeholder="Search by Order ID, customer, city, AWB..."
+                    className="w-full pl-9 pr-8 py-2 bg-white border border-border focus:border-plum rounded-lg text-xs text-charcoal placeholder-charcoal-subtle focus:outline-none focus:ring-1 focus:ring-plum"
                   />
+                  {ordersLoading && (
+                    <Loader2 className="w-3.5 h-3.5 text-plum animate-spin absolute right-3 top-1/2 -translate-y-1/2" />
+                  )}
                 </div>
 
                 {/* Filter Pills */}
                 <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto">
-                  {['All', 'Confirmed', 'Shipped', 'Delivered'].map((status) => (
+                  {['All', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'].map((status) => (
                     <button
                       key={status}
                       onClick={() => setOrderFilter(status)}
@@ -669,19 +885,47 @@ export function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {filteredOrders.length === 0 ? (
+                      {ordersLoading && orders.length === 0 ? (
                         <tr>
                           <td colSpan={6} className="p-8 text-center text-charcoal-muted">
-                            No orders found matching criteria.
+                            <div className="flex items-center justify-center gap-2">
+                              <Loader2 className="w-4 h-4 animate-spin text-plum" />
+                              <span>Synchronizing with MongoDB Atlas...</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : orders.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="p-8 text-center text-charcoal-muted">
+                            <p className="mb-3 text-xs">No orders found matching criteria.</p>
+                            <button
+                              type="button"
+                              onClick={() => fetchOrders('', 'All')}
+                              className="px-4 py-2 bg-plum hover:bg-plum-hover text-white text-xs font-semibold rounded-md shadow-xs transition-all inline-flex items-center gap-2 cursor-pointer"
+                            >
+                              <RefreshCw className={`w-3.5 h-3.5 ${ordersLoading ? 'animate-spin' : ''}`} />
+                              <span>Sync Live Orders with MongoDB Atlas</span>
+                            </button>
                           </td>
                         </tr>
                       ) : (
-                        filteredOrders.map((ord) => (
+                        orders.map((ord) => (
                           <tr key={ord.id} className="hover:bg-[#FAF7F5] transition-colors">
                             <td className="p-4">
                               <p className="font-mono font-bold text-plum">{ord.id}</p>
                               <p className="text-[10px] text-charcoal-muted mt-0.5">{ord.date}</p>
-                              <p className="text-[10px] text-gold font-mono font-semibold mt-1">AWB: {ord.awbNumber}</p>
+                              {ord.awbNumber && ord.awbNumber !== 'BD-PENDING' && !ord.awbNumber.startsWith('PENDING') ? (
+                                <button
+                                  onClick={() => openTrackingModal(ord.awbNumber, ord.id)}
+                                  className="text-[10px] text-gold hover:text-plum font-mono font-semibold mt-1 flex items-center gap-1 group transition-colors"
+                                  title="View live Delhivery tracking"
+                                >
+                                  <span>AWB: {ord.awbNumber}</span>
+                                  <ExternalLink className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                                </button>
+                              ) : (
+                                <p className="text-[10px] text-charcoal-muted font-mono mt-1">AWB: Pending</p>
+                              )}
                             </td>
 
                             <td className="p-4">
@@ -692,7 +936,7 @@ export function AdminDashboard() {
 
                             <td className="p-4">
                               <div className="space-y-1">
-                                {ord.items.map((it, idx) => (
+                                {ord.items.map((it: any, idx: number) => (
                                   <p key={idx} className="text-charcoal">
                                     <span className="font-bold text-plum">{it.qty}x</span> {it.name}
                                   </p>
@@ -701,10 +945,28 @@ export function AdminDashboard() {
                             </td>
 
                             <td className="p-4">
-                              <p className="font-bold text-charcoal text-sm">₹{ord.total}</p>
-                              <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded bg-[#FAF7F5] border border-border text-charcoal-muted">
-                                {ord.paymentMethod}
-                              </span>
+                              <p className="font-bold text-charcoal text-sm">₹{Number(ord.total).toLocaleString('en-IN')}</p>
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                <span
+                                  className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
+                                    ord.paymentStatus === 'PAID'
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                      : ord.paymentStatus === 'FAILED'
+                                      ? 'bg-red-50 text-red-700 border border-red-200'
+                                      : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  }`}
+                                >
+                                  {ord.paymentStatus}
+                                </span>
+                                <span className="inline-block text-[10px] px-2 py-0.5 rounded bg-[#FAF7F5] border border-border text-charcoal-muted">
+                                  {ord.paymentMethod}
+                                </span>
+                              </div>
+                              {ord.razorpayPaymentId && (
+                                <p className="text-[9px] text-charcoal-subtle font-mono mt-0.5 truncate max-w-[130px]" title={`Razorpay ID: ${ord.razorpayPaymentId}`}>
+                                  {ord.razorpayPaymentId}
+                                </p>
+                              )}
                             </td>
 
                             <td className="p-4">
@@ -714,12 +976,15 @@ export function AdminDashboard() {
                                     ? 'bg-emerald-light text-emerald-accent'
                                     : ord.status === 'Shipped'
                                     ? 'bg-blue-50 text-blue-700'
+                                    : ord.status === 'Cancelled'
+                                    ? 'bg-red-50 text-red-700'
                                     : 'bg-amber-50 text-amber-700'
                                 }`}
                               >
                                 {ord.status === 'Delivered' && <CheckCircle2 className="w-3 h-3" />}
                                 {ord.status === 'Shipped' && <Truck className="w-3 h-3" />}
                                 {ord.status === 'Confirmed' && <Clock className="w-3 h-3" />}
+                                {ord.status === 'Cancelled' && <AlertCircle className="w-3 h-3" />}
                                 {ord.status}
                               </span>
                             </td>
@@ -727,40 +992,38 @@ export function AdminDashboard() {
                             <td className="p-4 text-right">
                               <div className="inline-flex items-center gap-2">
                                 <button
-                                  onClick={async () => {
-                                    const res = await createDelhiveryShipmentApi({
-                                      orderNumber: ord.id || ord.orderNumber,
-                                      customerName: ord.customer,
-                                      address: ord.rawCustomer?.address || 'Customer Delivery Address',
-                                      pincode: ord.rawCustomer?.pincode || '400001',
-                                      city: ord.rawCustomer?.city || ord.city || 'Mumbai',
-                                      state: ord.rawCustomer?.state || 'Maharashtra',
-                                      phone: ord.phone || '9820144552',
-                                      totalAmount: ord.total,
-                                      items: ord.items,
-                                    });
-                                    if (res?.success && res.waybill) {
-                                      setOrders((prev) =>
-                                        prev.map((o) =>
-                                          o.id === ord.id
-                                            ? { ...o, awbNumber: res.waybill, status: 'Shipped' }
-                                            : o
-                                        )
-                                      );
-                                      alert(`Delhivery Shipment Generated!\nWaybill: ${res.waybill}\nCarrier: Delhivery Express\nStatus: Manifest Generated`);
-                                    }
-                                  }}
-                                  className="px-2.5 py-1.5 bg-[#FAF7F5] hover:bg-plum/10 border border-plum/30 text-plum rounded-md text-[11px] font-semibold transition-colors flex items-center gap-1 shadow-2xs"
-                                  title="Generate Delhivery Airway Bill & Dispatch Manifest"
+                                  onClick={() => handleDelhiveryShipment(ord)}
+                                  disabled={awbGeneratingId === ord.id}
+                                  className="px-2.5 py-1.5 bg-[#FAF7F5] hover:bg-plum/10 border border-plum/30 text-plum rounded-md text-[11px] font-semibold transition-colors flex items-center gap-1 shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
+                                  title={
+                                    ord.awbNumber && ord.awbNumber.trim().length > 0
+                                      ? 'View Delhivery live tracking status'
+                                      : 'Generate Delhivery Airway Bill & Dispatch Manifest'
+                                  }
                                 >
-                                  <Truck className="w-3 h-3 text-plum" />
-                                  <span>Delhivery AWB</span>
+                                  {awbGeneratingId === ord.id ? (
+                                    <>
+                                      <Loader2 className="w-3 h-3 text-plum animate-spin" />
+                                      <span>Manifesting...</span>
+                                    </>
+                                  ) : ord.awbNumber && ord.awbNumber.trim().length > 0 ? (
+                                    <>
+                                      <Truck className="w-3 h-3 text-plum" />
+                                      <span>Track AWB</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Truck className="w-3 h-3 text-plum" />
+                                      <span>Delhivery AWB</span>
+                                    </>
+                                  )}
                                 </button>
 
                                 <select
                                   value={ord.status}
+                                  disabled={statusUpdatingId === ord.id}
                                   onChange={(e) => updateOrderStatus(ord.id, e.target.value)}
-                                  className="px-2.5 py-1.5 bg-white border border-border rounded-md text-[11px] text-charcoal focus:outline-none focus:border-plum font-medium shadow-2xs"
+                                  className="px-2.5 py-1.5 bg-white border border-border rounded-md text-[11px] text-charcoal focus:outline-none focus:border-plum font-medium shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   <option value="Confirmed">Confirmed</option>
                                   <option value="Shipped">Shipped</option>
@@ -1117,7 +1380,7 @@ export function AdminDashboard() {
                   <div className="space-y-3 text-xs">
                     <div className="flex items-center justify-between p-3.5 bg-[#FAF7F5] rounded-lg border border-border">
                       <div>
-                        <p className="font-semibold text-charcoal">Blue Dart Luxury Apex Express</p>
+                        <p className="font-semibold text-charcoal">Delhivery Express Priority Air</p>
                         <p className="text-[11px] text-charcoal-muted">Air priority dispatch for metro cities (24-48 hours)</p>
                       </div>
                       <span className="px-2.5 py-1 rounded-full bg-emerald-light text-emerald-accent font-bold text-[10px] uppercase">
@@ -1178,6 +1441,147 @@ export function AdminDashboard() {
           )}
         </main>
       </div>
+
+      {/* Floating Status / Action Toast Notification */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-lg border text-xs font-medium flex items-center gap-2.5 animate-in slide-in-from-bottom-5 duration-200 ${
+            toast.type === 'error'
+              ? 'bg-red-50 border-red-200 text-red-800'
+              : toast.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-white border-border text-charcoal'
+          }`}
+        >
+          {toast.type === 'error' ? (
+            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+          ) : (
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          )}
+          <span>{toast.text}</span>
+          <button
+            onClick={() => setToast(null)}
+            className="ml-2 p-1 text-charcoal-muted hover:text-charcoal transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Delhivery Express Live Tracking Modal */}
+      {trackingModal.isOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-border rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+            <div className="flex items-center justify-between pb-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-plum/10 text-plum flex items-center justify-center">
+                  <Truck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-serif font-bold text-charcoal">Delhivery Express Live Tracking</h3>
+                  <p className="text-[10px] text-charcoal-muted">Airway Bill Dossier & Logistics Milestones</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setTrackingModal((prev) => ({ ...prev, isOpen: false }))}
+                className="p-1 text-charcoal-muted hover:text-charcoal"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="py-4 space-y-4">
+              <div className="flex items-center justify-between p-3.5 bg-[#FAF7F5] rounded-xl border border-border">
+                <div>
+                  <p className="text-[10px] text-charcoal-muted uppercase font-bold tracking-wider">Waybill / AWB</p>
+                  <p className="font-mono font-bold text-plum text-sm mt-0.5">{trackingModal.awb}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-charcoal-muted uppercase font-bold tracking-wider">Carrier Service</p>
+                  <p className="font-semibold text-charcoal text-xs mt-0.5">Delhivery Express Priority</p>
+                </div>
+              </div>
+
+              {trackingModal.loading ? (
+                <div className="py-8 flex flex-col items-center justify-center gap-2 text-charcoal-muted">
+                  <Loader2 className="w-6 h-6 animate-spin text-plum" />
+                  <p className="text-xs">Querying Delhivery logistics network...</p>
+                </div>
+              ) : trackingModal.error ? (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold">Delhivery Tracking Notice</p>
+                    <p className="mt-0.5">{trackingModal.error}</p>
+                  </div>
+                </div>
+              ) : trackingModal.data ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs px-1">
+                    <span className="text-charcoal-muted">Current Shipment Status:</span>
+                    <span className="font-bold text-emerald-accent uppercase tracking-wider bg-emerald-light px-2 py-0.5 rounded">
+                      {trackingModal.data.status || 'In Transit'}
+                    </span>
+                  </div>
+                  {trackingModal.data.currentLocation && (
+                    <div className="flex items-center justify-between text-xs px-1">
+                      <span className="text-charcoal-muted">Active Logistics Hub:</span>
+                      <span className="font-semibold text-charcoal flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-plum" />
+                        {trackingModal.data.currentLocation}
+                      </span>
+                    </div>
+                  )}
+                  {trackingModal.data.expectedDelivery && (
+                    <div className="flex items-center justify-between text-xs px-1">
+                      <span className="text-charcoal-muted">Estimated Delivery:</span>
+                      <span className="font-semibold text-plum">{trackingModal.data.expectedDelivery}</span>
+                    </div>
+                  )}
+
+                  {/* Transit Milestones */}
+                  <div className="pt-2 border-t border-border">
+                    <p className="text-[10px] text-charcoal-muted uppercase font-bold tracking-wider mb-2">
+                      Carrier Scans & Events
+                    </p>
+                    <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                      {(trackingModal.data.events || []).map((ev: any, idx: number) => (
+                        <div key={idx} className="text-xs flex items-start gap-2.5 p-2.5 bg-[#FAF7F5] rounded-lg border border-border/60">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-plum flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <p className="font-semibold text-charcoal text-[11px]">{ev.status}</p>
+                            <p className="text-[10px] text-charcoal-muted mt-0.5">
+                              {ev.time} {ev.location ? `• ${ev.location}` : ''}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="pt-3 border-t border-border flex items-center justify-between">
+              <a
+                href={`https://www.delhivery.com/track/package/${trackingModal.awb}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-plum hover:text-plum-hover font-semibold flex items-center gap-1.5"
+              >
+                <span>Open Delhivery Portal</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+              <button
+                onClick={() => setTrackingModal((prev) => ({ ...prev, isOpen: false }))}
+                className="px-4 py-2 bg-[#FAF7F5] hover:bg-neutral-200 rounded-lg text-xs font-semibold text-charcoal transition-colors"
+              >
+                Close Dossier
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

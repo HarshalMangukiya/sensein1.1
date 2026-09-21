@@ -1,7 +1,10 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import * as crypto from 'crypto';
 const Razorpay = require('razorpay');
 import { CreateOrderDto, VerifyPaymentDto } from './payments.dto';
+import { Order, OrderDocument } from '../orders/order.schema';
 
 @Injectable()
 export class PaymentsService {
@@ -9,10 +12,14 @@ export class PaymentsService {
   private razorpayClient: any = null;
   private keyId: string;
   private keySecret: string;
+  private webhookSecret: string;
 
-  constructor() {
+  constructor(
+    @InjectModel(Order.name) private readonly orderModel: Model<OrderDocument>,
+  ) {
     this.keyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_TdsVEj2PTlSRUc';
     this.keySecret = process.env.RAZORPAY_KEY_SECRET || 'lCXn6EqZx3rYYZBF7HJZ5d7F';
+    this.webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || '';
 
     if (this.keyId && this.keySecret) {
       try {
@@ -93,6 +100,16 @@ export class PaymentsService {
       throw new BadRequestException('Invalid payment signature. Verification failed.');
     }
 
+    // Mark corresponding order in MongoDB as PAID
+    try {
+      await this.orderModel.findOneAndUpdate(
+        { $or: [{ razorpayOrderId: razorpay_order_id }, { razorpayPaymentId: razorpay_payment_id }] },
+        { paymentStatus: 'PAID', razorpayPaymentId: razorpay_payment_id },
+      );
+    } catch (e: any) {
+      this.logger.warn(`Could not update order paymentStatus: ${e.message}`);
+    }
+
     return {
       success: true,
       message: 'Payment verified successfully. Order confirmed.',
@@ -100,5 +117,72 @@ export class PaymentsService {
       orderId: razorpay_order_id,
       verifiedAt: new Date().toISOString(),
     };
+  }
+
+  async getPaymentDetails(paymentId: string): Promise<any> {
+    const cleanId = (paymentId || '').trim();
+    if (this.razorpayClient) {
+      try {
+        const payment = await this.razorpayClient.payments.fetch(cleanId);
+        return {
+          success: true,
+          payment: {
+            id: payment.id,
+            amount: (payment.amount || 0) / 100,
+            currency: payment.currency,
+            status: payment.status,
+            method: payment.method,
+            email: payment.email,
+            contact: payment.contact,
+            createdAt: payment.created_at ? new Date(payment.created_at * 1000).toISOString() : undefined,
+          },
+        };
+      } catch (err: any) {
+        this.logger.warn(`Razorpay payment fetch error for ${cleanId}: ${err.message}`);
+      }
+    }
+
+    return {
+      success: true,
+      payment: {
+        id: cleanId,
+        status: 'captured',
+        method: 'prepaid',
+        simulated: true,
+      },
+    };
+  }
+
+  async handleWebhook(payload: any, signature: string): Promise<any> {
+    if (this.webhookSecret && signature) {
+      const bodyString = typeof payload === 'string' ? payload : JSON.stringify(payload);
+      const expected = crypto
+        .createHmac('sha256', this.webhookSecret)
+        .update(bodyString)
+        .digest('hex');
+
+      if (expected !== signature) {
+        this.logger.warn('Razorpay webhook signature mismatch.');
+        throw new BadRequestException('Invalid webhook signature');
+      }
+    }
+
+    this.logger.log(`Received Razorpay webhook event: ${payload?.event}`);
+    const event = payload?.event;
+    const payment = payload?.payload?.payment?.entity;
+    const orderId = payment?.order_id;
+    const paymentId = payment?.id;
+
+    if (event === 'payment.captured' || event === 'order.paid') {
+      if (orderId || paymentId) {
+        await this.orderModel.findOneAndUpdate(
+          { $or: [{ razorpayOrderId: orderId }, { razorpayPaymentId: paymentId }] },
+          { paymentStatus: 'PAID', razorpayPaymentId: paymentId },
+        );
+        this.logger.log(`Order with Razorpay orderId ${orderId} marked as PAID via webhook`);
+      }
+    }
+
+    return { received: true };
   }
 }
