@@ -21,12 +21,34 @@ import {
 } from 'lucide-react';
 import { useCartStore } from '@/store/cart-store';
 import { useAuthStore } from '@/store/auth-store';
-import { checkPincodeServiceability, createRazorpayOrder, placeOrder } from '@/lib/api';
+import { checkPincodeServiceability, createRazorpayOrder, verifyRazorpayPayment, placeOrder } from '@/lib/api';
 
 declare global {
   interface Window {
     Razorpay: any;
   }
+}
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window !== 'undefined' && (window as any).Razorpay) {
+      return resolve(true);
+    }
+    const existing = document.getElementById('razorpay-checkout-script');
+    if (existing) {
+      if ((window as any).Razorpay) return resolve(true);
+      existing.addEventListener('load', () => resolve(true));
+      existing.addEventListener('error', () => resolve(false));
+      return;
+    }
+    const script = document.createElement('script');
+    script.id = 'razorpay-checkout-script';
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 }
 
 export default function CheckoutPage() {
@@ -158,26 +180,49 @@ export default function CheckoutPage() {
 
     // 2. Razorpay Online Payment Flow
     try {
-      // Create order on NestJS backend
+      // 1. Ensure Razorpay checkout SDK is loaded
+      const scriptReady = await loadRazorpayScript();
+      if (!scriptReady || typeof window === 'undefined' || !window.Razorpay) {
+        alert('Could not initialize Razorpay payment gateway. Please check your internet connection or select Cash on Delivery.');
+        setLoading(false);
+        return;
+      }
+
+      // 2. Create official order on NestJS backend
       const orderRes = await createRazorpayOrder(finalTotal, {
         customerName: formData.name,
         email: formData.email,
-        userId: user.id,
+        userId: user?.id,
       });
 
-      // 2. Open Razorpay or fallback
-      if (window.Razorpay && !orderRes.simulated) {
-        const options = {
-          key: orderRes.keyId,
-          amount: orderRes.order.amount,
-          currency: 'INR',
-          name: 'SENSEIN PROFESSIONAL',
-          description: 'Luxury Haircare Ritual Order',
-          image: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820271/sensein/products/mask-1.jpg',
-          order_id: orderRes.order.id,
-          handler: async (response: any) => {
+      if (!orderRes || !orderRes.order?.id) {
+        alert('Failed to initialize payment session. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // 3. Open Razorpay Checkout modal
+      const options = {
+        key: orderRes.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_live_TdsVEj2PTlSRUc',
+        amount: orderRes.order.amount,
+        currency: orderRes.order.currency || 'INR',
+        name: 'SENSEIN PROFESSIONAL',
+        description: 'Luxury Haircare Ritual Order',
+        image: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820271/sensein/products/mask-1.jpg',
+        order_id: orderRes.order.id,
+        handler: async (response: any) => {
+          try {
+            setLoading(true);
+            // Verify HMAC-SHA256 signature on backend
+            await verifyRazorpayPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+
+            // Save verified PAID order in MongoDB Atlas
             const orderRecord = await placeOrder({
-              customer: { ...formData, userId: user.id },
+              customer: { ...formData, userId: user?.id },
               items,
               subtotal,
               discount,
@@ -185,43 +230,45 @@ export default function CheckoutPage() {
               shippingFee: shipping,
               total: finalTotal,
               paymentMethod: 'razorpay',
+              paymentStatus: 'PAID',
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
               freeGifts: unlockedGifts,
             });
+
             setOrderConfirmed(orderRecord);
             clearCart();
+          } catch (err: any) {
+            console.error('Payment processing or verification failed:', err);
+            alert(err?.message || 'Payment signature verification failed. Please contact support.');
+          } finally {
+            setLoading(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
           },
-          prefill: {
-            name: formData.name,
-            email: formData.email,
-            contact: formData.phone,
-          },
-          theme: {
-            color: '#5A3859',
-          },
-        };
-        const rzp = new window.Razorpay(options);
-        rzp.open();
-      } else {
-        // Direct placement fallback
-        const orderRecord = await placeOrder({
-          customer: { ...formData, userId: user.id },
-          items,
-          subtotal,
-          discount,
-          couponCode,
-          shippingFee: shipping,
-          total: finalTotal,
-          paymentMethod: 'razorpay',
-          freeGifts: unlockedGifts,
-        });
-        setOrderConfirmed(orderRecord);
-        clearCart();
-      }
-    } catch (err) {
-      alert('Order placement failed. Please try again.');
-    } finally {
+        },
+        prefill: {
+          name: formData.name,
+          email: formData.email,
+          contact: formData.phone,
+        },
+        theme: {
+          color: '#5A3859',
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', (response: any) => {
+        setLoading(false);
+        alert(`Payment Failed: ${response.error?.description || response.error?.reason || 'Payment was declined by the issuer.'}`);
+      });
+      rzp.open();
+    } catch (err: any) {
+      console.error('Razorpay initialization failed:', err);
+      alert(err?.message || 'Unable to open payment modal. Please try again.');
       setLoading(false);
     }
   };
@@ -304,7 +351,7 @@ export default function CheckoutPage() {
 
   return (
     <>
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+      <Script id="razorpay-checkout-script" src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="mb-8">

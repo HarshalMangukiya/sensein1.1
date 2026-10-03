@@ -196,23 +196,32 @@ export async function createRazorpayOrder(amount: number, notes?: Record<string,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ amount, notes }),
     });
-    if (res.ok) return await res.json();
-  } catch (e) {}
-
-  return {
-    success: true,
-    keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_live_TdsVEj2PTlSRUc',
-    order: {
-      id: `order_${Math.random().toString(36).substring(2, 14)}`,
-      amount: Math.round(amount * 100),
-      currency: 'INR',
-    },
-    simulated: false,
-  };
+    if (res.ok) {
+      return await res.json();
+    }
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.message || 'Payment order generation failed on server');
+  } catch (e: any) {
+    console.error('Razorpay order creation error:', e);
+    throw e;
+  }
 }
 
-export async function verifyRazorpayPayment(data: any) {
-  return { success: true, message: 'Payment verified successfully.' };
+export async function verifyRazorpayPayment(data: {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}) {
+  const res = await fetch(`${API_BASE_URL}/payments/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.message || 'Payment signature verification failed');
+  }
+  return await res.json();
 }
 
 export async function placeOrder(orderData: any) {
@@ -435,11 +444,30 @@ export async function updateProductStockApi(productId: string, delta: number): P
 
 export async function createDelhiveryShipmentApi(payload: any): Promise<any> {
   try {
-    const res = await fetch(`${API_BASE_URL}/shipping/create-shipment`, {
+    let token = getAdminToken();
+    if (!token) {
+      token = await ensureAdminToken();
+    }
+    let res = await fetch(`${API_BASE_URL}/shipping/create-shipment`, {
       method: 'POST',
       headers: getAdminAuthHeaders(true),
       body: JSON.stringify(payload),
     });
+
+    if (res.status === 401) {
+      const refreshedToken = await ensureAdminToken();
+      if (refreshedToken) {
+        res = await fetch(`${API_BASE_URL}/shipping/create-shipment`, {
+          method: 'POST',
+          headers: {
+            ...getAdminAuthHeaders(true),
+            Authorization: `Bearer ${refreshedToken}`,
+          },
+          body: JSON.stringify(payload),
+        });
+      }
+    }
+
     const data = await res.json();
     if (res.ok) return data;
     return { success: false, error: data?.message || data?.error || 'Delhivery shipment request failed' };

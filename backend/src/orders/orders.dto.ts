@@ -131,4 +131,9 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   userId?: string;
+
+  @ApiProperty({ required: false, enum: ['PAID', 'PENDING', 'FAILED'] })
+  @IsOptional()
+  @IsString()
+  paymentStatus?: string;
 }

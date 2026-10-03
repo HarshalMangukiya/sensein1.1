@@ -339,26 +339,27 @@ export function AdminDashboard() {
     }
 
     setAwbGeneratingId(ord.id);
-    const isCod = ord.paymentMethod?.toLowerCase().includes('cod');
+    const isCod = (ord.paymentMethod || '').toLowerCase().includes('cod');
+    const finalOrderNumber = ord.orderNumber || ord.id;
     try {
       const res = await createDelhiveryShipmentApi({
-        orderNumber: ord.id || ord.orderNumber,
-        customerName: ord.customer,
+        orderNumber: finalOrderNumber,
+        customerName: ord.rawCustomer?.name || ord.customer || 'Patron',
         address: ord.rawCustomer?.address || ord.address || 'Customer Delivery Address',
         pincode: ord.rawCustomer?.pincode || ord.pincode || '400001',
-        city: ord.rawCustomer?.city || ord.city || 'Mumbai',
+        city: ord.rawCustomer?.city || (ord.city ? ord.city.split(',')[0].trim() : 'Mumbai'),
         state: ord.rawCustomer?.state || ord.state || 'Maharashtra',
-        phone: ord.phone || '9820144552',
+        phone: ord.rawCustomer?.phone || ord.phone || '9820144552',
         totalAmount: ord.total,
         paymentMode: isCod ? 'COD' : 'Prepaid',
         codAmount: isCod ? ord.total : 0,
-        items: ord.items,
+        items: ord.items || [],
       });
 
       if (res?.success && res.waybill) {
         setOrders((prev) =>
           prev.map((o) =>
-            o.id === ord.id
+            o.id === ord.id || o.orderNumber === ord.orderNumber
               ? {
                   ...o,
                   awbNumber: res.waybill,
@@ -370,7 +371,7 @@ export function AdminDashboard() {
           )
         );
         setToast({
-          text: `Delhivery Shipment Generated! Real Waybill: ${res.waybill}`,
+          text: `Order dispatched to Delhivery One! Live AWB: ${res.waybill}`,
           type: 'success',
         });
       } else {

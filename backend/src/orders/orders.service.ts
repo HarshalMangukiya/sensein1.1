@@ -138,7 +138,7 @@ export class OrdersService implements OnModuleInit {
       shippingFee: dto.shippingFee,
       total: dto.total,
       paymentMethod: dto.paymentMethod || 'razorpay',
-      paymentStatus: (dto.paymentMethod || '').toLowerCase() === 'cod' ? 'PENDING' : ((dto.paymentMethod === 'razorpay' || !dto.paymentMethod) ? 'PAID' : 'PENDING'),
+      paymentStatus: dto.paymentStatus || ((dto.paymentMethod || '').toLowerCase() === 'cod' ? 'PENDING' : 'PAID'),
       orderStatus: 'CONFIRMED',
       razorpayOrderId: (dto as any).razorpayOrderId,
       razorpayPaymentId: (dto as any).razorpayPaymentId,
@@ -155,47 +155,7 @@ export class OrdersService implements OnModuleInit {
       this.logger.warn(`MongoDB order storage error: ${err.message}`);
     }
 
-    // Automatically attempt live Delhivery shipment manifest if order is paid or COD
-    const isCod = (orderData.paymentMethod || '').toLowerCase() === 'cod';
-    const shouldShip = orderData.paymentStatus === 'PAID' || isCod;
-
-    if (shouldShip) {
-      try {
-        const shipRes = await this.shippingService.createShipment({
-          orderNumber,
-          customerName: orderData.customer?.name || 'Patron',
-          address: orderData.customer?.address || '',
-          pincode: orderData.customer?.pincode || '',
-          city: orderData.customer?.city || '',
-          state: orderData.customer?.state || '',
-          phone: orderData.customer?.phone || '',
-          totalAmount: orderData.total,
-          items: orderData.items,
-          paymentMode: isCod ? 'COD' : 'Prepaid',
-          codAmount: isCod ? orderData.total : 0,
-        });
-
-        if (shipRes?.success && shipRes?.waybill) {
-          orderData.awbNumber = shipRes.waybill;
-          orderData.trackingUrl = shipRes.trackingUrl;
-          orderData.orderStatus = 'SHIPPED';
-
-          // Persist generated AWB into MongoDB Atlas
-          try {
-            await this.orderModel.findByIdAndUpdate(savedId, {
-              awbNumber: shipRes.waybill,
-              trackingUrl: shipRes.trackingUrl,
-              orderStatus: 'SHIPPED',
-            });
-            this.logger.log(`Live Delhivery AWB ${shipRes.waybill} saved to MongoDB order ${orderNumber}`);
-          } catch (dbErr: any) {
-            this.logger.warn(`Failed to update MongoDB with AWB for order ${orderNumber}: ${dbErr.message}`);
-          }
-        }
-      } catch (shipErr: any) {
-        this.logger.warn(`Delhivery automatic shipment dispatch deferred for ${orderNumber}: ${shipErr.message}`);
-      }
-    }
+    this.logger.log(`Order ${orderNumber} ready for admin dispatch in SENSEIN Executive Console.`);
 
     const orderRecord: OrderRecord = {
       id: savedId,
