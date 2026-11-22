@@ -174,6 +174,14 @@ export const DEFAULT_SHOWCASE_CONFIG: ShowcaseConfig = {
       mediaUrl:
         'https://res.cloudinary.com/dqddawu42/image/upload/v1792479867/sensein/products/sensein-hair-wax-4.jpg',
     },
+    {
+      id: 'media-card-5',
+      mediaType: 'image',
+      image:
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg',
+      mediaUrl:
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg',
+    },
   ],
 };
 
@@ -319,7 +327,23 @@ export function getShowcaseFromStorage(): ShowcaseConfig {
     if (!raw) return DEFAULT_SHOWCASE_CONFIG;
     const parsed = JSON.parse(raw);
     if (parsed && Array.isArray(parsed.cards) && parsed.cards.length > 0) {
-      return { ...DEFAULT_SHOWCASE_CONFIG, ...parsed };
+      let cards = parsed.cards;
+      if (cards.length === 4) {
+        cards = [
+          ...cards,
+          {
+            id: 'media-card-5',
+            mediaType: 'image',
+            image:
+              'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg',
+            mediaUrl:
+              'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg',
+          },
+        ];
+        parsed.cards = cards;
+        saveShowcaseToStorage({ ...DEFAULT_SHOWCASE_CONFIG, ...parsed, cards });
+      }
+      return { ...DEFAULT_SHOWCASE_CONFIG, ...parsed, cards };
     }
     return DEFAULT_SHOWCASE_CONFIG;
   } catch (e) {
@@ -351,13 +375,27 @@ export async function fetchShowcaseConfig(): Promise<ShowcaseConfig> {
     if (res.ok) {
       const data = await res.json();
       if (data && Array.isArray(data.cards) && data.cards.length > 0) {
+        let cards = data.cards;
+        if (cards.length === 4) {
+          cards = [
+            ...cards,
+            {
+              id: 'media-card-5',
+              mediaType: 'image',
+              image:
+                'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg',
+              mediaUrl:
+                'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg',
+            },
+          ];
+        }
         const merged: ShowcaseConfig = {
           badge: data.badge || DEFAULT_SHOWCASE_CONFIG.badge,
           title: data.title || DEFAULT_SHOWCASE_CONFIG.title,
           subtitle: data.subtitle || DEFAULT_SHOWCASE_CONFIG.subtitle,
           mode: data.mode || DEFAULT_SHOWCASE_CONFIG.mode,
           selectedProductId: data.selectedProductId || DEFAULT_SHOWCASE_CONFIG.selectedProductId,
-          cards: data.cards,
+          cards,
           autoRotate: data.autoRotate !== undefined ? data.autoRotate : true,
           rotationIntervalMs: data.rotationIntervalMs || 2000,
         };

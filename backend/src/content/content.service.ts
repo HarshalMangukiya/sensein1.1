@@ -63,6 +63,14 @@ export const DEFAULT_SHOWCASE_CONFIG = {
       mediaUrl:
         'https://res.cloudinary.com/dqddawu42/image/upload/v1792479867/sensein/products/sensein-hair-wax-4.jpg',
     },
+    {
+      id: 'media-card-5',
+      mediaType: 'image',
+      image:
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg',
+      mediaUrl:
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg',
+    },
   ],
 };
 
@@ -232,6 +240,22 @@ export class ContentService implements OnModuleInit {
     try {
       const found = await this.showcaseModel.findOne({ key: 'real-results-showcase' }).lean();
       if (found && Array.isArray((found as any).cards) && (found as any).cards.length > 0) {
+        if ((found as any).cards.length === 4) {
+          const fifthCard = {
+            id: 'media-card-5',
+            mediaType: 'image',
+            image:
+              'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg',
+            mediaUrl:
+              'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg',
+          };
+          const updatedCards = [...(found as any).cards, fifthCard];
+          await this.showcaseModel.updateOne(
+            { key: 'real-results-showcase' },
+            { $set: { cards: updatedCards } }
+          );
+          (found as any).cards = updatedCards;
+        }
         this.cachedShowcase = found as any;
         return found;
       }

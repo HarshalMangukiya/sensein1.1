@@ -19,6 +19,7 @@ import {
   Image as ImageIcon,
   Play,
   Film,
+  Plus,
 } from 'lucide-react';
 import {
   ShowcaseConfig,
@@ -73,6 +74,12 @@ const DEFAULT_PRESET_CARDS: ShowcaseCard[] = [
     image: 'https://res.cloudinary.com/dqddawu42/image/upload/v1792479867/sensein/products/sensein-hair-wax-4.jpg',
     mediaUrl: 'https://res.cloudinary.com/dqddawu42/image/upload/v1792479867/sensein/products/sensein-hair-wax-4.jpg',
   },
+  {
+    id: 'media-card-5',
+    mediaType: 'image',
+    image: 'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg',
+    mediaUrl: 'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg',
+  },
 ];
 
 export function AdminShowcaseEditor({ setToast }: AdminShowcaseEditorProps) {
@@ -98,7 +105,22 @@ export function AdminShowcaseEditor({ setToast }: AdminShowcaseEditorProps) {
         const showcaseData = await fetchShowcaseConfig();
 
         if (showcaseData && Array.isArray(showcaseData.cards) && showcaseData.cards.length > 0) {
-          setConfig(showcaseData);
+          if (showcaseData.cards.length === 4) {
+            const fifthCard: ShowcaseCard = {
+              id: 'media-card-5',
+              mediaType: 'image',
+              image: 'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg',
+              mediaUrl: 'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg',
+            };
+            const updated = {
+              ...showcaseData,
+              cards: [...showcaseData.cards, fifthCard],
+            };
+            setConfig(updated);
+            updateShowcaseConfigApi(updated);
+          } else {
+            setConfig(showcaseData);
+          }
         }
       } catch (err) {
         console.error('Failed to load showcase studio data:', err);
@@ -196,6 +218,23 @@ export function AdminShowcaseEditor({ setToast }: AdminShowcaseEditorProps) {
     } finally {
       setUploadingNew(false);
     }
+  };
+
+  const handleAddCardSlot = () => {
+    const newCard: ShowcaseCard = {
+      id: `media-${Date.now().toString().slice(-5)}`,
+      mediaType: 'image',
+      image:
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg',
+      mediaUrl:
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg',
+    };
+    setConfig((prev) => ({
+      ...prev,
+      cards: [...prev.cards, newCard],
+    }));
+    setActiveIndex(config.cards.length);
+    setToast({ text: `Card #${config.cards.length + 1} added to showcase deck!`, type: 'success' });
   };
 
   const handleMediaTypeToggle = (index: number, type: 'image' | 'video') => {
@@ -608,6 +647,15 @@ export function AdminShowcaseEditor({ setToast }: AdminShowcaseEditorProps) {
 
             <button
               type="button"
+              onClick={handleAddCardSlot}
+              className="px-4 py-2 bg-stone-900 text-white hover:bg-black rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 text-gold" />
+              <span>+ Add Card Slot</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => newVideoInputRef.current?.click()}
               disabled={uploadingNew}
               className="px-4 py-2 bg-plum text-white hover:bg-plum-hover rounded-lg text-xs font-bold flex items-center gap-2 transition shadow-sm cursor-pointer disabled:opacity-50"
@@ -820,6 +868,16 @@ export function AdminShowcaseEditor({ setToast }: AdminShowcaseEditorProps) {
               </div>
             );
           })}
+
+          {/* Add Another Card Slot */}
+          <button
+            type="button"
+            onClick={handleAddCardSlot}
+            className="w-full py-3.5 border-2 border-dashed border-border hover:border-plum/40 hover:bg-plum/5 rounded-xl text-xs font-bold text-charcoal hover:text-plum flex items-center justify-center gap-2 transition cursor-pointer"
+          >
+            <Plus className="w-4 h-4 text-plum" />
+            <span>+ Add Another Showcase Card (Slot #{config.cards.length + 1})</span>
+          </button>
         </div>
       </div>
 
