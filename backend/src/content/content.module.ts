@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Banner, BannerSchema } from './banner.schema';
 import { Showcase, ShowcaseSchema } from './showcase.schema';
 import { BeforeAfter, BeforeAfterSchema } from './before-after.schema';
+import { Announcement, AnnouncementSchema } from './announcement.schema';
 import { ContentService } from './content.service';
 import { ContentController } from './content.controller';
 
@@ -12,6 +13,7 @@ import { ContentController } from './content.controller';
       { name: Banner.name, schema: BannerSchema },
       { name: Showcase.name, schema: ShowcaseSchema },
       { name: BeforeAfter.name, schema: BeforeAfterSchema },
+      { name: Announcement.name, schema: AnnouncementSchema },
     ]),
   ],
   controllers: [ContentController],

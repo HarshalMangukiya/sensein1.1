@@ -36,6 +36,7 @@ import {
   ChevronDown,
   Image as ImageIcon,
   SplitSquareVertical,
+  Megaphone,
 } from 'lucide-react';
 import { useAdminStore } from '@/store/admin-store';
 import { BrandLogo } from '@/components/brand-logo';
@@ -43,6 +44,7 @@ import { AdminCoupons } from './admin-coupons';
 import { AdminBannerEditor } from './admin-banner-editor';
 import { AdminShowcaseEditor } from './admin-showcase-editor';
 import { AdminBeforeAfterEditor } from './admin-before-after-editor';
+import { AdminAnnouncementEditor } from './admin-announcement-editor';
 import { ProductFormModal } from './product-form-modal';
 import {
   fetchProducts,
@@ -155,7 +157,7 @@ const normalizeInquiry = (inq: any) => ({
 
 export function AdminDashboard() {
   const { adminUser, logout } = useAdminStore();
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'products' | 'banner' | 'showcase' | 'before-after' | 'coupons' | 'wholesale' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'products' | 'banner' | 'showcase' | 'before-after' | 'announcements' | 'coupons' | 'wholesale' | 'settings'>('overview');
   const [couponsCount, setCouponsCount] = useState(0);
 
   // Orders State (Live MongoDB Atlas)
@@ -673,6 +675,23 @@ export function AdminDashboard() {
               </div>
               <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${activeTab === 'before-after' ? 'bg-white/20 text-white' : 'bg-plum/10 text-plum'}`}>
                 SLIDER
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('announcements')}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
+                activeTab === 'announcements'
+                  ? 'bg-plum text-white shadow-sm'
+                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Megaphone className={`w-4 h-4 ${activeTab === 'announcements' ? 'text-white' : 'text-plum'}`} />
+                <span>Announcement Bar</span>
+              </div>
+              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${activeTab === 'announcements' ? 'bg-white/20 text-white' : 'bg-gold/15 text-gold'}`}>
+                TICKER
               </span>
             </button>
 
@@ -1483,6 +1502,11 @@ export function AdminDashboard() {
             <AdminBeforeAfterEditor setToast={setToast} />
           )}
 
+          {/* TAB: ANNOUNCEMENT TICKER STUDIO */}
+          {activeTab === 'announcements' && (
+            <AdminAnnouncementEditor setToast={setToast} />
+          )}
+
           {/* TAB 4: PROMOTIONS & COUPONS */}
           {activeTab === 'coupons' && (
             <AdminCoupons
@@ -1694,6 +1718,26 @@ export function AdminDashboard() {
                       >
                         <SplitSquareVertical className="w-3.5 h-3.5 text-gold" />
                         <span>Open Before &amp; After Studio</span>
+                      </button>
+                    </div>
+
+                    <div className="p-4 bg-[#FAF7F5] rounded-lg border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-charcoal">Top Announcement Ticker Bar</p>
+                          <span className="px-1.5 py-0.5 bg-plum/10 text-plum text-[10px] font-bold rounded">HEADER TICKER</span>
+                        </div>
+                        <p className="text-[11px] text-charcoal-muted mt-0.5">
+                          Personalize, add, or edit scrolling announcement messages, promo tags, and speeds across the storefront header.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('announcements')}
+                        className="px-3.5 py-1.5 bg-plum hover:bg-plum-hover text-white rounded-md text-[11px] font-semibold transition-colors shadow-2xs whitespace-nowrap self-start sm:self-auto flex items-center gap-1.5"
+                      >
+                        <Megaphone className="w-3.5 h-3.5 text-gold" />
+                        <span>Open Ticker Studio</span>
                       </button>
                     </div>
                   </div>

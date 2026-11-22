@@ -152,3 +152,38 @@ export class UpdateBeforeAfterDto {
   @ApiPropertyOptional({ example: true })
   isActive?: boolean;
 }
+
+export class AnnouncementItemDto {
+  @ApiProperty({ example: 'ticker-1' })
+  id: string;
+
+  @ApiProperty({ example: '⚡ USE CODE: LUXE10 FOR EXTRA PRIVILEGE DISCOUNT' })
+  text: string;
+
+  @ApiPropertyOptional({ example: false })
+  isTag?: boolean;
+
+  @ApiPropertyOptional({ example: '' })
+  link?: string;
+}
+
+export class UpdateAnnouncementDto {
+  @ApiPropertyOptional({ example: true })
+  isActive?: boolean;
+
+  @ApiPropertyOptional({ example: 30 })
+  speedSeconds?: number;
+
+  @ApiPropertyOptional({ example: '✦' })
+  separator?: string;
+
+  @ApiPropertyOptional({ example: '#432542' })
+  backgroundColor?: string;
+
+  @ApiPropertyOptional({ example: '#FFFFFF' })
+  textColor?: string;
+
+  @ApiProperty({ type: [AnnouncementItemDto] })
+  items: AnnouncementItemDto[];
+}
+

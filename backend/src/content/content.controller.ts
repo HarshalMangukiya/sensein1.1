@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ContentService } from './content.service';
-import { UpdateBannerDto, UpdateShowcaseDto, UpdateBeforeAfterDto } from './content.dto';
+import { UpdateBannerDto, UpdateShowcaseDto, UpdateBeforeAfterDto, UpdateAnnouncementDto } from './content.dto';
 import { AdminGuard } from '../auth/admin.guard';
 
 @ApiTags('Content & Banners')
@@ -83,5 +83,28 @@ export class ContentController {
   @ApiOperation({ summary: 'Patch Before & After comparisons (Admin Authorized)' })
   async patchBeforeAfter(@Body() dto: UpdateBeforeAfterDto) {
     return this.contentService.updateBeforeAfter(dto);
+  }
+
+  // --- ANNOUNCEMENT BAR TICKER ---
+  @Get(['announcements', 'ticker', 'announcement-bar'])
+  @ApiOperation({ summary: 'Get active storefront announcement ticker bar configuration' })
+  @ApiResponse({ status: 200, description: 'Announcement bar config and ticker messages returned' })
+  async getAnnouncements() {
+    return this.contentService.getAnnouncements();
+  }
+
+  @Put(['announcements', 'ticker', 'announcement-bar'])
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Update storefront announcement ticker bar (Admin Authorized)' })
+  @ApiResponse({ status: 200, description: 'Announcement bar updated in MongoDB Atlas' })
+  async updateAnnouncements(@Body() dto: UpdateAnnouncementDto) {
+    return this.contentService.updateAnnouncements(dto);
+  }
+
+  @Patch(['announcements', 'ticker', 'announcement-bar'])
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Patch storefront announcement ticker bar (Admin Authorized)' })
+  async patchAnnouncements(@Body() dto: UpdateAnnouncementDto) {
+    return this.contentService.updateAnnouncements(dto);
   }
 }

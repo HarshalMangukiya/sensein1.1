@@ -1,62 +1,103 @@
 'use client';
 
-import React from 'react';
-
-const tickerItems = [
-  { text: 'FIRST ORDER', isTag: true },
-  { text: 'COMPLIMENTARY LUXURY TRAVEL SERUM ON ORDERS ABOVE ₹1,999' },
-  { text: '🌿 100% CLEAN FORMULATION DERMATOLOGICALLY TESTED FREE PAN-INDIA SHIPPING' },
-  { text: '⚡ USE CODE: LUXE10 FOR EXTRA PRIVILEGE DISCOUNT' },
-  { text: '🧪 LIVE PAYMENT VERIFICATION: ₹1 TEST ITEM AVAILABLE IN CATALOG' },
-  { text: 'PARISIAN BOTANICAL CELLULAR HAIR ARCHITECTURE' },
-  { text: '✨ PAN-INDIA EXPRESS DISPATCH ON ORDERS ABOVE ₹499' },
-];
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import {
+  AnnouncementBarConfig,
+  DEFAULT_ANNOUNCEMENT_CONFIG,
+  fetchAnnouncementBarConfig,
+  getAnnouncementBarFromStorage,
+} from '@/lib/api';
 
 export function AnnouncementBar() {
+  const [config, setConfig] = useState<AnnouncementBarConfig>(DEFAULT_ANNOUNCEMENT_CONFIG);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const cached = getAnnouncementBarFromStorage();
+    if (cached) setConfig(cached);
+
+    fetchAnnouncementBarConfig().then((fresh) => {
+      if (fresh) setConfig(fresh);
+    });
+
+    const handleUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<AnnouncementBarConfig>;
+      if (customEvent.detail) {
+        setConfig(customEvent.detail);
+      }
+    };
+
+    window.addEventListener('sensein-announcements-updated', handleUpdate);
+    return () => {
+      window.removeEventListener('sensein-announcements-updated', handleUpdate);
+    };
+  }, []);
+
+  if (mounted && config.isActive === false) {
+    return null;
+  }
+
+  const items = config.items && config.items.length > 0 ? config.items : DEFAULT_ANNOUNCEMENT_CONFIG.items;
+  const separator = config.separator || '✦';
+  const duration = config.speedSeconds ? `${config.speedSeconds}s` : '30s';
+  const bgColor = config.backgroundColor || '#432542';
+  const textColor = config.textColor || '#FFFFFF';
+
+  // Render a repetition chunk for infinite seamless ticker loop
+  const renderChunk = (prefix: string) => (
+    <div className="flex items-center flex-shrink-0">
+      {items.map((item, idx) => (
+        <React.Fragment key={`${prefix}-${item.id || idx}`}>
+          {item.link ? (
+            <Link
+              href={item.link}
+              className="hover:underline transition-opacity hover:opacity-90 flex items-center"
+            >
+              <span
+                className={`text-[11px] uppercase tracking-[0.16em] font-medium whitespace-nowrap px-4 ${
+                  item.isTag
+                    ? 'border border-gold/40 bg-gold/15 text-gold-light rounded px-2 py-0.5 mx-1 font-semibold'
+                    : ''
+                }`}
+                style={{ color: item.isTag ? undefined : textColor }}
+              >
+                {item.text}
+              </span>
+            </Link>
+          ) : (
+            <span
+              className={`text-[11px] uppercase tracking-[0.16em] font-medium whitespace-nowrap px-4 ${
+                item.isTag
+                  ? 'border border-gold/40 bg-gold/15 text-gold-light rounded px-2 py-0.5 mx-1 font-semibold'
+                  : ''
+              }`}
+              style={{ color: item.isTag ? undefined : textColor }}
+            >
+              {item.text}
+            </span>
+          )}
+          <span className="text-gold text-[11px] font-bold select-none px-1" aria-hidden="true">
+            {separator}
+          </span>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+
   return (
-    <div className="bg-[#432542] text-white py-2.5 overflow-hidden border-b border-[#311730] select-none relative z-50">
-      <div className="flex w-max animate-ticker-right hover:[animation-play-state:paused]">
-        {/* First repetition */}
-        <div className="flex items-center flex-shrink-0">
-          {tickerItems.map((item, idx) => (
-            <React.Fragment key={`rep1-${idx}`}>
-              <span className="text-[11px] uppercase tracking-[0.16em] font-medium text-white/95 whitespace-nowrap px-4">
-                {item.text}
-              </span>
-              <span className="text-gold text-[11px] font-bold select-none" aria-hidden="true">
-                ✦
-              </span>
-            </React.Fragment>
-          ))}
-        </div>
-
-        {/* Second identical repetition for infinite seamless looping */}
-        <div className="flex items-center flex-shrink-0">
-          {tickerItems.map((item, idx) => (
-            <React.Fragment key={`rep2-${idx}`}>
-              <span className="text-[11px] uppercase tracking-[0.16em] font-medium text-white/95 whitespace-nowrap px-4">
-                {item.text}
-              </span>
-              <span className="text-gold text-[11px] font-bold select-none" aria-hidden="true">
-                ✦
-              </span>
-            </React.Fragment>
-          ))}
-        </div>
-
-        {/* Third repetition for ultra-wide displays */}
-        <div className="flex items-center flex-shrink-0">
-          {tickerItems.map((item, idx) => (
-            <React.Fragment key={`rep3-${idx}`}>
-              <span className="text-[11px] uppercase tracking-[0.16em] font-medium text-white/95 whitespace-nowrap px-4">
-                {item.text}
-              </span>
-              <span className="text-gold text-[11px] font-bold select-none" aria-hidden="true">
-                ✦
-              </span>
-            </React.Fragment>
-          ))}
-        </div>
+    <div
+      className="text-white py-2.5 overflow-hidden border-b border-[#311730] select-none relative z-50 transition-colors"
+      style={{ backgroundColor: bgColor }}
+    >
+      <div
+        className="flex w-max animate-ticker-right hover:[animation-play-state:paused]"
+        style={{ animationDuration: duration }}
+      >
+        {renderChunk('rep1')}
+        {renderChunk('rep2')}
+        {renderChunk('rep3')}
       </div>
     </div>
   );

@@ -4,7 +4,26 @@ import { Model } from 'mongoose';
 import { Banner, BannerDocument } from './banner.schema';
 import { Showcase, ShowcaseDocument } from './showcase.schema';
 import { BeforeAfter, BeforeAfterDocument } from './before-after.schema';
-import { UpdateBannerDto, UpdateShowcaseDto, UpdateBeforeAfterDto } from './content.dto';
+import { Announcement, AnnouncementDocument } from './announcement.schema';
+import { UpdateBannerDto, UpdateShowcaseDto, UpdateBeforeAfterDto, UpdateAnnouncementDto } from './content.dto';
+
+export const DEFAULT_ANNOUNCEMENT_CONFIG = {
+  key: 'announcement-bar',
+  isActive: true,
+  speedSeconds: 30,
+  separator: '✦',
+  backgroundColor: '#432542',
+  textColor: '#FFFFFF',
+  items: [
+    { id: 'ticker-1', text: 'FIRST ORDER', isTag: true, link: '' },
+    { id: 'ticker-2', text: 'COMPLIMENTARY LUXURY TRAVEL SERUM ON ORDERS ABOVE ₹1,999', isTag: false, link: '' },
+    { id: 'ticker-3', text: '🌿 100% CLEAN FORMULATION DERMATOLOGICALLY TESTED FREE PAN-INDIA SHIPPING', isTag: false, link: '' },
+    { id: 'ticker-4', text: '⚡ USE CODE: LUXE10 FOR EXTRA PRIVILEGE DISCOUNT', isTag: false, link: '' },
+    { id: 'ticker-5', text: '🧪 LIVE PAYMENT VERIFICATION: ₹1 TEST ITEM AVAILABLE IN CATALOG', isTag: false, link: '' },
+    { id: 'ticker-6', text: 'PARISIAN BOTANICAL CELLULAR HAIR ARCHITECTURE', isTag: false, link: '' },
+    { id: 'ticker-7', text: '✨ PAN-INDIA EXPRESS DISPATCH ON ORDERS ABOVE ₹499', isTag: false, link: '' },
+  ],
+};
 
 export const DEFAULT_HERO_BANNER = {
   key: 'hero-banner',
@@ -119,6 +138,7 @@ export class ContentService implements OnModuleInit {
   private cachedHeroBanner: any = { ...DEFAULT_HERO_BANNER };
   private cachedShowcase: any = { ...DEFAULT_SHOWCASE_CONFIG };
   private cachedBeforeAfter: any = { ...DEFAULT_BEFORE_AFTER_CONFIG };
+  private cachedAnnouncement: any = { ...DEFAULT_ANNOUNCEMENT_CONFIG };
 
   constructor(
     @InjectModel(Banner.name)
@@ -127,6 +147,8 @@ export class ContentService implements OnModuleInit {
     private readonly showcaseModel: Model<ShowcaseDocument>,
     @InjectModel(BeforeAfter.name)
     private readonly beforeAfterModel: Model<BeforeAfterDocument>,
+    @InjectModel(Announcement.name)
+    private readonly announcementModel: Model<AnnouncementDocument>,
   ) {}
 
   async onModuleInit() {
@@ -175,6 +197,19 @@ export class ContentService implements OnModuleInit {
       }
     } catch (err: any) {
       this.logger.warn(`Before & After section initialization notice: ${err.message}`);
+    }
+
+    // 4. Seed Announcement bar ticker in MongoDB
+    try {
+      const existingAnnouncement = await this.announcementModel.findOne({ key: 'announcement-bar' });
+      if (!existingAnnouncement) {
+        this.logger.log('Seeding initial Announcement Bar Ticker in MongoDB...');
+        await this.announcementModel.create(DEFAULT_ANNOUNCEMENT_CONFIG);
+      } else {
+        this.cachedAnnouncement = existingAnnouncement.toObject ? existingAnnouncement.toObject() : existingAnnouncement;
+      }
+    } catch (err: any) {
+      this.logger.warn(`Announcement bar initialization notice: ${err.message}`);
     }
   }
 
@@ -341,5 +376,52 @@ export class ContentService implements OnModuleInit {
       ...payload,
     };
     return this.cachedBeforeAfter;
+  }
+
+  // --- ANNOUNCEMENT BAR TICKER ---
+  async getAnnouncements(): Promise<any> {
+    try {
+      const found = await this.announcementModel
+        .findOne({ key: 'announcement-bar' })
+        .lean();
+      if (found) {
+        this.cachedAnnouncement = found as any;
+        return found;
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to fetch Announcements from MongoDB: ${err.message}`);
+    }
+    return this.cachedAnnouncement;
+  }
+
+  async updateAnnouncements(dto: UpdateAnnouncementDto): Promise<any> {
+    const payload = {
+      ...dto,
+      key: 'announcement-bar',
+    };
+
+    try {
+      const updated = await this.announcementModel
+        .findOneAndUpdate(
+          { key: 'announcement-bar' },
+          { $set: payload },
+          { new: true, upsert: true }
+        )
+        .lean();
+
+      if (updated) {
+        this.cachedAnnouncement = updated as any;
+        this.logger.log('Announcement Bar Ticker updated successfully in MongoDB Atlas');
+        return updated;
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to update Announcement Bar in MongoDB: ${err.message}`);
+    }
+
+    this.cachedAnnouncement = {
+      ...this.cachedAnnouncement,
+      ...payload,
+    };
+    return this.cachedAnnouncement;
   }
 }

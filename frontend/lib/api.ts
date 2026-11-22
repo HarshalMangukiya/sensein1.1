@@ -119,6 +119,23 @@ export interface BeforeAfterConfig {
   isActive?: boolean;
 }
 
+export interface AnnouncementItem {
+  id: string;
+  text: string;
+  isTag?: boolean;
+  link?: string;
+}
+
+export interface AnnouncementBarConfig {
+  key?: string;
+  isActive: boolean;
+  speedSeconds?: number;
+  separator?: string;
+  backgroundColor?: string;
+  textColor?: string;
+  items: AnnouncementItem[];
+}
+
 export const DEFAULT_HERO_BANNER: HeroBannerConfig = {
   badge: '',
   title: 'SALON LUXURY RE-ENGINEERED',
@@ -223,11 +240,140 @@ export const DEFAULT_BEFORE_AFTER_CONFIG: BeforeAfterConfig = {
   isActive: true,
 };
 
+export const DEFAULT_ANNOUNCEMENT_CONFIG: AnnouncementBarConfig = {
+  key: 'announcement-bar',
+  isActive: true,
+  speedSeconds: 30,
+  separator: '✦',
+  backgroundColor: '#432542',
+  textColor: '#FFFFFF',
+  items: [
+    { id: 'ticker-1', text: 'FIRST ORDER', isTag: true, link: '' },
+    { id: 'ticker-2', text: 'COMPLIMENTARY LUXURY TRAVEL SERUM ON ORDERS ABOVE ₹1,999', isTag: false, link: '' },
+    { id: 'ticker-3', text: '🌿 100% CLEAN FORMULATION DERMATOLOGICALLY TESTED FREE PAN-INDIA SHIPPING', isTag: false, link: '' },
+    { id: 'ticker-4', text: '⚡ USE CODE: LUXE10 FOR EXTRA PRIVILEGE DISCOUNT', isTag: false, link: '' },
+    { id: 'ticker-5', text: '🧪 LIVE PAYMENT VERIFICATION: ₹1 TEST ITEM AVAILABLE IN CATALOG', isTag: false, link: '' },
+    { id: 'ticker-6', text: 'PARISIAN BOTANICAL CELLULAR HAIR ARCHITECTURE', isTag: false, link: '' },
+    { id: 'ticker-7', text: '✨ PAN-INDIA EXPRESS DISPATCH ON ORDERS ABOVE ₹499', isTag: false, link: '' },
+  ],
+};
+
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
 const CUSTOM_PRODUCTS_KEY = 'sensein_custom_products';
 const HERO_BANNER_STORAGE_KEY = 'sensein_hero_banner';
 const SHOWCASE_STORAGE_KEY = 'sensein_showcase_deck';
 const BEFORE_AFTER_STORAGE_KEY = 'sensein_before_after';
+const ANNOUNCEMENT_STORAGE_KEY = 'sensein_announcement_bar';
+
+export function getAnnouncementBarFromStorage(): AnnouncementBarConfig {
+  if (typeof window === 'undefined') return DEFAULT_ANNOUNCEMENT_CONFIG;
+  try {
+    const raw = localStorage.getItem(ANNOUNCEMENT_STORAGE_KEY);
+    if (!raw) return DEFAULT_ANNOUNCEMENT_CONFIG;
+    const parsed = JSON.parse(raw);
+    if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+      return { ...DEFAULT_ANNOUNCEMENT_CONFIG, ...parsed };
+    }
+    return DEFAULT_ANNOUNCEMENT_CONFIG;
+  } catch (e) {
+    return DEFAULT_ANNOUNCEMENT_CONFIG;
+  }
+}
+
+export function saveAnnouncementBarToStorage(config: AnnouncementBarConfig): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(ANNOUNCEMENT_STORAGE_KEY, JSON.stringify(config));
+    window.dispatchEvent(new CustomEvent('sensein-announcements-updated', { detail: config }));
+  } catch (e) {
+    console.warn('Failed to save Announcement Bar in local storage:', e);
+  }
+}
+
+export async function fetchAnnouncementBarConfig(): Promise<AnnouncementBarConfig> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    let res: Response | null = null;
+    try {
+      res = await fetch(`${API_BASE_URL}/content/announcements`, {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+    } catch (e) {
+      if (typeof window !== 'undefined') {
+        try {
+          res = await fetch('/api/announcements', { cache: 'no-store' });
+        } catch (_) {}
+      }
+    }
+    clearTimeout(timeoutId);
+
+    if (res && res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.items)) {
+        const merged: AnnouncementBarConfig = {
+          key: data.key || DEFAULT_ANNOUNCEMENT_CONFIG.key,
+          isActive: data.isActive !== undefined ? data.isActive : true,
+          speedSeconds: data.speedSeconds || DEFAULT_ANNOUNCEMENT_CONFIG.speedSeconds,
+          separator: data.separator || DEFAULT_ANNOUNCEMENT_CONFIG.separator,
+          backgroundColor: data.backgroundColor || DEFAULT_ANNOUNCEMENT_CONFIG.backgroundColor,
+          textColor: data.textColor || DEFAULT_ANNOUNCEMENT_CONFIG.textColor,
+          items: data.items.length > 0 ? data.items : DEFAULT_ANNOUNCEMENT_CONFIG.items,
+        };
+        saveAnnouncementBarToStorage(merged);
+        return merged;
+      }
+    }
+  } catch (err) {
+    // Fallback
+  }
+
+  return getAnnouncementBarFromStorage();
+}
+
+export async function updateAnnouncementBarConfigApi(config: AnnouncementBarConfig): Promise<AnnouncementBarConfig> {
+  // 1. Instantly save in local storage & dispatch sync event
+  saveAnnouncementBarToStorage(config);
+
+  // 2. Persist to MongoDB Atlas backend (or Next.js API fallback)
+  try {
+    let token = getAdminToken();
+    if (!token) {
+      token = await ensureAdminToken();
+    }
+
+    let res: Response | null = null;
+    try {
+      res = await fetch(`${API_BASE_URL}/content/announcements`, {
+        method: 'PUT',
+        headers: getAdminAuthHeaders(true),
+        body: JSON.stringify(config),
+      });
+    } catch (netErr) {
+      if (typeof window !== 'undefined') {
+        try {
+          res = await fetch('/api/announcements', {
+            method: 'PUT',
+            headers: getAdminAuthHeaders(true),
+            body: JSON.stringify(config),
+          });
+        } catch (_) {}
+      }
+    }
+
+    if (res && res.ok) {
+      const saved = await res.json();
+      saveAnnouncementBarToStorage(saved);
+      return saved;
+    }
+  } catch (err) {
+    console.warn('Backend Announcement Bar update fallback to local storage:', err);
+  }
+
+  return config;
+}
 
 export function getBeforeAfterFromStorage(): BeforeAfterConfig {
   if (typeof window === 'undefined') return DEFAULT_BEFORE_AFTER_CONFIG;
