@@ -215,7 +215,7 @@ export const DEFAULT_BEFORE_AFTER_CONFIG: BeforeAfterConfig = {
   isActive: true,
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
 const CUSTOM_PRODUCTS_KEY = 'sensein_custom_products';
 const HERO_BANNER_STORAGE_KEY = 'sensein_hero_banner';
 const SHOWCASE_STORAGE_KEY = 'sensein_showcase_deck';
