@@ -6,14 +6,21 @@ try {
 }
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe, Logger, INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
-import { json, urlencoded } from 'express';
+import { json, urlencoded, Express } from 'express';
+import { ExpressAdapter } from '@nestjs/platform-express';
+import express from 'express';
 
-async function bootstrap() {   
-  const logger = new Logger('SENSEIN-API');
-  const app = await NestFactory.create(AppModule);
+const server: Express = express();
+let nestApp: INestApplication | null = null;
+
+export async function createNestServer(expressInstance: Express): Promise<INestApplication> {
+  const app = await NestFactory.create(
+    AppModule,
+    new ExpressAdapter(expressInstance),
+  );
 
   // Increase payload limit for image uploads to Cloudinary
   app.use(json({ limit: '50mb' }));
@@ -58,9 +65,29 @@ async function bootstrap() {
     `,
   });
 
+  await app.init();
+  return app;
+}
+
+// Vercel Serverless Function Handler
+export default async function handler(req: any, res: any) {
+  if (!nestApp) {
+    nestApp = await createNestServer(server);
+  }
+  return server(req, res);
+}
+
+// Local standalone server bootstrap
+async function bootstrap() {
+  const logger = new Logger('SENSEIN-API');
+  nestApp = await createNestServer(server);
   const port = process.env.PORT || 4000;
-  await app.listen(port);
+  await nestApp.listen(port);
   logger.log(`SENSEIN PROFESSIONAL Backend is active on http://localhost:${port}`);
   logger.log(`Swagger OpenAPI documentation available at http://localhost:${port}/api/docs`);
 }
-bootstrap();
+
+// Run bootstrap when started as standalone process (not on Vercel serverless)
+if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  bootstrap();
+}
