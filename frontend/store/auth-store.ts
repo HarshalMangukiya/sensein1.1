@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { useCartStore } from './cart-store';
 
 export interface User {
   id: string;
@@ -34,6 +35,11 @@ export const useAuthStore = create<AuthStore>()(
           localStorage.setItem('sensein_user', JSON.stringify(user));
         }
         set({ user, token, isAuthModalOpen: false });
+
+        // Switch active cart to this specific authenticated user
+        try {
+          useCartStore.getState().switchUserCart(user.email);
+        } catch (e) {}
       },
 
       logout: () => {
@@ -43,6 +49,11 @@ export const useAuthStore = create<AuthStore>()(
           localStorage.removeItem('sensein_auth_storage');
         }
         set({ user: null, token: null });
+
+        // Save previous user cart and switch to clean guest/empty state
+        try {
+          useCartStore.getState().switchUserCart(null);
+        } catch (e) {}
       },
     }),
     {
@@ -50,12 +61,17 @@ export const useAuthStore = create<AuthStore>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ user: state.user, token: state.token }),
       onRehydrateStorage: () => (state) => {
-        if (typeof window !== 'undefined' && !state?.user) {
+        if (typeof window !== 'undefined') {
           try {
             const legacyUser = localStorage.getItem('sensein_user');
             const legacyToken = localStorage.getItem('sensein_token');
-            if (legacyUser && legacyToken) {
-              state?.setAuth(JSON.parse(legacyUser), legacyToken);
+            if (!state?.user && legacyUser && legacyToken) {
+              const parsedUser = JSON.parse(legacyUser);
+              state?.setAuth(parsedUser, legacyToken);
+            } else if (state?.user) {
+              useCartStore.getState().switchUserCart(state.user.email);
+            } else {
+              useCartStore.getState().switchUserCart(null);
             }
           } catch (e) {}
         }

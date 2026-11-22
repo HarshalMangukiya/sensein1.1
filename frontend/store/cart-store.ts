@@ -27,21 +27,26 @@ interface CartStore {
   couponCode: string;
   discountAmount: number;
   couponError: string | null;
+  activeUserEmail: string | null;
 
   isCartBouncing: boolean;
   triggerCartBounce: () => void;
 
   // Actions
-  addItem: (product: {
-    id: string;
-    name: string;
-    slug: string;
-    price: number;
-    mrp: number;
-    size?: string;
-    image?: string;
-    category?: string;
-  }, quantity?: number, openDrawer?: boolean) => void;
+  addItem: (
+    product: {
+      id: string;
+      name: string;
+      slug: string;
+      price: number;
+      mrp: number;
+      size?: string;
+      image?: string;
+      category?: string;
+    },
+    quantity?: number,
+    openDrawer?: boolean
+  ) => void;
   removeItem: (id: string, size?: string) => void;
   updateQuantity: (id: string, delta: number, size?: string) => void;
   clearCart: () => void;
@@ -51,6 +56,8 @@ interface CartStore {
   applyCoupon: (code: string) => boolean;
   applyCouponAsync: (code: string) => Promise<boolean>;
   removeCoupon: () => void;
+  switchUserCart: (newUserEmail: string | null) => void;
+  syncWithCurrentUser: () => void;
 
   // Computed Getters
   getSubtotal: () => number;
@@ -68,12 +75,89 @@ interface CartStore {
   };
 }
 
+// Helpers for User-Scoped Cart Storage
+function getActiveEmailFromBrowser(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('sensein_user');
+    if (raw) {
+      const u = JSON.parse(raw);
+      if (u?.email && typeof u.email === 'string') {
+        return u.email.trim().toLowerCase();
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
+function getCartStorageKey(email?: string | null): string {
+  const cleanEmail =
+    email && typeof email === 'string' && email.trim()
+      ? email.trim().toLowerCase()
+      : getActiveEmailFromBrowser();
+
+  if (cleanEmail) {
+    return `sensein_cart_user_${cleanEmail}`;
+  }
+  return 'sensein_cart_guest';
+}
+
+interface StoredCartData {
+  items: CartItem[];
+  couponCode: string;
+  discountAmount: number;
+}
+
+function readStoredCart(email?: string | null): StoredCartData {
+  if (typeof window === 'undefined') {
+    return { items: [], couponCode: '', discountAmount: 0 };
+  }
+  try {
+    const key = getCartStorageKey(email);
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.items)) {
+        return {
+          items: parsed.items,
+          couponCode: typeof parsed.couponCode === 'string' ? parsed.couponCode : '',
+          discountAmount: typeof parsed.discountAmount === 'number' ? parsed.discountAmount : 0,
+        };
+      }
+    }
+  } catch (e) {}
+  return { items: [], couponCode: '', discountAmount: 0 };
+}
+
+function persistCart(
+  email: string | null | undefined,
+  data: { items: CartItem[]; couponCode: string; discountAmount: number }
+) {
+  if (typeof window === 'undefined') return;
+  try {
+    const key = getCartStorageKey(email);
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        items: data.items,
+        couponCode: data.couponCode,
+        discountAmount: data.discountAmount,
+        updatedAt: Date.now(),
+      })
+    );
+  } catch (e) {}
+}
+
+const initialEmail = getActiveEmailFromBrowser();
+const initialData = readStoredCart(initialEmail);
+
 export const useCartStore = create<CartStore>((set, get) => ({
-  items: [],
+  items: initialData.items,
+  activeUserEmail: initialEmail,
   isOpen: false,
   isCartBouncing: false,
-  couponCode: '',
-  discountAmount: 0,
+  couponCode: initialData.couponCode,
+  discountAmount: initialData.discountAmount,
   couponError: null,
 
   triggerCartBounce: () => {
@@ -83,8 +167,43 @@ export const useCartStore = create<CartStore>((set, get) => ({
     }, 700);
   },
 
+  switchUserCart: (newUserEmail: string | null) => {
+    const currentEmail = get().activeUserEmail;
+    // 1. Save current active cart before switching
+    if (currentEmail) {
+      persistCart(currentEmail, {
+        items: get().items,
+        couponCode: get().couponCode,
+        discountAmount: get().discountAmount,
+      });
+    }
+
+    const cleanNewEmail =
+      newUserEmail && typeof newUserEmail === 'string' && newUserEmail.trim()
+        ? newUserEmail.trim().toLowerCase()
+        : null;
+
+    // 2. Load the target user's cart from their specific storage key
+    const targetData = readStoredCart(cleanNewEmail);
+
+    set({
+      activeUserEmail: cleanNewEmail,
+      items: targetData.items,
+      couponCode: targetData.couponCode,
+      discountAmount: targetData.discountAmount,
+      couponError: null,
+    });
+  },
+
+  syncWithCurrentUser: () => {
+    const browserEmail = getActiveEmailFromBrowser();
+    if (get().activeUserEmail !== browserEmail) {
+      get().switchUserCart(browserEmail);
+    }
+  },
+
   addItem: (product, quantity = 1, openDrawer = false) => {
-    const { items } = get();
+    const { items, activeUserEmail } = get();
     const existingIndex = items.findIndex(
       (item) => item.id === product.id && item.size === product.size
     );
@@ -107,13 +226,21 @@ export const useCartStore = create<CartStore>((set, get) => ({
           mrp: product.mrp,
           quantity,
           size: product.size || '250ml',
-          image: product.image || 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820271/sensein/products/mask-1.jpg',
+          image:
+            product.image ||
+            'https://res.cloudinary.com/dqddawu42/image/upload/v1789820271/sensein/products/mask-1.jpg',
           category: product.category,
         },
       ];
     }
 
     set({ items: updatedItems, isOpen: openDrawer });
+    persistCart(activeUserEmail, {
+      items: updatedItems,
+      couponCode: get().couponCode,
+      discountAmount: get().discountAmount,
+    });
+
     // Recalculate coupon if applied
     if (get().couponCode) {
       get().applyCoupon(get().couponCode);
@@ -125,13 +252,18 @@ export const useCartStore = create<CartStore>((set, get) => ({
       (item) => !(item.id === id && (!size || item.size === size))
     );
     set({ items: updatedItems });
+    persistCart(get().activeUserEmail, {
+      items: updatedItems,
+      couponCode: get().couponCode,
+      discountAmount: get().discountAmount,
+    });
     if (get().couponCode) {
       get().applyCoupon(get().couponCode);
     }
   },
 
   updateQuantity: (id: string, delta: number, size?: string) => {
-    const { items } = get();
+    const { items, activeUserEmail } = get();
     const updatedItems = items
       .map((item) => {
         if (item.id === id && (!size || item.size === size)) {
@@ -143,12 +275,23 @@ export const useCartStore = create<CartStore>((set, get) => ({
       .filter(Boolean) as CartItem[];
 
     set({ items: updatedItems });
+    persistCart(activeUserEmail, {
+      items: updatedItems,
+      couponCode: get().couponCode,
+      discountAmount: get().discountAmount,
+    });
     if (get().couponCode) {
       get().applyCoupon(get().couponCode);
     }
   },
 
   clearCart: () => {
+    const currentEmail = get().activeUserEmail;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(getCartStorageKey(currentEmail));
+      } catch (e) {}
+    }
     set({ items: [], couponCode: '', discountAmount: 0, couponError: null });
   },
 
@@ -159,9 +302,11 @@ export const useCartStore = create<CartStore>((set, get) => ({
   applyCouponAsync: async (code: string) => {
     const cleanCode = code.trim().toUpperCase();
     const subtotal = get().getSubtotal();
+    const email = get().activeUserEmail;
 
     if (!cleanCode) {
       set({ couponError: 'Please enter a valid coupon code', couponCode: '', discountAmount: 0 });
+      persistCart(email, { items: get().items, couponCode: '', discountAmount: 0 });
       return false;
     }
 
@@ -173,6 +318,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
           discountAmount: res.discountAmount,
           couponError: null,
         });
+        persistCart(email, { items: get().items, couponCode: cleanCode, discountAmount: res.discountAmount });
         return true;
       } else if (res && res.error) {
         set({
@@ -180,6 +326,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
           couponCode: '',
           discountAmount: 0,
         });
+        persistCart(email, { items: get().items, couponCode: '', discountAmount: 0 });
         return false;
       }
     } catch (e) {
@@ -190,24 +337,29 @@ export const useCartStore = create<CartStore>((set, get) => ({
     if (cleanCode === 'LUXE10') {
       const discount = Math.round(subtotal * 0.1);
       set({ couponCode: cleanCode, discountAmount: discount, couponError: null });
+      persistCart(email, { items: get().items, couponCode: cleanCode, discountAmount: discount });
       return true;
     }
 
     if (cleanCode === 'SENSEIN200') {
       if (subtotal < 1499) {
         set({ couponError: 'SENSEIN200 requires minimum cart value of ₹1,499', couponCode: '', discountAmount: 0 });
+        persistCart(email, { items: get().items, couponCode: '', discountAmount: 0 });
         return false;
       }
       set({ couponCode: cleanCode, discountAmount: 200, couponError: null });
+      persistCart(email, { items: get().items, couponCode: cleanCode, discountAmount: 200 });
       return true;
     }
 
     if (cleanCode === 'VIP500') {
       if (subtotal < 2500) {
         set({ couponError: 'VIP500 requires minimum cart value of ₹2,500', couponCode: '', discountAmount: 0 });
+        persistCart(email, { items: get().items, couponCode: '', discountAmount: 0 });
         return false;
       }
       set({ couponCode: cleanCode, discountAmount: 500, couponError: null });
+      persistCart(email, { items: get().items, couponCode: cleanCode, discountAmount: 500 });
       return true;
     }
 
@@ -221,6 +373,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
 
     const cleanCode = code.trim().toUpperCase();
     const subtotal = get().getSubtotal();
+    const email = get().activeUserEmail;
 
     if (!cleanCode) {
       set({ couponError: 'Please enter a valid coupon code' });
@@ -230,6 +383,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
     if (cleanCode === 'LUXE10') {
       const discount = Math.round(subtotal * 0.1);
       set({ couponCode: cleanCode, discountAmount: discount, couponError: null });
+      persistCart(email, { items: get().items, couponCode: cleanCode, discountAmount: discount });
       return true;
     }
 
@@ -239,6 +393,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
         return false;
       }
       set({ couponCode: cleanCode, discountAmount: 200, couponError: null });
+      persistCart(email, { items: get().items, couponCode: cleanCode, discountAmount: 200 });
       return true;
     }
 
@@ -248,6 +403,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
         return false;
       }
       set({ couponCode: cleanCode, discountAmount: 500, couponError: null });
+      persistCart(email, { items: get().items, couponCode: cleanCode, discountAmount: 500 });
       return true;
     }
 
@@ -255,7 +411,14 @@ export const useCartStore = create<CartStore>((set, get) => ({
     return true;
   },
 
-  removeCoupon: () => set({ couponCode: '', discountAmount: 0, couponError: null }),
+  removeCoupon: () => {
+    set({ couponCode: '', discountAmount: 0, couponError: null });
+    persistCart(get().activeUserEmail, {
+      items: get().items,
+      couponCode: '',
+      discountAmount: 0,
+    });
+  },
 
   getSubtotal: () => {
     return get().items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -270,7 +433,15 @@ export const useCartStore = create<CartStore>((set, get) => ({
     if (subtotal === 0) return 0;
     // Waive shipping fee for ₹1 test verification items so testing is exactly ₹1
     const items = get().items;
-    if (items.length > 0 && items.every((i) => i.id === 'sensein-test-pay-01' || i.slug === 'sensein-payment-verification-test' || i.price <= 1)) {
+    if (
+      items.length > 0 &&
+      items.every(
+        (i) =>
+          i.id === 'sensein-test-pay-01' ||
+          i.slug === 'sensein-payment-verification-test' ||
+          i.price <= 1
+      )
+    ) {
       return 0;
     }
     return subtotal >= 499 ? 0 : 99;
