@@ -11,7 +11,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { json, urlencoded } from 'express';
 
-async function bootstrap() {
+async function bootstrap() {   
   const logger = new Logger('SENSEIN-API');
   const app = await NestFactory.create(AppModule);
 
