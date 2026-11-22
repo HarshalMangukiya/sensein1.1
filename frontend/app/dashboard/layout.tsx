@@ -67,13 +67,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 lg:w-72 border-r border-border bg-white min-h-[calc(100vh-65px)] sticky top-[65px] self-start overflow-y-auto no-scrollbar flex-shrink-0">
+      <aside className="hidden md:flex flex-col w-64 lg:w-72 border-r border-border bg-white h-[calc(100vh-65px)] sticky top-[65px] self-start overflow-y-auto no-scrollbar flex-shrink-0">
         <div className="p-6 border-b border-border">
           <h2 className="text-xl font-sans font-bold text-charcoal tracking-tight">My Account</h2>
           <p className="text-xs text-charcoal-muted mt-1 font-medium">Welcome back, {user.name.split(' ')[0]}</p>
         </div>
 
-        <nav className="p-4 space-y-1.5">
+        <nav className="flex-1 p-4 space-y-1.5">
           {DASHBOARD_LINKS.map((link) => {
             const isActive = pathname === link.href;
             const Icon = link.icon;
@@ -96,8 +96,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        {/* Secure Logout positioned horizontally in line with the dashboard cards */}
-        <div className="p-4 border-t border-border md:mt-[114px] lg:mt-[148px]">
+        {/* Secure Logout positioned so its bottom edge aligns with the bottom of the Order History card */}
+        <div className="p-4 border-t border-border md:mt-[218px] lg:mt-[250px]">
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-4 py-3 rounded-md text-red-600 hover:bg-red-50 transition-colors group"
