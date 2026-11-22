@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ShieldCheck, Lock, Eye, EyeOff, KeyRound, ArrowRight, AlertCircle, Sparkles } from 'lucide-react';
+import { ShieldCheck, Eye, EyeOff, KeyRound, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAdminStore } from '@/store/admin-store';
 import { BrandLogo } from '@/components/brand-logo';
 
@@ -28,12 +28,6 @@ export function AdminLogin() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fillDemoCredentials = () => {
-    setEmail('admin@sensein.com');
-    setPassword('sensein2026');
-    setError(null);
   };
 
   return (
@@ -73,21 +67,6 @@ export function AdminLogin() {
           <p className="text-xs text-charcoal-muted mt-1 font-light">
             Restricted perimeter. Please authenticate with executive credentials.
           </p>
-        </div>
-
-        {/* Quick Demo Credentials Pill */}
-        <div className="mb-6 p-3 bg-[#FAF7F5] border border-border rounded-xl flex items-center justify-between gap-3">
-          <div className="text-[11px] text-charcoal">
-            <span className="text-plum font-bold">Demo Passkey:</span>
-            <div className="font-mono text-[11px] text-charcoal-muted mt-0.5">admin@sensein.com • sensein2026</div>
-          </div>
-          <button
-            type="button"
-            onClick={fillDemoCredentials}
-            className="px-3 py-1.5 bg-plum hover:bg-plum-hover text-white text-[10px] font-bold uppercase tracking-wider rounded-md transition-all shadow-xs flex-shrink-0"
-          >
-            Auto Fill
-          </button>
         </div>
 
         {/* Error Alert */}
