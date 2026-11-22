@@ -2,77 +2,64 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Sparkles, Star, ChevronLeft, ChevronRight, ShoppingBag } from 'lucide-react';
+import { Sparkles, Star, ChevronLeft, ChevronRight, Video as VideoIcon, Play } from 'lucide-react';
+import {
+  ShowcaseConfig,
+  ShowcaseCard,
+  DEFAULT_SHOWCASE_CONFIG,
+  fetchShowcaseConfig,
+} from '@/lib/api';
 
-interface CarouselCard {
-  id: string;
-  tag: string;
-  rating: number;
-  name: string;
-  price: number;
-  mrp: number;
-  image: string;
-  href: string;
+function isVideoMedia(card: ShowcaseCard): boolean {
+  if (card.mediaType === 'video') return true;
+  const url = (card.videoUrl || card.mediaUrl || card.image || '').toLowerCase();
+  return (
+    url.endsWith('.mp4') ||
+    url.endsWith('.webm') ||
+    url.endsWith('.mov') ||
+    url.endsWith('.ogg') ||
+    url.includes('/video/upload/') ||
+    url.includes('stream') ||
+    url.includes('video')
+  );
 }
 
-const CAROUSEL_CARDS: CarouselCard[] = [
-  {
-    id: 'powder-card',
-    tag: 'STYLE POWDER',
-    rating: 4.8,
-    name: 'SENSEIN® Volumizing Hair Style Powder',
-    price: 749,
-    mrp: 1199,
-    image: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820337/sensein/carousel/card-powder.jpg',
-    href: '/shop',
-  },
-  {
-    id: 'wax-card',
-    tag: 'CREAM WAX',
-    rating: 4.8,
-    name: 'SENSEIN® Soft Touch Hair Cream Wax',
-    price: 749,
-    mrp: 1099,
-    image: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820343/sensein/carousel/card-wax.jpg',
-    href: '/shop',
-  },
-  {
-    id: 'serum-card',
-    tag: 'HAIR SERUM',
-    rating: 5.0,
-    name: 'SENSEIN® French Plum Illuminating Serum',
-    price: 1499,
-    mrp: 2199,
-    image: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820339/sensein/carousel/card-serum.jpg',
-    href: '/product/bio-active-french-plum-illuminating-hair-serum',
-  },
-  {
-    id: 'mask-card',
-    tag: 'RESTORATIVE MASK',
-    rating: 4.9,
-    name: 'SENSEIN® Keratin Bond Restorative Mask',
-    price: 1299,
-    mrp: 1999,
-    image: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820335/sensein/carousel/card-mask.jpg',
-    href: '/product/keratin-bond-intense-restorative-hair-mask',
-  },
-  {
-    id: 'shampoo-card',
-    tag: 'CELLULAR SHAMPOO',
-    rating: 4.8,
-    name: 'SENSEIN® Black Caviar Cleansing Shampoo',
-    price: 1149,
-    mrp: 1699,
-    image: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820341/sensein/carousel/card-shampoo.jpg',
-    href: '/product/black-caviar-cellular-cleansing-shampoo',
-  },
-];
-
 export function RealResultsCarousel() {
+  const [config, setConfig] = useState<ShowcaseConfig>(DEFAULT_SHOWCASE_CONFIG);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const touchStartX = useRef<number | null>(null);
+
+  const cards = config.cards && config.cards.length > 0 ? config.cards : DEFAULT_SHOWCASE_CONFIG.cards;
+
+  // Load live showcase configuration & listen to instant updates
+  useEffect(() => {
+    async function loadConfig() {
+      try {
+        const data = await fetchShowcaseConfig();
+        if (data && Array.isArray(data.cards) && data.cards.length > 0) {
+          setConfig(data);
+        }
+      } catch (err) {
+        console.error('Failed to load showcase config:', err);
+      }
+    }
+    loadConfig();
+
+    const handleUpdate = (e: any) => {
+      if (e.detail) {
+        setConfig(e.detail);
+      } else {
+        loadConfig();
+      }
+    };
+
+    window.addEventListener('sensein-showcase-updated', handleUpdate);
+    return () => {
+      window.removeEventListener('sensein-showcase-updated', handleUpdate);
+    };
+  }, []);
 
   // Detect mobile screen for responsive spacing
   useEffect(() => {
@@ -84,21 +71,22 @@ export function RealResultsCarousel() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Automatic change every 2 seconds (2000ms)
+  // Automatic change interval
   useEffect(() => {
-    if (isPaused) return;
+    if (isPaused || config.autoRotate === false) return;
+    const intervalMs = config.rotationIntervalMs || 2000;
     const interval = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % CAROUSEL_CARDS.length);
-    }, 2000);
+      setActiveIndex((prev) => (prev + 1) % cards.length);
+    }, intervalMs);
     return () => clearInterval(interval);
-  }, [isPaused]);
+  }, [isPaused, config.autoRotate, config.rotationIntervalMs, cards.length]);
 
   const handlePrev = () => {
-    setActiveIndex((prev) => (prev - 1 + CAROUSEL_CARDS.length) % CAROUSEL_CARDS.length);
+    setActiveIndex((prev) => (prev - 1 + cards.length) % cards.length);
   };
 
   const handleNext = () => {
-    setActiveIndex((prev) => (prev + 1) % CAROUSEL_CARDS.length);
+    setActiveIndex((prev) => (prev + 1) % cards.length);
   };
 
   // Touch handlers for mobile swiping
@@ -122,19 +110,21 @@ export function RealResultsCarousel() {
     <section className="py-12 sm:py-20 bg-[#FAF7F5] overflow-hidden select-none">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         {/* Top Badge */}
-        <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-plum/20 bg-plum/5 text-plum text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] mb-3 shadow-xs">
-          <Sparkles className="w-3.5 h-3.5 text-gold fill-gold" />
-          REAL PEOPLE REAL RESULTS
-        </div>
+        {config.badge && (
+          <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-plum/20 bg-plum/5 text-plum text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] mb-3 shadow-xs">
+            <Sparkles className="w-3.5 h-3.5 text-gold fill-gold" />
+            {config.badge}
+          </div>
+        )}
 
         {/* Section Heading */}
         <h2 className="font-sans text-3xl sm:text-5xl font-black text-charcoal uppercase tracking-tight">
-          REAL PEOPLE. REAL RESULTS.
+          {config.title || 'REAL PEOPLE. REAL RESULTS.'}
         </h2>
 
         {/* Section Subtitle */}
         <p className="text-xs sm:text-sm text-charcoal-muted max-w-lg mx-auto mt-2 font-normal">
-          Experience salon-grade transformations verified by clinical hair specialists.
+          {config.subtitle || 'Experience salon-grade transformations verified by clinical hair specialists.'}
         </p>
 
         {/* 3D Carousel Stage */}
@@ -166,8 +156,8 @@ export function RealResultsCarousel() {
 
           {/* Cards Deck */}
           <div className="relative w-full h-full flex items-center justify-center">
-            {CAROUSEL_CARDS.map((card, idx) => {
-              const total = CAROUSEL_CARDS.length;
+            {cards.map((card, idx) => {
+              const total = cards.length;
               let offset = (idx - activeIndex) % total;
               if (offset > total / 2) offset -= total;
               if (offset < -total / 2) offset += total;
@@ -230,7 +220,7 @@ export function RealResultsCarousel() {
 
               return (
                 <div
-                  key={card.id}
+                  key={card.id || idx}
                   onClick={() => !isCenter && setActiveIndex(idx)}
                   className={`absolute top-1/2 -translate-y-1/2 w-[220px] sm:w-[270px] md:w-[290px] h-[370px] sm:h-[460px] md:h-[490px] rounded-3xl overflow-hidden shadow-2xl transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] ${
                     isCenter ? 'cursor-default ring-2 ring-plum/20' : 'cursor-pointer hover:opacity-90'
@@ -250,53 +240,31 @@ export function RealResultsCarousel() {
                   {/* Phone Device Border / Bezel Frame */}
                   <div className="absolute inset-0 rounded-3xl border-[3px] border-black/80 z-20 pointer-events-none" />
 
-                  {/* Card Background Image */}
-                  <img
-                    src={card.image}
-                    alt={card.name}
-                    className="w-full h-full object-cover object-center transform transition-transform duration-700"
-                  />
+                  {/* Media Content (Photo or Video) */}
+                  {isVideoMedia(card) ? (
+                    <video
+                      src={card.videoUrl || card.mediaUrl || card.image}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="w-full h-full object-cover object-center"
+                    />
+                  ) : (
+                    <img
+                      src={card.mediaUrl || card.image}
+                      alt={card.name || 'SENSEIN'}
+                      className="w-full h-full object-cover object-center transform transition-transform duration-700"
+                    />
+                  )}
 
-                  {/* Subtle Gradient Overlays for Video/Reels Aesthetic */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 via-45% to-black/30 pointer-events-none" />
-
-                  {/* Bottom Product Info Floating Pill (Active Card Focus) */}
-                  <div
-                    className={`absolute bottom-3 sm:bottom-3.5 left-2.5 sm:left-3 right-2.5 sm:right-3 bg-black/85 backdrop-blur-md rounded-xl p-2.5 sm:p-3 border border-white/15 text-left text-white shadow-2xl transition-all duration-500 z-30 ${
-                      isCenter ? 'opacity-100 translate-y-0' : 'opacity-85 translate-y-1'
-                    }`}
-                  >
-                    {/* Tag & Rating */}
-                    <div className="flex items-center justify-between gap-1.5">
-                      <span className="bg-[#4D3A16] text-[#F5C754] text-[8px] sm:text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-[3px] border border-[#F5C754]/30">
-                        {card.tag}
-                      </span>
-                      <div className="flex items-center gap-1 text-[#F5C754] text-[10px] sm:text-xs font-bold">
-                        <Star className="w-3 h-3 fill-[#F5C754]" />
-                        <span>{card.rating}</span>
-                      </div>
+                  {/* Video Reel Badge if Video */}
+                  {isVideoMedia(card) && (
+                    <div className="absolute top-3.5 right-3.5 z-30 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/20 flex items-center gap-1 text-[9px] text-white font-medium shadow-md pointer-events-none">
+                      <Play className="w-2.5 h-2.5 fill-white text-white" />
+                      <span>REEL</span>
                     </div>
-
-                    {/* Product Name */}
-                    <div className="text-[11px] sm:text-[13px] font-bold text-white mt-1 sm:mt-1.5 line-clamp-1">
-                      {card.name}
-                    </div>
-
-                    {/* Price & Shop CTA */}
-                    <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-white/10">
-                      <span className="text-xs sm:text-sm font-bold text-white">
-                        ₹{card.price.toLocaleString('en-IN')}
-                      </span>
-                      <Link
-                        href={card.href}
-                        onClick={(e) => e.stopPropagation()}
-                        className="bg-white hover:bg-gold-light text-charcoal font-bold text-[9px] sm:text-[10px] uppercase tracking-wider px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-[3px] transition duration-200 flex items-center gap-1 shadow hover:scale-105 active:scale-95 cursor-pointer"
-                      >
-                        <ShoppingBag className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                        SHOP NOW
-                      </Link>
-                    </div>
-                  </div>
+                  )}
                 </div>
               );
             })}
@@ -305,7 +273,7 @@ export function RealResultsCarousel() {
 
         {/* Carousel Indicator Dots */}
         <div className="flex items-center justify-center gap-2 mt-4 sm:mt-6">
-          {CAROUSEL_CARDS.map((_, idx) => (
+          {cards.map((_, idx) => (
             <button
               key={idx}
               onClick={() => setActiveIndex(idx)}

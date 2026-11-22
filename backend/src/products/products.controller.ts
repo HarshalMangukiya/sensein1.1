@@ -52,7 +52,7 @@ export class ProductsController {
 
   @Post()
   @ApiOperation({ summary: 'Create new product in MongoDB Atlas (Admin)' })
-  async create(@Body() dto: any) {
+  async create(@Body() dto: any): Promise<any> {
     return this.productsService.create(dto);
   }
 

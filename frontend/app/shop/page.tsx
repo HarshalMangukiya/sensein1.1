@@ -45,15 +45,12 @@ function ShopContent() {
 
   const categories = [
     { label: 'All Formulations', value: 'All' },
-    { label: 'Hair Masks', value: 'Mask' },
-    { label: 'Shampoos', value: 'Shampoo' },
-    { label: 'Serums & Oils', value: 'Serum' },
-    { label: 'Scalp Elixirs', value: 'Elixir' },
-    { label: 'Styling Creams', value: 'Cream' },
-    { label: 'Texturizing Waxes', value: 'Wax' },
-    { label: 'Fine Fragrances', value: 'Perfume' },
-    { label: 'Facewash', value: 'Facewash' },
-    { label: '₹1 Live Payment Test', value: 'Testing & Samples' },
+    { label: 'Shampoos & Cleansers', value: 'Shampoo' },
+    { label: 'Hair Masks & Treatments', value: 'Hair Mask' },
+    { label: 'Hair Styling Wax', value: 'Hair Styling Wax' },
+    { label: 'Hair & Body Oils', value: 'Hair & Body Oil' },
+    { label: 'Facewash & Skincare', value: 'Facewash' },
+    { label: 'Value Combos & Routine Kits', value: 'Combos' },
   ];
 
   const collections = [
@@ -65,6 +62,7 @@ function ShopContent() {
 
   const priceRanges = [
     { label: 'All Prices', value: 'all', min: undefined, max: undefined },
+    { label: 'Under ₹500', value: 'under-500', min: 0, max: 500 },
     { label: 'Under ₹1,000', value: 'under-1000', min: 0, max: 1000 },
     { label: '₹1,000 to ₹1,499', value: '1000-1500', min: 1000, max: 1500 },
     { label: '₹1,500 to ₹2,499', value: '1500-2500', min: 1500, max: 2500 },
@@ -111,6 +109,15 @@ function ShopContent() {
       }
     }
     loadFilteredProducts();
+
+    const handleProductsUpdated = () => {
+      loadFilteredProducts();
+    };
+
+    window.addEventListener('sensein-products-updated', handleProductsUpdated);
+    return () => {
+      window.removeEventListener('sensein-products-updated', handleProductsUpdated);
+    };
   }, [selectedCategory, selectedCollection, priceRange, minRating, sortOption]);
 
   return (

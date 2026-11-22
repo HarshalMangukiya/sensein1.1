@@ -7,7 +7,7 @@ import * as jwt from 'jsonwebtoken';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('send-otp')
   @ApiOperation({ summary: 'Send 6-digit verification code to email' })
@@ -39,7 +39,7 @@ export class AuthController {
     }
     const token = authHeader.split(' ')[1];
     try {
-      const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'sensein_luxury_secret_key_2026');
+      const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'sensein_luxury_secret_key_2026_paris');
       const user = await this.authService.getProfile(decoded.sub);
       return { success: true, user: user || { id: decoded.sub, email: decoded.email, role: decoded.role } };
     } catch (err) {

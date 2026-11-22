@@ -7,10 +7,11 @@ import { ProductCard } from '@/components/product-card';
 import { RealResultsCarousel } from '@/components/real-results-carousel';
 import { BeforeAfterSection } from '@/components/before-after-section';
 import { WhyChooseSensein } from '@/components/why-choose-sensein';
-import { fetchProducts } from '@/lib/api';
+import { fetchProducts, fetchHeroBanner, DEFAULT_HERO_BANNER, HeroBannerConfig } from '@/lib/api';
 
 export default function HomePage() {
   const [bestsellers, setBestsellers] = useState<any[]>([]);
+  const [banner, setBanner] = useState<HeroBannerConfig>(DEFAULT_HERO_BANNER);
   const [loading, setLoading] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -51,6 +52,35 @@ export default function HomePage() {
       }
     }
     loadData();
+
+    async function loadBanner() {
+      try {
+        const b = await fetchHeroBanner();
+        if (b) setBanner(b);
+      } catch (err) {
+        console.error('Failed to load hero banner', err);
+      }
+    }
+    loadBanner();
+
+    const handleProductsUpdated = () => {
+      loadData();
+    };
+
+    const handleBannerUpdated = (e: any) => {
+      if (e.detail) {
+        setBanner(e.detail);
+      } else {
+        loadBanner();
+      }
+    };
+
+    window.addEventListener('sensein-products-updated', handleProductsUpdated);
+    window.addEventListener('sensein-banner-updated', handleBannerUpdated);
+    return () => {
+      window.removeEventListener('sensein-products-updated', handleProductsUpdated);
+      window.removeEventListener('sensein-banner-updated', handleBannerUpdated);
+    };
   }, []);
 
   useEffect(() => {
@@ -70,53 +100,72 @@ export default function HomePage() {
     <div className="space-y-12 sm:space-y-20 lg:space-y-24">
       {/* 1. EDITORIAL HERO SECTION */}
       <section className="relative w-full min-h-[500px] sm:min-h-[580px] lg:min-h-[640px] flex items-center justify-center bg-[#150A14] overflow-hidden">
-        {/* Background Image: SENSEIN Luxury Perfume Bottle */}
+        {/* Background Image: SENSEIN Luxury Perfume Bottle / Custom Banner */}
         <div className="absolute inset-0 z-0">
           <img
-            src="https://res.cloudinary.com/dqddawu42/image/upload/v1789820352/sensein/hero/sensein-perfume-bottle.jpg"
-            alt="SENSEIN Luxury Fragrance & Elixir"
-            className="w-full h-full object-cover object-center filter brightness-[0.82] contrast-[1.08]"
+            src={banner.imageUrl || DEFAULT_HERO_BANNER.imageUrl}
+            alt={banner.title || 'SENSEIN Luxury Fragrance & Elixir'}
+            className="w-full h-full object-cover object-center filter brightness-[0.85] contrast-[1.08] transition-all duration-500"
           />
-          {/* Subtle cinematic overlays for text legibility and luxury depth */}
-          <div className="absolute inset-0 bg-black/40 pointer-events-none" />
+          {/* Dynamic darkness overlay */}
+          <div
+            className="absolute inset-0 bg-black pointer-events-none transition-opacity duration-300"
+            style={{ opacity: (banner.overlayDarkness ?? 40) / 100 }}
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-[#150A14] via-transparent to-black/50 pointer-events-none" />
         </div>
 
         {/* Hero Content Centered (Matching Reference Mockup) */}
-        <div className="relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 text-center py-16 sm:py-24 lg:py-28 flex flex-col items-center">
+        <div
+          className={`relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-24 lg:py-28 flex flex-col ${
+            banner.textAlign === 'left'
+              ? 'items-start text-left'
+              : banner.textAlign === 'right'
+              ? 'items-end text-right'
+              : 'items-center text-center'
+          }`}
+        >
+          {banner.badge && (
+            <span className="inline-block text-[10px] sm:text-xs uppercase tracking-[0.25em] font-bold text-gold/90 bg-black/40 backdrop-blur-md px-3.5 py-1 rounded-full border border-gold/30 mb-4 drop-shadow-md">
+              {banner.badge}
+            </span>
+          )}
+
           <h1 className="font-display text-3xl sm:text-5xl lg:text-[56px] font-extrabold tracking-tight leading-[1.14] text-white uppercase drop-shadow-[0_4px_16px_rgba(0,0,0,0.85)]">
-            SALON LUXURY RE-ENGINEERED
+            {banner.title || DEFAULT_HERO_BANNER.title}
           </h1>
 
           <p className="mt-4 sm:mt-5 text-xs sm:text-sm md:text-base text-white/90 font-light max-w-xl mx-auto leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">
-            High-performance botanical formulas crafted with clean ingredients for Indian hair textures.
+            {banner.subtitle || DEFAULT_HERO_BANNER.subtitle}
           </p>
 
           <div className="mt-7 sm:mt-8">
             <Link
-              href="/shop"
+              href={banner.ctaLink || '/shop'}
               className="inline-flex items-center justify-center px-8 py-3.5 sm:px-10 sm:py-4 bg-[#5A3859] hover:bg-[#6D436C] text-white text-xs sm:text-[13px] font-bold uppercase tracking-[0.2em] rounded-sm transition-all duration-300 shadow-2xl hover:shadow-[0_10px_25px_-5px_rgba(90,56,89,0.5)] transform hover:-translate-y-0.5 active:translate-y-0"
             >
-              EXPLORE COLLECTION
+              {banner.ctaText || 'EXPLORE COLLECTION'}
             </Link>
           </div>
         </div>
 
         {/* Rounded Bottom Arc Divider: Bows downward in center matching reference */}
-        <div className="absolute -bottom-[1px] left-0 right-0 w-full overflow-hidden leading-none z-20 pointer-events-none">
-          <svg
-            viewBox="0 0 1440 60"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-full h-6 sm:h-9 lg:h-12 block"
-            preserveAspectRatio="none"
-          >
-            <path
-              d="M0,0 Q720,55 1440,0 L1440,60 L0,60 Z"
-              fill="#FAF7F5"
-            />
-          </svg>
-        </div>
+        {banner.showArc !== false && (
+          <div className="absolute -bottom-[1px] left-0 right-0 w-full overflow-hidden leading-none z-20 pointer-events-none">
+            <svg
+              viewBox="0 0 1440 60"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-full h-6 sm:h-9 lg:h-12 block"
+              preserveAspectRatio="none"
+            >
+              <path
+                d="M0,0 Q720,55 1440,0 L1440,60 L0,60 Z"
+                fill="#FAF7F5"
+              />
+            </svg>
+          </div>
+        )}
       </section>
 
       {/* 2. PRESS & EDITORIAL RECOGNITION TICKER */}

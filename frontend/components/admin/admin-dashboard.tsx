@@ -29,9 +29,21 @@ import {
   Sparkles,
   Loader2,
   MapPin,
+  Tag,
+  Trash2,
+  Gift,
+  Package,
+  ChevronDown,
+  Image as ImageIcon,
+  SplitSquareVertical,
 } from 'lucide-react';
 import { useAdminStore } from '@/store/admin-store';
 import { BrandLogo } from '@/components/brand-logo';
+import { AdminCoupons } from './admin-coupons';
+import { AdminBannerEditor } from './admin-banner-editor';
+import { AdminShowcaseEditor } from './admin-showcase-editor';
+import { AdminBeforeAfterEditor } from './admin-before-after-editor';
+import { ProductFormModal } from './product-form-modal';
 import {
   fetchProducts,
   fetchAllOrders,
@@ -40,9 +52,12 @@ import {
   updateInquiryStatusApi,
   createProductApi,
   updateProductStockApi,
+  deleteProductApi,
+  removeCustomProductFromStorage,
   createDelhiveryShipmentApi,
   requestDelhiveryPickupApi,
   trackDelhiveryAwbApi,
+  fetchCouponsApi,
 } from '@/lib/api';
 
 const normalizeOrder = (ord: any) => {
@@ -140,7 +155,8 @@ const normalizeInquiry = (inq: any) => ({
 
 export function AdminDashboard() {
   const { adminUser, logout } = useAdminStore();
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'products' | 'wholesale' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'products' | 'banner' | 'showcase' | 'before-after' | 'coupons' | 'wholesale' | 'settings'>('overview');
+  const [couponsCount, setCouponsCount] = useState(0);
 
   // Orders State (Live MongoDB Atlas)
   const [orders, setOrders] = useState<any[]>([]);
@@ -172,15 +188,11 @@ export function AdminDashboard() {
   // Products State (Live MongoDB Atlas)
   const [products, setProducts] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState('');
+  const [productFormatFilter, setProductFormatFilter] = useState<'all' | 'single' | 'combo'>('all');
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
-  const [newProduct, setNewProduct] = useState({
-    name: '',
-    category: 'Mask',
-    price: 1499,
-    originalPrice: 1999,
-    stock: 50,
-    size: '200ml / 6.76 fl oz',
-  });
+  const [isAddProductTypeMenuOpen, setIsAddProductTypeMenuOpen] = useState(false);
+  const [initialModalType, setInitialModalType] = useState<'single' | 'combo'>('single');
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
 
   // Wholesale Inquiries State (Live MongoDB Atlas)
   const [inquiries, setInquiries] = useState<any[]>([]);
@@ -229,21 +241,36 @@ export function AdminDashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [ordersData, prodsData, inqsData] = await Promise.all([
+      const [ordersData, prodsData, inqsData, couponsData] = await Promise.all([
         fetchAllOrders({
           search: debouncedSearch,
           status: orderFilter === 'All' ? undefined : orderFilter,
         }),
         fetchProducts(),
         fetchWholesaleInquiries(),
+        fetchCouponsApi(),
       ]);
 
       if (ordersData && Array.isArray(ordersData)) {
         setOrders(ordersData.map(normalizeOrder));
       }
       if (prodsData?.products) {
+        const seenSlugs = new Set<string>();
+        const seenIds = new Set<string>();
+        const deduped: any[] = [];
+
+        for (const p of prodsData.products) {
+          const s = (p.slug || '').toLowerCase().trim();
+          const id = (p.id || (p as any)._id || '').toString().toLowerCase().trim();
+          if (s && seenSlugs.has(s)) continue;
+          if (id && seenIds.has(id)) continue;
+          if (s) seenSlugs.add(s);
+          if (id) seenIds.add(id);
+          deduped.push(p);
+        }
+
         setProducts(
-          prodsData.products.map((p: any, idx: number) => ({
+          deduped.map((p: any, idx: number) => ({
             ...p,
             stock: p.stock !== undefined ? p.stock : 45 + idx * 10,
           }))
@@ -251,6 +278,9 @@ export function AdminDashboard() {
       }
       if (inqsData && Array.isArray(inqsData)) {
         setInquiries(inqsData.map(normalizeInquiry));
+      }
+      if (couponsData && Array.isArray(couponsData)) {
+        setCouponsCount(couponsData.length);
       }
     } catch (err) {
       console.error('Failed to load MongoDB Atlas data for Admin Console', err);
@@ -393,48 +423,59 @@ export function AdminDashboard() {
   const updateProductStock = async (productId: string, delta: number) => {
     setProducts((prev) =>
       prev.map((p) =>
-        p.id === productId ? { ...p, stock: Math.max(0, (p.stock || 0) + delta) } : p
+        p.id === productId || (p as any)._id === productId
+          ? { ...p, stock: Math.max(0, (p.stock || 0) + delta) }
+          : p
       )
     );
     await updateProductStockApi(productId, delta);
   };
 
-  const handleAddProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const created = {
-      name: newProduct.name,
-      slug: newProduct.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      subtitle: 'Restorative Clinical Formulation',
-      description: 'Ultra-concentrated botanical formulation engineered for cellular reconstruction.',
-      price: Number(newProduct.price),
-      mrp: Number(newProduct.originalPrice),
-      discountPercentage: Math.round(((newProduct.originalPrice - newProduct.price) / newProduct.originalPrice) * 100),
-      category: newProduct.category,
-      curatedCollection: 'Bestsellers',
-      rating: 5.0,
-      reviewCount: 1,
-      images: ['https://res.cloudinary.com/dqddawu42/image/upload/v1789820326/sensein/products/serum-1.jpg'],
-      stock: Number(newProduct.stock),
-      badges: ['New Formulation'],
-      inStock: true,
-      netVolume: newProduct.size,
-      variants: [{ size: newProduct.size, price: Number(newProduct.price), mrp: Number(newProduct.originalPrice), inStock: true }],
-      ingredients: { keyActives: ['French Plum Oil', 'Biomimetic Keratin'], fullList: 'Aqua, Keratin, Prunus Domestica Seed Extract' },
-      overview: 'Ultra-concentrated botanical formulation engineered for cellular reconstruction.',
-      howToUse: [{ step: 1, title: 'Apply', instruction: 'Massage gently into damp strands.' }],
-      reviews: [],
-    };
+  const handleProductSaved = (savedProduct: any) => {
+    setProducts((prev) => {
+      const targetSlug = (savedProduct.slug || '').toLowerCase().trim();
+      const targetId = (savedProduct.id || (savedProduct as any)._id || '').toString().toLowerCase().trim();
 
-    const saved = await createProductApi(created);
-    setProducts((prev) => [saved || created, ...prev]);
-    setIsAddProductModalOpen(false);
-    setNewProduct({
-      name: '',
-      category: 'Mask',
-      price: 1499,
-      originalPrice: 1999,
-      stock: 50,
-      size: '200ml / 6.76 fl oz',
+      // Eliminate all previous instances matching by id or slug to ensure no duplicate rows ever remain
+      const withoutSaved = prev.filter((p) => {
+        const pSlug = (p.slug || '').toLowerCase().trim();
+        const pId = (p.id || (p as any)._id || '').toString().toLowerCase().trim();
+        if (targetSlug && pSlug === targetSlug) return false;
+        if (targetId && pId === targetId) return false;
+        return true;
+      });
+
+      return [savedProduct, ...withoutSaved];
+    });
+    setToast({
+      text: `Formulation "${savedProduct.name}" saved to MongoDB Atlas & Cloudinary!`,
+      type: 'success',
+    });
+  };
+
+  const handleDeleteProduct = async (productId: string, name: string) => {
+    if (!confirm(`Are you sure you want to permanently delete "${name}" from MongoDB Atlas?`)) return;
+    const target = products.find((p) => p.id === productId || (p as any)._id === productId);
+    const targetSlug = (target?.slug || '').toLowerCase().trim();
+    const cleanId = (productId || '').toLowerCase().trim();
+
+    setProducts((prev) =>
+      prev.filter((p) => {
+        const pSlug = (p.slug || '').toLowerCase().trim();
+        const pId = (p.id || (p as any)._id || '').toString().toLowerCase().trim();
+        if (cleanId && pId === cleanId) return false;
+        if (targetSlug && pSlug === targetSlug) return false;
+        return true;
+      })
+    );
+
+    if (targetSlug) {
+      removeCustomProductFromStorage(targetSlug);
+    }
+    await deleteProductApi(productId);
+    setToast({
+      text: `Formulation "${name}" removed from catalog.`,
+      type: 'info',
     });
   };
 
@@ -455,10 +496,24 @@ export function AdminDashboard() {
   const activePatronsCount = new Set(orders.map((o) => o.email || o.phone || o.customer)).size;
   const lowStockProductsCount = products.filter((p) => (p.stock || 0) <= 10).length;
 
-  const filteredProducts = products.filter((p) =>
-    (p.name || '').toLowerCase().includes(productSearch.toLowerCase()) ||
-    (p.category || '').toLowerCase().includes(productSearch.toLowerCase())
-  );
+  const isComboProduct = (p: any) =>
+    p.productType === 'combo' ||
+    p.category === 'Combos' ||
+    (Array.isArray(p.comboItems) && p.comboItems.length > 0) ||
+    (p.name || '').toLowerCase().includes('combo');
+
+  const comboProductsCount = products.filter(isComboProduct).length;
+  const singleProductsCount = products.length - comboProductsCount;
+
+  const filteredProducts = products.filter((p) => {
+    const matchesSearch =
+      (p.name || '').toLowerCase().includes(productSearch.toLowerCase()) ||
+      (p.category || '').toLowerCase().includes(productSearch.toLowerCase());
+    if (!matchesSearch) return false;
+    if (productFormatFilter === 'combo') return isComboProduct(p);
+    if (productFormatFilter === 'single') return !isComboProduct(p);
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-[#FAF7F5] text-charcoal flex flex-col font-sans">
@@ -571,6 +626,74 @@ export function AdminDashboard() {
             </button>
 
             <button
+              onClick={() => setActiveTab('banner')}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
+                activeTab === 'banner'
+                  ? 'bg-plum text-white shadow-sm'
+                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <ImageIcon className={`w-4 h-4 ${activeTab === 'banner' ? 'text-white' : 'text-plum'}`} />
+                <span>Hero Banner</span>
+              </div>
+              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${activeTab === 'banner' ? 'bg-white/20 text-white' : 'bg-plum/10 text-plum'}`}>
+                LIVE
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('showcase')}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
+                activeTab === 'showcase'
+                  ? 'bg-plum text-white shadow-sm'
+                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Sparkles className={`w-4 h-4 ${activeTab === 'showcase' ? 'text-white' : 'text-plum'}`} />
+                <span>3D Showcase</span>
+              </div>
+              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${activeTab === 'showcase' ? 'bg-white/20 text-white' : 'bg-gold/15 text-gold'}`}>
+                3D DECK
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('before-after')}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
+                activeTab === 'before-after'
+                  ? 'bg-plum text-white shadow-sm'
+                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <SplitSquareVertical className={`w-4 h-4 ${activeTab === 'before-after' ? 'text-white' : 'text-plum'}`} />
+                <span>Before &amp; After</span>
+              </div>
+              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${activeTab === 'before-after' ? 'bg-white/20 text-white' : 'bg-plum/10 text-plum'}`}>
+                SLIDER
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('coupons')}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
+                activeTab === 'coupons'
+                  ? 'bg-plum text-white shadow-sm'
+                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Tag className={`w-4 h-4 ${activeTab === 'coupons' ? 'text-white' : 'text-plum'}`} />
+                <span>Coupons</span>
+              </div>
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${activeTab === 'coupons' ? 'bg-white/20 text-white' : 'bg-[#FAF7F5] border border-border text-charcoal'}`}>
+                {couponsCount}
+              </span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('wholesale')}
               className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
                 activeTab === 'wholesale'
@@ -635,7 +758,7 @@ export function AdminDashboard() {
               </div>
 
               {/* Metric Cards Grid (Clean White Cards) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-5">
                 {/* Gross Revenue */}
                 <div className="p-5 rounded-xl bg-white border border-border shadow-xs hover:shadow-md transition-all">
                   <div className="flex items-center justify-between text-charcoal-muted mb-2">
@@ -677,6 +800,24 @@ export function AdminDashboard() {
                     Verified Customer Profiles
                   </p>
                 </div>
+
+                {/* Coupons & Offers */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('coupons')}
+                  className="p-5 rounded-xl bg-white border border-border shadow-xs hover:border-plum hover:shadow-md transition-all text-left group cursor-pointer"
+                >
+                  <div className="flex items-center justify-between text-charcoal-muted mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider group-hover:text-plum transition">Coupons</span>
+                    <div className="p-2 rounded-lg bg-plum/10 text-plum group-hover:bg-plum group-hover:text-white transition">
+                      <Tag className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-bold font-sans text-charcoal">{couponsCount} Active</h3>
+                  <p className="text-[11px] text-plum mt-2 font-semibold flex items-center gap-1">
+                    <ArrowUpRight className="w-3 h-3" /> Manage Campaigns
+                  </p>
+                </button>
 
                 {/* Low Stock Watch */}
                 <div className="p-5 rounded-xl bg-white border border-amber-200 shadow-xs hover:shadow-md transition-all">
@@ -1053,17 +1194,101 @@ export function AdminDashboard() {
                     Manage catalog pricing, unit inventory, and dispatch thresholds.
                   </p>
                 </div>
-                <button
-                  onClick={() => setIsAddProductModalOpen(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-plum hover:bg-plum-hover text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all shadow-xs"
-                >
-                  <Plus className="w-4 h-4 text-gold" />
-                  <span>Add New Formulation</span>
-                </button>
+                {/* Single "+ Add Product" Button with Choice of Single or Combo */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddProductTypeMenuOpen((prev) => !prev)}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-plum hover:bg-plum-hover text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all shadow-md hover:shadow-lg transform active:scale-95"
+                    title="Add a formulation to catalog"
+                  >
+                    <Plus className="w-4 h-4 text-gold" />
+                    <span>+ Add Product</span>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-white/80 transition-transform duration-200 ${
+                        isAddProductTypeMenuOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {/* Dropdown with the Two Options: Single or Combo */}
+                  {isAddProductTypeMenuOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-30"
+                        onClick={() => setIsAddProductTypeMenuOpen(false)}
+                      />
+                      <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white border border-border rounded-xl shadow-2xl p-2.5 z-40 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="px-3 py-2 border-b border-border/80 mb-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-plum block">
+                            Select Product Architecture
+                          </span>
+                          <p className="text-[11px] text-charcoal-muted mt-0.5">
+                            Choose the format of product to add:
+                          </p>
+                        </div>
+
+                        {/* Option 1: Single Product */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingProduct(null);
+                            setInitialModalType('single');
+                            setIsAddProductTypeMenuOpen(false);
+                            setIsAddProductModalOpen(true);
+                          }}
+                          className="w-full text-left p-3 rounded-lg hover:bg-[#FAF7F5] border border-transparent hover:border-plum/25 transition-all flex items-start gap-3 group"
+                        >
+                          <div className="p-2 rounded-lg bg-blue-50 text-blue-700 group-hover:bg-plum group-hover:text-white transition-colors flex-shrink-0 mt-0.5">
+                            <Package className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-charcoal group-hover:text-plum flex items-center gap-1.5">
+                              Single Product
+                              <span className="text-[9px] font-semibold text-blue-700 bg-blue-100/70 px-1.5 py-0.5 rounded">
+                                Individual
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-charcoal-muted mt-0.5 leading-snug">
+                              Individual clinical formulation: Shampoo, Hair Wax, Hair Mask, Hair & Body Oil, Facewash
+                            </p>
+                          </div>
+                        </button>
+
+                        {/* Option 2: Combo Pack */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingProduct(null);
+                            setInitialModalType('combo');
+                            setIsAddProductTypeMenuOpen(false);
+                            setIsAddProductModalOpen(true);
+                          }}
+                          className="w-full text-left p-3 rounded-lg hover:bg-[#FAF7F5] border border-transparent hover:border-plum/25 transition-all flex items-start gap-3 group mt-1"
+                        >
+                          <div className="p-2 rounded-lg bg-purple-50 text-purple-700 group-hover:bg-plum group-hover:text-white transition-colors flex-shrink-0 mt-0.5">
+                            <Gift className="w-4 h-4 text-gold" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-charcoal group-hover:text-plum flex items-center gap-1.5">
+                              Combo / Value Pack
+                              <span className="text-[9px] font-semibold text-plum bg-purple-100/70 px-1.5 py-0.5 rounded">
+                                Multi-Item
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-charcoal-muted mt-0.5 leading-snug">
+                              Bundled routine kit, travel pack (3-in-1 sets) with bundled item inventory and value savings
+                            </p>
+                          </div>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
 
-              {/* Product Search */}
-              <div className="p-4 bg-white border border-border rounded-xl flex items-center justify-between gap-4 shadow-xs">
+              {/* Product Search & Format Filter Tabs */}
+              <div className="p-4 bg-white border border-border rounded-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shadow-xs">
                 <div className="relative w-full sm:w-80">
                   <Search className="w-4 h-4 text-charcoal-muted absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -1074,8 +1299,44 @@ export function AdminDashboard() {
                     className="w-full pl-9 pr-4 py-2 bg-white border border-border focus:border-plum rounded-lg text-xs text-charcoal placeholder-charcoal-subtle focus:outline-none focus:ring-1 focus:ring-plum"
                   />
                 </div>
-                <div className="text-xs text-charcoal-muted font-mono font-semibold">
-                  {filteredProducts.length} Formulations Active
+
+                {/* Single vs Combo Filter Chips */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                  <button
+                    type="button"
+                    onClick={() => setProductFormatFilter('all')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                      productFormatFilter === 'all'
+                        ? 'bg-charcoal text-white font-bold'
+                        : 'bg-[#FAF7F5] text-charcoal-muted hover:text-charcoal border border-border/80'
+                    }`}
+                  >
+                    All ({products.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProductFormatFilter('single')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                      productFormatFilter === 'single'
+                        ? 'bg-blue-700 text-white font-bold'
+                        : 'bg-[#FAF7F5] text-charcoal-muted hover:text-charcoal border border-border/80'
+                    }`}
+                  >
+                    <Package className="w-3 h-3" />
+                    Single ({singleProductsCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProductFormatFilter('combo')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                      productFormatFilter === 'combo'
+                        ? 'bg-plum text-white font-bold'
+                        : 'bg-[#FAF7F5] text-charcoal-muted hover:text-charcoal border border-border/80'
+                    }`}
+                  >
+                    <Gift className="w-3 h-3 text-gold" />
+                    Combos ({comboProductsCount})
+                  </button>
                 </div>
               </div>
 
@@ -1090,20 +1351,38 @@ export function AdminDashboard() {
                         <th className="p-4">Volume / Size</th>
                         <th className="p-4">Retail Price</th>
                         <th className="p-4">Stock Level</th>
-                        <th className="p-4 text-right">Quick Stock Adjustment</th>
+                        <th className="p-4 text-right">Actions & Inventory</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                       {filteredProducts.map((p) => (
-                        <tr key={p.id} className="hover:bg-[#FAF7F5] transition-colors">
+                        <tr key={p.id || p.slug} className="hover:bg-[#FAF7F5] transition-colors">
                           <td className="p-4">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded bg-[#FAF7F5] border border-border flex-shrink-0 flex items-center justify-center p-1">
-                                <img src={p.images?.[0] || 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820326/sensein/products/serum-1.jpg'} alt={p.name} className="w-full h-full object-contain mix-blend-multiply" />
+                                <img
+                                  src={p.images?.[0] || 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820326/sensein/products/serum-1.jpg'}
+                                  alt={p.name}
+                                  className="w-full h-full object-contain mix-blend-multiply"
+                                />
                               </div>
                               <div>
-                                <p className="font-semibold text-charcoal">{p.name}</p>
-                                <p className="text-[10px] text-plum font-mono">SKU: {p.slug.toUpperCase().slice(0, 10)}</p>
+                                <div className="flex items-center gap-1.5">
+                                  <p className="font-semibold text-charcoal">{p.name}</p>
+                                  {isComboProduct(p) ? (
+                                    <span className="px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 text-[9px] font-bold uppercase tracking-wider flex items-center gap-0.5">
+                                      <Gift className="w-2.5 h-2.5 text-purple-600" />
+                                      Combo
+                                    </span>
+                                  ) : (
+                                    <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[9px] font-bold uppercase tracking-wider">
+                                      Single
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-plum font-mono">
+                                  SKU: {(p.slug || 'item').toUpperCase().slice(0, 10)}
+                                </p>
                               </div>
                             </div>
                           </td>
@@ -1134,20 +1413,37 @@ export function AdminDashboard() {
                           </td>
 
                           <td className="p-4 text-right">
-                            <div className="inline-flex items-center gap-1">
+                            <div className="inline-flex items-center gap-1.5">
                               <button
                                 onClick={() => updateProductStock(p.id, -5)}
-                                className="px-2.5 py-1 bg-[#FAF7F5] hover:bg-neutral-200 border border-border rounded text-charcoal font-mono text-xs transition-colors"
+                                className="px-2 py-1 bg-[#FAF7F5] hover:bg-neutral-200 border border-border rounded text-charcoal font-mono text-xs transition-colors"
                                 title="Decrease by 5"
                               >
                                 -5
                               </button>
                               <button
                                 onClick={() => updateProductStock(p.id, 10)}
-                                className="px-2.5 py-1 bg-plum hover:bg-plum-hover text-white rounded font-mono text-xs transition-colors shadow-2xs"
+                                className="px-2 py-1 bg-plum/10 hover:bg-plum/20 text-plum border border-plum/20 rounded font-mono text-xs transition-colors"
                                 title="Restock +10"
                               >
                                 +10
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingProduct(p);
+                                  setIsAddProductModalOpen(true);
+                                }}
+                                className="p-1.5 text-charcoal-muted hover:text-plum hover:bg-[#FAF7F5] border border-border rounded transition-colors"
+                                title="Edit full formulation in Studio"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteProduct(p.id, p.name)}
+                                className="p-1.5 text-charcoal-muted hover:text-red-600 hover:bg-red-50 border border-border rounded transition-colors"
+                                title="Delete formulation from catalog"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>
@@ -1158,131 +1454,44 @@ export function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Add Product Modal (Pure White Luxury) */}
-              {isAddProductModalOpen && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                  <div className="bg-white border border-border rounded-2xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative">
-                    <div className="flex items-center justify-between mb-6 pb-4 border-b border-border">
-                      <h3 className="text-lg font-serif font-bold text-charcoal">Add New Luxury Formulation</h3>
-                      <button
-                        onClick={() => setIsAddProductModalOpen(false)}
-                        className="p-1 text-charcoal-muted hover:text-charcoal"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    <form onSubmit={handleAddProduct} className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-semibold uppercase text-charcoal mb-1">
-                          Formulation Name
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={newProduct.name}
-                          onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                          placeholder="e.g. French Plum Restorative Nectar"
-                          className="w-full px-3 py-2 bg-white border border-border focus:border-plum rounded-lg text-xs text-charcoal focus:outline-none focus:ring-1 focus:ring-plum"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-semibold uppercase text-charcoal mb-1">
-                            Category
-                          </label>
-                          <select
-                            value={newProduct.category}
-                            onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                            className="w-full px-3 py-2 bg-white border border-border focus:border-plum rounded-lg text-xs text-charcoal focus:outline-none focus:ring-1 focus:ring-plum font-medium"
-                          >
-                            <option value="Mask">Mask</option>
-                            <option value="Serum">Serum</option>
-                            <option value="Shampoo">Shampoo</option>
-                            <option value="Perfume">Perfume</option>
-                            <option value="Cream">Cream</option>
-                            <option value="Oil">Oil</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold uppercase text-charcoal mb-1">
-                            Net Volume / Size
-                          </label>
-                          <input
-                            type="text"
-                            value={newProduct.size}
-                            onChange={(e) => setNewProduct({ ...newProduct, size: e.target.value })}
-                            className="w-full px-3 py-2 bg-white border border-border focus:border-plum rounded-lg text-xs text-charcoal focus:outline-none focus:ring-1 focus:ring-plum"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold uppercase text-charcoal mb-1">
-                            Retail Price (₹)
-                          </label>
-                          <input
-                            type="number"
-                            required
-                            value={newProduct.price}
-                            onChange={(e) => setNewProduct({ ...newProduct, price: Number(e.target.value) })}
-                            className="w-full px-3 py-2 bg-white border border-border focus:border-plum rounded-lg text-xs text-charcoal focus:outline-none focus:ring-1 focus:ring-plum"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold uppercase text-charcoal mb-1">
-                            Original MRP (₹)
-                          </label>
-                          <input
-                            type="number"
-                            required
-                            value={newProduct.originalPrice}
-                            onChange={(e) => setNewProduct({ ...newProduct, originalPrice: Number(e.target.value) })}
-                            className="w-full px-3 py-2 bg-white border border-border focus:border-plum rounded-lg text-xs text-charcoal focus:outline-none focus:ring-1 focus:ring-plum"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold uppercase text-charcoal mb-1">
-                            Initial Units
-                          </label>
-                          <input
-                            type="number"
-                            required
-                            value={newProduct.stock}
-                            onChange={(e) => setNewProduct({ ...newProduct, stock: Number(e.target.value) })}
-                            className="w-full px-3 py-2 bg-white border border-border focus:border-plum rounded-lg text-xs text-charcoal focus:outline-none focus:ring-1 focus:ring-plum"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="pt-4 flex items-center justify-end gap-3 border-t border-border">
-                        <button
-                          type="button"
-                          onClick={() => setIsAddProductModalOpen(false)}
-                          className="px-4 py-2 bg-[#FAF7F5] hover:bg-neutral-200 text-xs text-charcoal uppercase tracking-wider rounded-lg transition-colors font-semibold"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="px-5 py-2 bg-plum hover:bg-plum-hover text-xs text-white font-bold uppercase tracking-wider rounded-lg transition-colors shadow-xs"
-                        >
-                          Save Formulation
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
+              {/* Comprehensive Luxury Formulation Studio Modal */}
+              <ProductFormModal
+                isOpen={isAddProductModalOpen}
+                initialProduct={editingProduct}
+                initialType={initialModalType}
+                onClose={() => {
+                  setIsAddProductModalOpen(false);
+                  setEditingProduct(null);
+                }}
+                onSaved={handleProductSaved}
+              />
             </div>
           )}
 
-          {/* TAB 4: WHOLESALE B2B INQUIRIES */}
+          {/* TAB: STOREFRONT HERO BANNER STUDIO */}
+          {activeTab === 'banner' && (
+            <AdminBannerEditor setToast={setToast} />
+          )}
+
+          {/* TAB: 3D PRODUCT SHOWCASE CAROUSEL DECK */}
+          {activeTab === 'showcase' && (
+            <AdminShowcaseEditor setToast={setToast} />
+          )}
+
+          {/* TAB: BEFORE & AFTER TRANSFORMATIONS STUDIO */}
+          {activeTab === 'before-after' && (
+            <AdminBeforeAfterEditor setToast={setToast} />
+          )}
+
+          {/* TAB 4: PROMOTIONS & COUPONS */}
+          {activeTab === 'coupons' && (
+            <AdminCoupons
+              setToast={setToast}
+              onCouponsCountChange={(count) => setCouponsCount(count)}
+            />
+          )}
+
+          {/* TAB 5: WHOLESALE B2B INQUIRIES */}
           {activeTab === 'wholesale' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1422,6 +1631,70 @@ export function AdminDashboard() {
                       <span className="px-2.5 py-1 rounded-full bg-emerald-light text-emerald-accent font-bold text-[10px] uppercase">
                         Enabled
                       </span>
+                    </div>
+                  </div>
+                </div>
+
+                <hr className="border-border" />
+
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-charcoal mb-2">Storefront Content & Visual Studios</h3>
+                  <div className="space-y-3">
+                    <div className="p-4 bg-[#FAF7F5] rounded-lg border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                      <div>
+                        <p className="font-semibold text-charcoal">Main Home Page Hero Banner</p>
+                        <p className="text-[11px] text-charcoal-muted mt-0.5">
+                          Manage hero photography, marketing headline, subtitle, and primary call-to-action button.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('banner')}
+                        className="px-3.5 py-1.5 bg-plum hover:bg-plum-hover text-white rounded-md text-[11px] font-semibold transition-colors shadow-2xs whitespace-nowrap self-start sm:self-auto flex items-center gap-1.5"
+                      >
+                        <ImageIcon className="w-3.5 h-3.5 text-gold" />
+                        <span>Open Banner Studio</span>
+                      </button>
+                    </div>
+
+                    <div className="p-4 bg-[#FAF7F5] rounded-lg border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-charcoal">3D Videos &amp; Photos Showcase</p>
+                          <span className="px-1.5 py-0.5 bg-gold/15 text-gold-dark text-[10px] font-bold rounded">REELS &amp; MEDIA</span>
+                        </div>
+                        <p className="text-[11px] text-charcoal-muted mt-0.5">
+                          Manage and upload videos and photography for the 3D rotating cards carousel without retail prices or shop buttons.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('showcase')}
+                        className="px-3.5 py-1.5 bg-plum hover:bg-plum-hover text-white rounded-md text-[11px] font-semibold transition-colors shadow-2xs whitespace-nowrap self-start sm:self-auto flex items-center gap-1.5"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-gold" />
+                        <span>Open 3D Showcase Studio</span>
+                      </button>
+                    </div>
+
+                    <div className="p-4 bg-[#FAF7F5] rounded-lg border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-charcoal">Before &amp; After Transformations</p>
+                          <span className="px-1.5 py-0.5 bg-plum/10 text-plum text-[10px] font-bold rounded">SPLIT-SLIDER</span>
+                        </div>
+                        <p className="text-[11px] text-charcoal-muted mt-0.5">
+                          Upload Before and After transformation photos with interactive split-slider cards for clinical proof.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('before-after')}
+                        className="px-3.5 py-1.5 bg-plum hover:bg-plum-hover text-white rounded-md text-[11px] font-semibold transition-colors shadow-2xs whitespace-nowrap self-start sm:self-auto flex items-center gap-1.5"
+                      >
+                        <SplitSquareVertical className="w-3.5 h-3.5 text-gold" />
+                        <span>Open Before &amp; After Studio</span>
+                      </button>
                     </div>
                   </div>
                 </div>

@@ -44,6 +44,33 @@ export class CloudinaryService {
   }
 
   /**
+   * Upload an image or video to Cloudinary with automatic format detection
+   */
+  async uploadMedia(
+    fileOrUrl: string,
+    folder: string = 'sensein/showcase',
+    tags: string[] = ['sensein', 'showcase']
+  ): Promise<{ url: string; publicId: string; format: string; resourceType: string }> {
+    try {
+      const result: UploadApiResponse = await cloudinary.uploader.upload(fileOrUrl, {
+        folder,
+        tags,
+        resource_type: 'auto',
+      });
+
+      return {
+        url: result.secure_url,
+        publicId: result.public_id,
+        format: result.format,
+        resourceType: result.resource_type,
+      };
+    } catch (error: any) {
+      this.logger.error(`Cloudinary media upload failed: ${error.message || error}`);
+      throw error;
+    }
+  }
+
+  /**
    * Upload product image into sensein/products folder
    */
   async uploadProductImage(fileOrUrl: string, productSlug?: string) {

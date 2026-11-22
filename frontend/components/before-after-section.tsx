@@ -1,58 +1,15 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import Link from 'next/link';
-import { ArrowRight, ChevronLeft, ChevronRight, ShoppingBag } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  BeforeAfterItem,
+  BeforeAfterConfig,
+  DEFAULT_BEFORE_AFTER_CONFIG,
+  fetchBeforeAfterConfig,
+} from '@/lib/api';
 
-interface ComparisonItem {
-  id: string;
-  badge: string;
-  price: number;
-  title: string;
-  used: string;
-  productSlug: string;
-  beforeImage: string;
-  afterImage: string;
-  initialPos?: number;
-}
-
-const COMPARISONS: ComparisonItem[] = [
-  {
-    id: 'frizz-defense',
-    badge: 'FRIZZ DEFENSE',
-    price: 1299,
-    title: 'Frizz & Wavy to Mirror-Smooth Glass Hair',
-    used: 'Sensein Damage Repair Conditioner',
-    productSlug: '/product/keratin-bond-intense-restorative-hair-mask',
-    beforeImage: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820363/sensein/transformations/frizz-before.jpg',
-    afterImage: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820361/sensein/transformations/frizz-after.jpg',
-    initialPos: 50,
-  },
-  {
-    id: 'curl-moisture',
-    badge: 'CURL MOISTURE',
-    price: 1499,
-    title: 'Dry Strands to Defined Bouncy Curls',
-    used: 'Sensein Intense Hydration Mask',
-    productSlug: '/shop?category=Mask',
-    beforeImage: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820359/sensein/transformations/curls-before.jpg',
-    afterImage: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820358/sensein/transformations/curls-after.jpg',
-    initialPos: 45,
-  },
-  {
-    id: 'bond-repair',
-    badge: 'BOND REPAIR',
-    price: 1299,
-    title: 'Chemically Treated Hair to Deep Rebuilt...',
-    used: 'Sensein Bond Repair Shampoo',
-    productSlug: '/product/black-caviar-cellular-cleansing-shampoo',
-    beforeImage: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820366/sensein/transformations/men-before.jpg',
-    afterImage: 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820364/sensein/transformations/men-after.jpg',
-    initialPos: 50,
-  },
-];
-
-function BeforeAfterCard({ item }: { item: ComparisonItem }) {
+function BeforeAfterCard({ item }: { item: BeforeAfterItem }) {
   const [sliderPos, setSliderPos] = useState(item.initialPos || 50);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -123,12 +80,12 @@ function BeforeAfterCard({ item }: { item: ComparisonItem }) {
       {/* Interactive Image Split Stage (Compact aspect ratio & touch-pan-y for smooth mobile scroll) */}
       <div
         ref={containerRef}
-        className="relative aspect-[4/4.3] w-full overflow-hidden select-none touch-pan-y"
+        className="relative aspect-[4/4.5] w-full overflow-hidden select-none touch-pan-y"
       >
         {/* After Image (Full Background) */}
         <img
           src={item.afterImage}
-          alt={`${item.title} After`}
+          alt="After Transformation"
           className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
         />
 
@@ -141,12 +98,12 @@ function BeforeAfterCard({ item }: { item: ComparisonItem }) {
         >
           <img
             src={item.beforeImage}
-            alt={`${item.title} Before`}
+            alt="Before Transformation"
             className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
           />
         </div>
 
-        {/* Interactive Slider Divider Line & Handle Hitbox (Click ONLY on Line to Move Left/Right) */}
+        {/* Interactive Slider Divider Line & Handle Hitbox */}
         <div
           onPointerDown={handleLinePointerDown}
           onPointerMove={handleLinePointerMove}
@@ -180,53 +137,41 @@ function BeforeAfterCard({ item }: { item: ComparisonItem }) {
           </div>
         </div>
       </div>
-
-      {/* Card Info Details */}
-      <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between bg-white">
-        <div>
-          {/* Badge & Price */}
-          <div className="flex items-center justify-between gap-2">
-            <span className="bg-[#F4EFF3] text-plum text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-[3px]">
-              {item.badge}
-            </span>
-            <span className="text-xs sm:text-sm font-bold text-charcoal tracking-tight">
-              ₹{item.price.toLocaleString('en-IN')}
-            </span>
-          </div>
-
-          {/* Title */}
-          <h3 className="font-sans text-xs sm:text-[13px] font-bold text-charcoal mt-2 leading-snug line-clamp-1 tracking-tight">
-            {item.title}
-          </h3>
-
-          {/* Used Product */}
-          <p className="text-[10px] sm:text-[11px] text-charcoal-muted mt-0.5 font-light line-clamp-1">
-            Used:{' '}
-            <Link href={item.productSlug} className="font-medium text-plum hover:underline">
-              {item.used}
-            </Link>
-          </p>
-        </div>
-
-        {/* Shop Solution Button (Matching Reference Screenshot) */}
-        <Link
-          href={item.productSlug}
-          className="mt-3 w-full py-2 px-3 bg-[#1A1A1A] hover:bg-plum text-white text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors shadow-xs group/btn"
-        >
-          <ShoppingBag className="w-3.5 h-3.5" />
-          <span>Shop Solution</span>
-          <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-0.5 transition-transform" />
-        </Link>
-      </div>
     </div>
   );
 }
 
 export function BeforeAfterSection() {
+  const [config, setConfig] = useState<BeforeAfterConfig>(DEFAULT_BEFORE_AFTER_CONFIG);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const data = await fetchBeforeAfterConfig();
+        if (data && Array.isArray(data.items) && data.items.length > 0) {
+          setConfig(data);
+        }
+      } catch (e) {
+        console.error('Failed to load Before & After config:', e);
+      }
+    }
+    loadData();
+
+    // Listen to live update event dispatched from Admin Studio
+    const handleUpdate = (e: any) => {
+      if (e.detail) {
+        setConfig(e.detail);
+      }
+    };
+    window.addEventListener('sensein-before-after-updated', handleUpdate);
+    return () => window.removeEventListener('sensein-before-after-updated', handleUpdate);
+  }, []);
+
+  const items = config.items && config.items.length > 0 ? config.items : DEFAULT_BEFORE_AFTER_CONFIG.items;
 
   const checkScrollButtons = () => {
     if (scrollContainerRef.current) {
@@ -236,7 +181,7 @@ export function BeforeAfterSection() {
 
       const cardWidth = clientWidth * 0.88;
       const idx = Math.round(scrollLeft / (cardWidth || 1));
-      setActiveIndex(Math.min(COMPARISONS.length - 1, Math.max(0, idx)));
+      setActiveIndex(Math.min(items.length - 1, Math.max(0, idx)));
     }
   };
 
@@ -262,7 +207,11 @@ export function BeforeAfterSection() {
         window.removeEventListener('resize', checkScrollButtons);
       };
     }
-  }, []);
+  }, [items.length]);
+
+  if (config.isActive === false) {
+    return null;
+  }
 
   return (
     <section className="py-12 sm:py-20 bg-white border-y border-border">
@@ -279,41 +228,41 @@ export function BeforeAfterSection() {
               {/* Stat 1 */}
               <div className="flex items-center justify-center gap-3 pt-2 sm:pt-0 sm:px-4">
                 <span className="text-3xl sm:text-4xl font-mono font-black text-charcoal tracking-tight">
-                  97%
+                  {config.stat1Value || '98%'}
                 </span>
                 <span className="text-xs text-charcoal-muted leading-tight text-left max-w-[130px]">
-                  wave or curl hold all day long
+                  {config.stat1Label || 'Frizz Control Index'}
                 </span>
               </div>
 
               {/* Stat 2 */}
               <div className="flex items-center justify-center gap-3 pt-4 sm:pt-0 sm:px-4">
                 <span className="text-3xl sm:text-4xl font-mono font-black text-charcoal tracking-tight">
-                  92%
+                  {config.stat2Value || '+140%'}
                 </span>
                 <span className="text-xs text-charcoal-muted leading-tight text-left max-w-[130px]">
-                  better hair definition
+                  {config.stat2Label || 'Mirror Gloss Radiance'}
                 </span>
               </div>
 
               {/* Stat 3 */}
               <div className="flex items-center justify-center gap-3 pt-4 sm:pt-0 sm:px-4">
                 <span className="text-3xl sm:text-4xl font-mono font-black text-charcoal tracking-tight">
-                  48%
+                  {config.stat3Value || '24h'}
                 </span>
                 <span className="text-xs text-charcoal-muted leading-tight text-left max-w-[130px]">
-                  reduction in hair dryness
+                  {config.stat3Label || 'Humidity Shield Hold'}
                 </span>
               </div>
             </div>
           </div>
 
           <p className="text-[11px] text-charcoal-muted/70 text-center mt-2.5 italic">
-            *based on Independent Clinical Studies, 2026
+            {config.disclaimer || '*based on Independent Clinical Studies, 2026'}
           </p>
         </div>
 
-        {/* 3 Interactive Split Cards (Compact Max-Width & Single-Row Carousel on Mobile) */}
+        {/* Interactive Split Cards (Compact Max-Width & Single-Row Carousel on Mobile) */}
         <div className="relative group mt-8 sm:mt-12 max-w-4xl mx-auto">
           {/* Circular Previous Button (Mobile/Tablet) */}
           <button
@@ -344,7 +293,7 @@ export function BeforeAfterSection() {
             ref={scrollContainerRef}
             className="flex md:grid md:grid-cols-3 gap-4 sm:gap-5 md:gap-6 overflow-x-auto md:overflow-visible scroll-smooth snap-x snap-mandatory no-scrollbar pb-3 pt-1 px-1 -mx-1"
           >
-            {COMPARISONS.map((item) => (
+            {items.map((item) => (
               <div
                 key={item.id}
                 className="w-[260px] sm:w-[280px] md:w-auto shrink-0 snap-center md:shrink md:snap-align-none"
@@ -356,7 +305,7 @@ export function BeforeAfterSection() {
 
           {/* Mobile Pagination Indicator Dots */}
           <div className="flex md:hidden items-center justify-center gap-1.5 mt-4">
-            {COMPARISONS.map((item, i) => (
+            {items.map((item, i) => (
               <button
                 key={item.id}
                 onClick={() => {

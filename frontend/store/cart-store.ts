@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { validateCouponApi } from '@/lib/api';
 
 export interface CartItem {
   id: string;
@@ -48,6 +49,7 @@ interface CartStore {
   closeCart: () => void;
   toggleCart: () => void;
   applyCoupon: (code: string) => boolean;
+  applyCouponAsync: (code: string) => Promise<boolean>;
   removeCoupon: () => void;
 
   // Computed Getters
@@ -154,7 +156,69 @@ export const useCartStore = create<CartStore>((set, get) => ({
   closeCart: () => set({ isOpen: false }),
   toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
 
+  applyCouponAsync: async (code: string) => {
+    const cleanCode = code.trim().toUpperCase();
+    const subtotal = get().getSubtotal();
+
+    if (!cleanCode) {
+      set({ couponError: 'Please enter a valid coupon code', couponCode: '', discountAmount: 0 });
+      return false;
+    }
+
+    try {
+      const res = await validateCouponApi(cleanCode, subtotal);
+      if (res && res.valid) {
+        set({
+          couponCode: cleanCode,
+          discountAmount: res.discountAmount,
+          couponError: null,
+        });
+        return true;
+      } else if (res && res.error) {
+        set({
+          couponError: res.error,
+          couponCode: '',
+          discountAmount: 0,
+        });
+        return false;
+      }
+    } catch (e) {
+      // Backend unreachable, fallback to offline rules
+    }
+
+    // Local fallback rules
+    if (cleanCode === 'LUXE10') {
+      const discount = Math.round(subtotal * 0.1);
+      set({ couponCode: cleanCode, discountAmount: discount, couponError: null });
+      return true;
+    }
+
+    if (cleanCode === 'SENSEIN200') {
+      if (subtotal < 1499) {
+        set({ couponError: 'SENSEIN200 requires minimum cart value of ₹1,499', couponCode: '', discountAmount: 0 });
+        return false;
+      }
+      set({ couponCode: cleanCode, discountAmount: 200, couponError: null });
+      return true;
+    }
+
+    if (cleanCode === 'VIP500') {
+      if (subtotal < 2500) {
+        set({ couponError: 'VIP500 requires minimum cart value of ₹2,500', couponCode: '', discountAmount: 0 });
+        return false;
+      }
+      set({ couponCode: cleanCode, discountAmount: 500, couponError: null });
+      return true;
+    }
+
+    set({ couponError: 'Invalid promo code. Check code or minimum order requirement.' });
+    return false;
+  },
+
   applyCoupon: (code: string) => {
+    // Fire async verification immediately to validate against MongoDB Atlas
+    get().applyCouponAsync(code);
+
     const cleanCode = code.trim().toUpperCase();
     const subtotal = get().getSubtotal();
 
@@ -187,8 +251,8 @@ export const useCartStore = create<CartStore>((set, get) => ({
       return true;
     }
 
-    set({ couponError: 'Invalid promo code. Try LUXE10 for 10% off' });
-    return false;
+    set({ couponCode: cleanCode, couponError: null });
+    return true;
   },
 
   removeCoupon: () => set({ couponCode: '', discountAmount: 0, couponError: null }),

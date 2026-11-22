@@ -65,7 +65,9 @@ export default function CheckoutPage() {
     getMilestones,
     couponCode,
     applyCoupon,
+    applyCouponAsync,
     removeCoupon,
+    couponError,
     clearCart,
   } = useCartStore();
 
@@ -701,21 +703,26 @@ export default function CheckoutPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={inputCoupon}
-                      onChange={(e) => setInputCoupon(e.target.value)}
-                      placeholder="Coupon (e.g. LUXE10)"
-                      className="flex-1 px-3 py-2 bg-[#FAF7F5] border border-border text-xs rounded uppercase tracking-wider"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => applyCoupon(inputCoupon)}
-                      className="px-4 py-2 bg-charcoal hover:bg-plum text-white text-xs font-semibold uppercase tracking-wider rounded"
-                    >
-                      Apply
-                    </button>
+                  <div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={inputCoupon}
+                        onChange={(e) => setInputCoupon(e.target.value)}
+                        placeholder="Coupon (e.g. LUXE10)"
+                        className="flex-1 px-3 py-2 bg-[#FAF7F5] border border-border text-xs rounded uppercase tracking-wider"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => applyCouponAsync(inputCoupon)}
+                        className="px-4 py-2 bg-charcoal hover:bg-plum text-white text-xs font-semibold uppercase tracking-wider rounded"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                    {couponError && (
+                      <p className="text-[11px] text-red-600 mt-1.5">{couponError}</p>
+                    )}
                   </div>
                 )}
               </div>

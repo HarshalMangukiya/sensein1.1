@@ -31,9 +31,8 @@ export function Header({ onOpenSearch }: HeaderProps) {
 
   const navLinks = [
     { label: 'Shop All Formulations', href: '/shop' },
-    { label: 'Hair Masks & Treatments', href: '/shop?category=Mask' },
-    { label: 'Shampoos & Cleansers', href: '/shop?category=Shampoo' },
-    { label: 'Elixirs & Serums', href: '/shop?category=Serum' },
+    { label: 'SENSEIN® Hair Wax', href: '/product/hair-wax' },
+    { label: 'Argan + Keratin Shampoo', href: '/product/argan-keratin-smoothing-shampoo' },
     { label: 'Awarded Bestsellers', href: '/shop?collection=Bestsellers' },
     { label: 'B2B Wholesale & Salons', href: '/wholesale' },
   ];

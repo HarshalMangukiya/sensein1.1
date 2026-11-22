@@ -31,6 +31,7 @@ export function CartDrawer() {
     getMilestones,
     couponCode,
     applyCoupon,
+    applyCouponAsync,
     removeCoupon,
     couponError,
   } = useCartStore();
@@ -44,9 +45,10 @@ export function CartDrawer() {
   const finalTotal = getFinalTotal();
   const { milestones, nextMilestone, productsNeededForNext, progressPercentage } = getMilestones();
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
+  const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (applyCoupon(inputCoupon)) {
+    const success = await applyCouponAsync(inputCoupon);
+    if (success) {
       setCouponAppliedSuccess(true);
       setTimeout(() => setCouponAppliedSuccess(false), 3000);
     }

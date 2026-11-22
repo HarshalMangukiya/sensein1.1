@@ -8,6 +8,19 @@ export class Product {
   @Prop({ index: true })
   id?: string;
 
+  @Prop({ default: 'single', index: true })
+  productType?: string; // 'single' | 'combo'
+
+  @Prop({ type: Array, default: [] })
+  comboItems?: Array<{
+    name: string;
+    quantity?: string;
+    description?: string;
+  }>;
+
+  @Prop({ default: 50 })
+  stock?: number;
+
   @Prop({ required: true })
   name: string;
 
@@ -76,6 +89,24 @@ export class Product {
     title: string;
     instruction: string;
   }>;
+
+  @Prop()
+  usageAdvice?: string;
+
+  @Prop({ type: Object })
+  productDetails?: Record<string, any>;
+
+  @Prop({ type: [String], default: [] })
+  benefits?: string[];
+
+  @Prop({ type: Array, default: [] })
+  faqs?: Array<{
+    question: string;
+    answer: string;
+  }>;
+
+  @Prop({ type: Object })
+  additionalInfo?: Record<string, any>;
 
   @Prop({ type: Array, default: [] })
   reviews: Array<{

@@ -9,9 +9,15 @@ import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
+import { json, urlencoded } from 'express';
+
 async function bootstrap() {
   const logger = new Logger('SENSEIN-API');
   const app = await NestFactory.create(AppModule);
+
+  // Increase payload limit for image uploads to Cloudinary
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
 
   // Global CORS configuration for Next.js frontend
   app.enableCors({
@@ -23,7 +29,7 @@ async function bootstrap() {
   // Global DTO validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,
+      whitelist: false,
       transform: true,
       forbidNonWhitelisted: false,
     }),

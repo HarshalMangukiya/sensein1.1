@@ -204,24 +204,27 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Powered By Vision Craft Media */}
-          <div className="flex items-center gap-2.5 pt-2 md:pt-0">
-            <span className="text-[10px] sm:text-[11px] uppercase tracking-widest text-white/60 font-medium">
-              Powered by
-            </span>
-            <a
-              href="https://visioncraftmedia.co.in/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center group transition"
-              title="Vision Craft Media - Social Media Agency"
-            >
-              <img
-                src="https://res.cloudinary.com/dqddawu42/image/upload/v1789820767/sensein/brand/vision-craft-media-white.png"
-                alt="Vision Craft Media"
-                className="h-7 sm:h-8 w-auto object-contain opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-200"
-              />
-            </a>
+          {/* Credits: Powered By */}
+          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-4 sm:gap-6 pt-2 md:pt-0">
+            {/* Powered By Vision Craft Media */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] sm:text-[11px] uppercase tracking-widest text-white/60 font-medium">
+                Powered by
+              </span>
+              <a
+                href="https://visioncraftmedia.co.in/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center group transition"
+                title="Vision Craft Media - Social Media Agency"
+              >
+                <img
+                  src="https://res.cloudinary.com/dqddawu42/image/upload/v1789820767/sensein/brand/vision-craft-media-white.png"
+                  alt="Vision Craft Media"
+                  className="h-6 sm:h-7 w-auto object-contain opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-200"
+                />
+              </a>
+            </div>
           </div>
         </div>
       </div>

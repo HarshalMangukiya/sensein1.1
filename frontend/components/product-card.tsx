@@ -39,7 +39,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const productImage = product.images[0] || 'https://res.cloudinary.com/dqddawu42/image/upload/v1789820271/sensein/products/mask-1.jpg';
+    const productImage = product.images[0] || 'https://res.cloudinary.com/dqddawu42/image/upload/v1792479863/sensein/products/sensein-hair-wax-1.jpg';
     flyToCart(e, productImage);
     addItem({
       id: product.id,
@@ -47,7 +47,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
       slug: product.slug,
       price: product.price,
       mrp: product.mrp,
-      size: product.netVolume || '250ml',
+      size: product.netVolume || '100g',
       image: productImage,
       category: product.category,
     });

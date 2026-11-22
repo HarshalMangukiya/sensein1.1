@@ -16,7 +16,8 @@ const updates = [
 ];
 
 async function updateDb() {
-  await mongoose.connect('mongodb+srv://savaliyadwarkesh95_db_user:kUfCaHxvmJlsI57x@dwarkeshsem4.m40hhtg.mongodb.net/sensein?retryWrites=true&w=majority');
+  const uri = process.env.MONGODB_URI || 'mongodb+srv://senseinindia2024_db_user:6xskchSdqf2vZ0zx@sensein.2f5dure.mongodb.net/sensein?retryWrites=true&w=majority';
+  await mongoose.connect(uri);
   console.log('Connected to MongoDB Atlas');
 
   for (const item of updates) {

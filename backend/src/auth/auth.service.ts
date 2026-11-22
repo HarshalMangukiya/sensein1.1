@@ -12,6 +12,7 @@ export class AuthService {
   private transporter: nodemailer.Transporter | null = null;
   private readonly jwtSecret = process.env.JWT_SECRET || 'sensein_luxury_secret_key_2026_paris';
   private usersStore = new Map<string, any>();
+  private localOtpStore = new Map<string, { otp: string; expiresAt: number }>();
 
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
@@ -23,95 +24,149 @@ export class AuthService {
   private initMailer() {
     const host = process.env.SMTP_HOST || 'smtp.gmail.com';
     const port = Number(process.env.SMTP_PORT) || 587;
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
+    const user = process.env.SMTP_USER || 'senseinindia2024@gmail.com';
+    const pass = process.env.SMTP_PASS || '';
 
-    if (user && pass) {
-      this.transporter = nodemailer.createTransport({
-        host,
-        port,
-        secure: port === 465,
-        auth: { user, pass },
+    if (user && pass && pass.trim().length > 0) {
+      const isGmail = host.toLowerCase().includes('gmail') || user.toLowerCase().includes('gmail.com');
+
+      if (isGmail) {
+        this.transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: user.trim(),
+            pass: pass.trim(),
+          },
+        });
+      } else {
+        this.transporter = nodemailer.createTransport({
+          host: host.trim(),
+          port,
+          secure: port === 465,
+          auth: {
+            user: user.trim(),
+            pass: pass.trim(),
+          },
+        });
+      }
+
+      this.transporter.verify((err) => {
+        if (err) {
+          this.logger.error(`Gmail SMTP connection verification failed: ${err.message}`);
+        } else {
+          this.logger.log(`Gmail SMTP verified successfully for ${user}. Real OTP delivery is ACTIVE.`);
+        }
       });
-      this.logger.log(`Nodemailer configured for SMTP user: ${user}`);
     } else {
-      this.logger.warn('SMTP credentials not provided in .env. Running in development mode with simulated email delivery.');
+      this.logger.warn('SMTP credentials missing in .env. Live email delivery will not occur.');
     }
   }
 
-  async sendOtp(email: string): Promise<{ success: boolean; message: string; expiresInSeconds: number; debugOtp?: string }> {
+  async sendOtp(email: string): Promise<{ success: boolean; message: string; expiresInSeconds: number }> {
     const normalizedEmail = email.toLowerCase().trim();
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const ttl = 300;
+    const ttl = 300; // 5 minutes standard validity
 
+    // Store in Redis and in-memory fallback
     await this.redisService.set(`otp:${normalizedEmail}`, otp, ttl);
+    this.localOtpStore.set(normalizedEmail, {
+      otp,
+      expiresAt: Date.now() + ttl * 1000,
+    });
 
     const emailHtml = `
-      <div style="font-family: 'Playfair Display', Georgia, serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #FAF7F5; color: #1A1A1A;">
-        <div style="text-align: center; margin-bottom: 30px;">
-          <h1 style="color: #5A3859; letter-spacing: 0.2em; font-size: 24px; margin: 0;">SENSEIN</h1>
-          <p style="letter-spacing: 0.3em; font-size: 11px; color: #6E6E6E; margin-top: 4px;">PROFESSIONAL • PARIS</p>
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 40px 20px; background-color: #FAF7F5; color: #1A1A1A;">
+        <div style="text-align: center; margin-bottom: 28px;">
+          <h1 style="color: #5A3859; font-size: 26px; letter-spacing: 0.25em; margin: 0; font-weight: 800;">SENSEIN</h1>
+          <p style="letter-spacing: 0.35em; font-size: 10px; color: #8C7A87; margin-top: 6px; text-transform: uppercase;">PROFESSIONAL • PARIS</p>
         </div>
-        <div style="background-color: #FFFFFF; border: 1px solid #EAE5E0; padding: 32px; border-radius: 4px; text-align: center;">
-          <h2 style="font-size: 20px; font-weight: 500; color: #1A1A1A; margin-bottom: 12px;">Your Luxury Access Code</h2>
-          <p style="color: #6E6E6E; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
-            Please enter the following one-time verification code to securely access your SENSEIN PROFESSIONAL ritual account:
+
+        <div style="background-color: #FFFFFF; border: 1px solid #EFEAE6; border-radius: 16px; padding: 36px 28px; text-align: center; box-shadow: 0 4px 20px rgba(90, 56, 89, 0.05);">
+          <div style="display: inline-block; padding: 6px 14px; background-color: #F8F3F7; border-radius: 20px; color: #5A3859; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px;">
+            ✦ Secure Account Verification
+          </div>
+
+          <h2 style="font-size: 22px; font-weight: 700; color: #1A1A1A; margin: 0 0 12px 0;">Your Verification Code</h2>
+          <p style="color: #666666; font-size: 14px; line-height: 1.6; margin: 0 0 28px 0;">
+            Use the following 6-digit access code to securely sign in to your SENSEIN account:
           </p>
-          <div style="display: inline-block; background-color: #5A3859; color: #FFFFFF; font-size: 32px; font-weight: 700; letter-spacing: 8px; padding: 14px 28px; border-radius: 2px; margin-bottom: 20px;">
+
+          <div style="background: linear-gradient(135deg, #5A3859 0%, #3D223C 100%); color: #FFFFFF; font-size: 36px; font-weight: 800; letter-spacing: 12px; padding: 18px 24px; border-radius: 12px; display: inline-block; font-family: monospace; box-shadow: 0 8px 24px rgba(90, 56, 89, 0.25);">
             ${otp}
           </div>
-          <p style="color: #8E8E8E; font-size: 12px;">This code will expire in 5 minutes (300 seconds).</p>
+
+          <p style="color: #999999; font-size: 12px; margin-top: 24px; line-height: 1.5;">
+            ⏱ This code is valid for <strong>5 minutes</strong>. If you did not request this verification code, please ignore this email.
+          </p>
         </div>
-        <div style="text-align: center; margin-top: 30px; color: #9E9E9E; font-size: 11px; letter-spacing: 0.05em;">
-          © ${new Date().getFullYear()} SENSEIN PROFESSIONAL. Pure Botanicals • Engineered Formulations.
+
+        <div style="text-align: center; margin-top: 32px; color: #A0969E; font-size: 11px; line-height: 1.6;">
+          © ${new Date().getFullYear()} SENSEIN PROFESSIONAL. All rights reserved.<br />
+          Pure Botanicals • Clinical Grade Formulations
         </div>
       </div>
     `;
 
+    const emailText = `Your SENSEIN verification code is: ${otp}\n\nThis code will expire in 5 minutes.\n\n© ${new Date().getFullYear()} SENSEIN PROFESSIONAL`;
+
+    const senderEmail = process.env.SMTP_USER || 'senseinindia2024@gmail.com';
+
     if (this.transporter) {
       try {
         await this.transporter.sendMail({
-          from: `"SENSEIN PROFESSIONAL" <${process.env.SMTP_USER}>`,
+          from: `"SENSEIN PROFESSIONAL" <${senderEmail}>`,
           to: normalizedEmail,
           subject: `${otp} is your SENSEIN Verification Code`,
+          text: emailText,
           html: emailHtml,
         });
-        this.logger.log(`Live OTP sent to ${normalizedEmail}`);
-      } catch (error) {
-        this.logger.error(`Failed to send email via SMTP: ${error.message}`);
+        this.logger.log(`Live 6-digit OTP email dispatched to: ${normalizedEmail}`);
+      } catch (error: any) {
+        this.logger.error(`Failed to send email to ${normalizedEmail}: ${error.message}`);
+        throw new UnauthorizedException(`Failed to deliver verification email to ${normalizedEmail}: ${error.message}`);
       }
     } else {
-      this.logger.log(`[SIMULATED EMAIL] To: ${normalizedEmail} | OTP: [${otp}]`);
+      this.logger.warn(`Mailer not ready. OTP generated for: ${normalizedEmail}`);
     }
 
     return {
       success: true,
-      message: `Verification code sent to ${normalizedEmail}. Valid for 5 minutes.`,
+      message: `A 6-digit verification code has been dispatched to ${normalizedEmail}.`,
       expiresInSeconds: ttl,
-      debugOtp: process.env.NODE_ENV === 'production' ? undefined : otp,
     };
   }
 
   async verifyOtp(email: string, otp: string): Promise<{ success: boolean; token: string; user: any }> {
     const normalizedEmail = email.toLowerCase().trim();
-    const storedOtp = await this.redisService.get(`otp:${normalizedEmail}`);
+    const cleanOtp = (otp || '').trim();
+
+    let storedOtp = await this.redisService.get(`otp:${normalizedEmail}`);
+
+    if (!storedOtp && this.localOtpStore.has(normalizedEmail)) {
+      const item = this.localOtpStore.get(normalizedEmail)!;
+      if (Date.now() <= item.expiresAt) {
+        storedOtp = item.otp;
+      }
+    }
 
     if (!storedOtp) {
       throw new UnauthorizedException('Verification code has expired or was not requested. Please request a new code.');
     }
 
-    if (storedOtp !== otp.trim()) {
-      throw new UnauthorizedException('Invalid verification code. Please check and try again.');
+    if (storedOtp !== cleanOtp) {
+      throw new UnauthorizedException('Invalid 6-digit verification code. Please check your email and try again.');
     }
 
+    // Clean up consumed OTP
     await this.redisService.del(`otp:${normalizedEmail}`);
+    this.localOtpStore.delete(normalizedEmail);
 
     // Fetch or create user in MongoDB Atlas
     let user: any = null;
     try {
       user = await this.userModel.findOne({ email: normalizedEmail });
       if (!user) {
-        const rawName = normalizedEmail.split('@')[0].replace(/[^a-zA-Z]/g, ' ');
+        const rawName = normalizedEmail.split('@')[0].replace(/[^a-zA-Z]/g, ' ').trim();
         const name = (rawName.charAt(0).toUpperCase() + rawName.slice(1)) || 'Patron';
         user = await this.userModel.create({
           email: normalizedEmail,
@@ -121,15 +176,16 @@ export class AuthService {
         });
         this.logger.log(`New user registered in MongoDB Atlas: ${user.email} (ID: ${user._id})`);
       }
-    } catch (err) {
+    } catch (err: any) {
       this.logger.warn(`MongoDB operation failed in verifyOtp, falling back to local store: ${err.message}`);
       user = this.usersStore.get(normalizedEmail);
       if (!user) {
-        const name = normalizedEmail.split('@')[0].replace(/[^a-zA-Z]/g, ' ');
+        const rawName = normalizedEmail.split('@')[0].replace(/[^a-zA-Z]/g, ' ').trim();
+        const name = (rawName.charAt(0).toUpperCase() + rawName.slice(1)) || 'Patron';
         user = {
           id: 'usr_' + Math.random().toString(36).substring(2, 10),
           email: normalizedEmail,
-          name: name.charAt(0).toUpperCase() + name.slice(1),
+          name,
           role: 'customer',
         };
         this.usersStore.set(normalizedEmail, user);

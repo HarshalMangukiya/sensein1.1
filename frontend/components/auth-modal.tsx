@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { X, Sparkles, CheckCircle, ShieldCheck, ArrowRight, KeyRound } from 'lucide-react';
+import { X, Sparkles, CheckCircle, ShieldCheck, ArrowRight, KeyRound, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '@/store/auth-store';
 import { sendOtp, verifyOtp } from '@/lib/api';
 import { BrandLogo } from '@/components/brand-logo';
@@ -15,8 +15,8 @@ export function AuthModal() {
   const [notifyMe, setNotifyMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [timer, setTimer] = useState(300);
-  const [debugOtp, setDebugOtp] = useState<string | null>(null);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -28,24 +28,27 @@ export function AuthModal() {
 
   if (!isAuthModalOpen) return null;
 
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !email.includes('@')) {
+  const isExpired = step === 'otp' && timer <= 0;
+
+  const handleSendOtp = async (e?: React.SyntheticEvent) => {
+    if (e) e.preventDefault();
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
       setError('Please enter a valid email address');
       return;
     }
     setLoading(true);
     setError(null);
+    setSuccessMsg(null);
+
     try {
-      const res = await sendOtp(email);
+      const res = await sendOtp(cleanEmail);
       setStep('otp');
-      setTimer(300);
-      if (res.debugOtp) {
-        setDebugOtp(res.debugOtp);
-        setOtp(res.debugOtp); // prefill for frictionless dev experience
-      }
+      setTimer(res.expiresInSeconds || 300);
+      setOtp(''); // Empty input waiting for user to type from their email
+      setSuccessMsg(`We sent a 6-digit access code to ${cleanEmail}. Please check your inbox or spam folder.`);
     } catch (err: any) {
-      setError(err.message || 'Failed to send OTP. Please try again.');
+      setError(err.message || 'Failed to dispatch verification email. Please check your email address.');
     } finally {
       setLoading(false);
     }
@@ -53,29 +56,40 @@ export function AuthModal() {
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otp || otp.length !== 6) {
-      setError('Please enter the 6-digit verification code');
+
+    if (isExpired) {
+      setError('Verification code has expired. Please click "Resend Code" to receive a fresh code.');
       return;
     }
+
+    const cleanOtp = otp.trim();
+    if (!cleanOtp || cleanOtp.length !== 6) {
+      setError('Please enter the complete 6-digit verification code from your email');
+      return;
+    }
+
     setLoading(true);
     setError(null);
+
     try {
-      const res = await verifyOtp(email, otp);
+      const res = await verifyOtp(email, cleanOtp);
       setAuth(res.user, res.token);
       closeAuthModal();
       setStep('email');
       setOtp('');
       setEmail('');
+      setError(null);
+      setSuccessMsg(null);
     } catch (err: any) {
-      setError(err.message || 'Invalid or expired OTP');
+      setError(err.message || 'Invalid or expired verification code');
     } finally {
       setLoading(false);
     }
   };
 
   const formatTimer = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const mins = Math.floor(Math.max(0, seconds) / 60);
+    const secs = Math.max(0, seconds) % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
@@ -89,7 +103,7 @@ export function AuthModal() {
 
       {/* Modal Dialog Card (Split-Pane layout matching reference screenshot) */}
       <div className="relative bg-white w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl z-10 grid grid-cols-1 md:grid-cols-12 animate-in fade-in zoom-in-95 duration-200 border border-neutral-100">
-        
+
         {/* LEFT PANEL: Velvet Plum Brand Showcase with Gold Accents */}
         <div className="md:col-span-5 bg-gradient-to-b from-[#52294A] via-[#3E1C37] to-[#2B1227] p-6 sm:p-8 flex flex-col justify-between text-white relative">
           <div>
@@ -137,7 +151,7 @@ export function AuthModal() {
           {/* Circular Close Button at top-right */}
           <button
             onClick={closeAuthModal}
-            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white shadow-md border border-neutral-100 flex items-center justify-center text-neutral-600 hover:text-charcoal hover:bg-neutral-50 transition z-20"
+            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white shadow-md border border-neutral-100 flex items-center justify-center text-neutral-600 hover:text-charcoal hover:bg-neutral-50 transition z-20 cursor-pointer"
             aria-label="Close modal"
           >
             <X className="w-4 h-4" />
@@ -158,18 +172,26 @@ export function AuthModal() {
               <div className="mt-8 pt-6 border-t border-neutral-100 space-y-3">
                 <button
                   onClick={logout}
-                  className="w-full py-2.5 border border-neutral-300 text-neutral-700 text-xs uppercase tracking-widest font-semibold hover:border-red-600 hover:text-red-600 rounded-xl transition"
+                  className="w-full py-2.5 border border-neutral-300 text-neutral-700 text-xs uppercase tracking-widest font-semibold hover:border-red-600 hover:text-red-600 rounded-xl transition cursor-pointer"
                 >
                   Sign Out
                 </button>
               </div>
             </div>
           ) : (
-            /* Login Flow (Matching Screenshot) */
+            /* Login Flow */
             <div className="space-y-4 pt-4 sm:pt-0">
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl">
-                  {error}
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-start gap-2 animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  <span className="leading-snug">{error}</span>
+                </div>
+              )}
+
+              {successMsg && !error && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-start gap-2 animate-in fade-in">
+                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span className="leading-snug">{successMsg}</span>
                 </div>
               )}
 
@@ -199,9 +221,9 @@ export function AuthModal() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3.5 bg-[#5A3859] hover:bg-[#6D436C] text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all disabled:opacity-60"
+                    className="w-full py-3.5 bg-[#5A3859] hover:bg-[#6D436C] text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all disabled:opacity-60 cursor-pointer"
                   >
-                    <span>{loading ? 'SENDING...' : 'SUBMIT'}</span>
+                    <span>{loading ? 'SENDING CODE...' : 'SUBMIT'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
 
@@ -244,35 +266,48 @@ export function AuthModal() {
                       autoFocus
                       required
                       value={otp}
-                      onChange={(e) => setOtp(e.target.value)}
+                      onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
                       placeholder="• • • • • •"
-                      className="w-full text-center py-3 bg-neutral-50/80 border border-neutral-200 text-xl font-bold tracking-[0.4em] rounded-xl focus:outline-none focus:border-[#5A3859] text-neutral-900"
+                      className="w-full text-center py-3.5 bg-neutral-50/80 border border-neutral-200 text-2xl font-bold tracking-[0.5em] rounded-xl focus:outline-none focus:border-[#5A3859] focus:bg-white text-neutral-900 font-mono transition-all"
                     />
-                    <KeyRound className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5" />
+                    <KeyRound className="w-4 h-4 text-neutral-400 absolute left-3.5 top-4" />
                   </div>
 
-                  {debugOtp && (
-                    <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 py-1 px-2 rounded-md text-center font-medium">
-                      Fast-Track Dev Code: <strong className="font-bold">{debugOtp}</strong>
-                    </p>
+                  {isExpired && (
+                    <div className="p-2.5 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl flex items-center justify-between gap-2">
+                      <span>Code expired (00:00).</span>
+                      <button
+                        type="button"
+                        onClick={() => handleSendOtp()}
+                        className="font-bold underline text-amber-900 hover:text-plum cursor-pointer"
+                      >
+                        Request New Code
+                      </button>
+                    </div>
                   )}
 
                   <div className="flex items-center justify-between text-xs text-neutral-500">
-                    <span>Code expires in: <strong className="text-neutral-800 font-semibold">{formatTimer(timer)}</strong></span>
+                    <span>
+                      Code expires in:{' '}
+                      <strong className={`font-semibold ${isExpired ? 'text-red-600' : 'text-neutral-800'}`}>
+                        {formatTimer(timer)}
+                      </strong>
+                    </span>
                     <button
                       type="button"
-                      onClick={handleSendOtp}
-                      disabled={timer > 240}
-                      className="text-[#5A3859] hover:underline disabled:opacity-50 font-medium"
+                      onClick={() => handleSendOtp()}
+                      disabled={loading || (timer > 240 && !isExpired)}
+                      className="text-[#5A3859] hover:underline disabled:opacity-40 font-semibold cursor-pointer transition flex items-center gap-1"
                     >
-                      Resend Code
+                      <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                      <span>Resend Code</span>
                     </button>
                   </div>
 
                   <button
                     type="submit"
-                    disabled={loading}
-                    className="w-full py-3.5 bg-[#5A3859] hover:bg-[#6D436C] text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all disabled:opacity-60"
+                    disabled={loading || otp.length < 6}
+                    className="w-full py-3.5 bg-[#5A3859] hover:bg-[#6D436C] text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all disabled:opacity-50 cursor-pointer"
                   >
                     <span>{loading ? 'VERIFYING...' : 'VERIFY & ENTER'}</span>
                     <ArrowRight className="w-4 h-4" />
@@ -280,8 +315,13 @@ export function AuthModal() {
 
                   <button
                     type="button"
-                    onClick={() => setStep('email')}
-                    className="w-full text-center text-xs text-neutral-500 hover:text-neutral-900 underline mt-1"
+                    onClick={() => {
+                      setStep('email');
+                      setOtp('');
+                      setError(null);
+                      setSuccessMsg(null);
+                    }}
+                    className="w-full text-center text-xs text-neutral-500 hover:text-neutral-900 underline mt-1 cursor-pointer"
                   >
                     Change email address
                   </button>
