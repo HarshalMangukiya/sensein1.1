@@ -574,10 +574,10 @@ export function AdminDashboard() {
       </header>
 
       {/* Main Body with Sidebar + Content */}
-      <div className="flex-1 flex flex-col md:flex-row">
-        {/* Navigation Sidebar (Clean White) */}
-        <aside className="w-full md:w-64 border-b md:border-b-0 md:border-r border-border bg-white p-3 sm:p-5 flex md:flex-col justify-between overflow-x-auto no-scrollbar">
-          <nav className="flex md:flex-col gap-1.5 sm:gap-2 w-full">
+      <div className="flex-1 flex flex-col md:flex-row items-start">
+        {/* Navigation Sidebar (Clean White, Fixed/Sticky on Scroll) */}
+        <aside className="w-full md:w-64 flex-shrink-0 border-b md:border-b-0 md:border-r border-border bg-white p-3 sm:p-5 flex md:flex-col justify-between overflow-x-auto md:overflow-y-auto no-scrollbar sticky top-16 z-30 md:self-start md:h-[calc(100vh-4rem)]">
+          <nav className="flex md:flex-col gap-1.5 sm:gap-2 w-full flex-1">
             <button
               onClick={() => setActiveTab('overview')}
               className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
@@ -743,7 +743,7 @@ export function AdminDashboard() {
           </nav>
 
           {/* Quick System Status Footer */}
-          <div className="hidden md:block p-3.5 rounded-xl bg-[#FAF7F5] border border-border text-[11px] space-y-2">
+          <div className="hidden md:block p-3.5 rounded-xl bg-[#FAF7F5] border border-border text-[11px] space-y-2 mt-4 flex-shrink-0">
             <div className="flex items-center justify-between">
               <span className="text-charcoal-muted font-medium">System Health</span>
               <span className="text-emerald-accent font-semibold flex items-center gap-1">
@@ -758,7 +758,7 @@ export function AdminDashboard() {
         </aside>
 
         {/* Content View Area */}
-        <main className="flex-1 p-4 sm:p-8 bg-[#FAF7F5] overflow-y-auto">
+        <main className="flex-1 min-w-0 w-full p-4 sm:p-8 bg-[#FAF7F5]">
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-300">

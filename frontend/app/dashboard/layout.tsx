@@ -68,7 +68,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 lg:w-72 border-r border-border bg-white min-h-[calc(100vh-65px)] sticky top-[65px]">
+      <aside className="hidden md:flex flex-col w-64 lg:w-72 border-r border-border bg-white h-[calc(100vh-65px)] sticky top-[65px] self-start overflow-y-auto no-scrollbar flex-shrink-0">
         <div className="p-6 border-b border-border">
           <h2 className="text-xl font-sans font-bold text-charcoal tracking-tight">My Account</h2>
           <p className="text-xs text-charcoal-muted mt-1 font-medium">Welcome back, {user.name.split(' ')[0]}</p>
