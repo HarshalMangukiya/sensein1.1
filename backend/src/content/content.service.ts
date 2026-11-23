@@ -27,11 +27,11 @@ export const DEFAULT_ANNOUNCEMENT_CONFIG = {
 
 export const DEFAULT_HERO_BANNER = {
   key: 'hero-banner',
-  badge: '',
-  title: 'SALON LUXURY RE-ENGINEERED',
+  badge: 'INTRODUCING THE NEW PACKAGING',
+  title: 'REPAIR. RESTORE. REVEAL.',
   subtitle:
-    'High-performance botanical formulas crafted with clean ingredients for Indian hair textures.',
-  ctaText: 'EXPLORE COLLECTION',
+    'Meet the refreshed Damage Hair Repair range for your hair-care routine.',
+  ctaText: 'MEET YOUR NEW HAIR CARE',
   ctaLink: '/shop',
   imageUrl:
     'https://res.cloudinary.com/dqddawu42/image/upload/v1789820352/sensein/hero/sensein-perfume-bottle.jpg',
@@ -39,6 +39,37 @@ export const DEFAULT_HERO_BANNER = {
   textAlign: 'center',
   showArc: true,
   isActive: true,
+  autoplay: true,
+  autoplayIntervalSeconds: 5,
+  slides: [
+    {
+      id: 'slide-1',
+      badge: 'INTRODUCING THE NEW PACKAGING',
+      title: 'REPAIR. RESTORE. REVEAL.',
+      subtitle: 'Meet the refreshed Damage Hair Repair range for your hair-care routine.',
+      ctaText: 'MEET YOUR NEW HAIR CARE',
+      ctaLink: '/shop',
+      imageUrl:
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820352/sensein/hero/sensein-perfume-bottle.jpg',
+      overlayDarkness: 40,
+      textAlign: 'center',
+      isActive: true,
+    },
+    {
+      id: 'slide-2',
+      badge: 'OFFICIAL SENSEIN® PARIS',
+      title: 'SALON LUXURY RE-ENGINEERED',
+      subtitle:
+        'High-performance botanical formulas crafted with clean ingredients for Indian hair textures.',
+      ctaText: 'EXPLORE COLLECTION',
+      ctaLink: '/shop',
+      imageUrl:
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820352/sensein/hero/sensein-perfume-bottle.jpg',
+      overlayDarkness: 40,
+      textAlign: 'center',
+      isActive: true,
+    },
+  ],
 };
 
 export const DEFAULT_SHOWCASE_CONFIG = {
@@ -230,8 +261,29 @@ export class ContentService implements OnModuleInit {
           this.cachedHeroBanner = { ...DEFAULT_HERO_BANNER };
           return this.cachedHeroBanner;
         }
-        this.cachedHeroBanner = found as any;
-        return found;
+
+        const bannerData = found as any;
+        if (!bannerData.slides || !Array.isArray(bannerData.slides) || bannerData.slides.length === 0) {
+          bannerData.slides = [
+            {
+              id: 'slide-1',
+              badge: bannerData.badge || '',
+              title: bannerData.title || DEFAULT_HERO_BANNER.title,
+              subtitle: bannerData.subtitle || DEFAULT_HERO_BANNER.subtitle,
+              ctaText: bannerData.ctaText || DEFAULT_HERO_BANNER.ctaText,
+              ctaLink: bannerData.ctaLink || DEFAULT_HERO_BANNER.ctaLink,
+              imageUrl: bannerData.imageUrl || DEFAULT_HERO_BANNER.imageUrl,
+              overlayDarkness: bannerData.overlayDarkness !== undefined ? bannerData.overlayDarkness : 40,
+              textAlign: bannerData.textAlign || 'center',
+              isActive: true,
+            },
+          ];
+        }
+        if (bannerData.autoplay === undefined) bannerData.autoplay = true;
+        if (bannerData.autoplayIntervalSeconds === undefined) bannerData.autoplayIntervalSeconds = 5;
+
+        this.cachedHeroBanner = bannerData;
+        return bannerData;
       }
     } catch (err: any) {
       this.logger.warn(`Failed to fetch hero banner from MongoDB, returning fallback: ${err.message}`);
@@ -240,10 +292,23 @@ export class ContentService implements OnModuleInit {
   }
 
   async updateHeroBanner(dto: UpdateBannerDto): Promise<any> {
-    const payload = {
+    const payload: any = {
       ...dto,
       key: 'hero-banner',
     };
+
+    // If slides are provided, synchronize top-level fields with the first slide for backwards compatibility
+    if (dto.slides && Array.isArray(dto.slides) && dto.slides.length > 0) {
+      const first = dto.slides[0];
+      payload.title = first.title || payload.title || DEFAULT_HERO_BANNER.title;
+      payload.subtitle = first.subtitle || payload.subtitle || DEFAULT_HERO_BANNER.subtitle;
+      payload.imageUrl = first.imageUrl || payload.imageUrl || DEFAULT_HERO_BANNER.imageUrl;
+      if (first.badge !== undefined) payload.badge = first.badge;
+      if (first.ctaText) payload.ctaText = first.ctaText;
+      if (first.ctaLink) payload.ctaLink = first.ctaLink;
+      if (first.overlayDarkness !== undefined) payload.overlayDarkness = first.overlayDarkness;
+      if (first.textAlign) payload.textAlign = first.textAlign;
+    }
 
     try {
       const updated = await this.bannerModel
@@ -256,7 +321,7 @@ export class ContentService implements OnModuleInit {
 
       if (updated) {
         this.cachedHeroBanner = updated as any;
-        this.logger.log('Hero banner updated successfully in MongoDB Atlas');
+        this.logger.log('Hero banner slideshow updated successfully in MongoDB Atlas');
         return updated;
       }
     } catch (err: any) {

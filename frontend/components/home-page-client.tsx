@@ -2,7 +2,14 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Gift, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  ArrowRight,
+  Gift,
+  ChevronLeft,
+  ChevronRight,
+  Pause,
+  Play,
+} from 'lucide-react';
 import { ProductCard } from '@/components/product-card';
 import { RealResultsCarousel } from '@/components/real-results-carousel';
 import { BeforeAfterSection } from '@/components/before-after-section';
@@ -14,6 +21,7 @@ import {
   saveHeroBannerToStorage,
   DEFAULT_HERO_BANNER,
   HeroBannerConfig,
+  HeroBannerSlide,
 } from '@/lib/api';
 
 interface HomePageClientProps {
@@ -31,6 +39,82 @@ export function HomePageClient({ initialBanner, initialProducts }: HomePageClien
     return DEFAULT_HERO_BANNER;
   });
 
+  // --- SLIDESHOW STATE ---
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const touchStartXRef = useRef<number | null>(null);
+
+  // Extract active slides
+  const rawSlides: HeroBannerSlide[] =
+    banner.slides && Array.isArray(banner.slides) && banner.slides.length > 0
+      ? banner.slides
+      : [
+          {
+            id: 'slide-1',
+            badge: banner.badge,
+            title: banner.title || DEFAULT_HERO_BANNER.title,
+            subtitle: banner.subtitle || DEFAULT_HERO_BANNER.subtitle,
+            ctaText: banner.ctaText || DEFAULT_HERO_BANNER.ctaText,
+            ctaLink: banner.ctaLink || DEFAULT_HERO_BANNER.ctaLink,
+            imageUrl: banner.imageUrl || DEFAULT_HERO_BANNER.imageUrl,
+            overlayDarkness: banner.overlayDarkness ?? 40,
+            textAlign: banner.textAlign || 'center',
+            isActive: true,
+          },
+        ];
+
+  const activeSlides = rawSlides.filter((s) => s.isActive !== false);
+  const slidesToRender = activeSlides.length > 0 ? activeSlides : rawSlides;
+
+  // Boundary check on slide index
+  useEffect(() => {
+    if (currentSlideIndex >= slidesToRender.length) {
+      setCurrentSlideIndex(0);
+    }
+  }, [slidesToRender.length, currentSlideIndex]);
+
+  // Autoplay timer
+  useEffect(() => {
+    const isAutoplayEnabled = banner.autoplay !== false;
+    if (!isAutoplayEnabled || slidesToRender.length <= 1 || isPaused) {
+      return;
+    }
+
+    const intervalSeconds = banner.autoplayIntervalSeconds || 5;
+    const timer = setInterval(() => {
+      setCurrentSlideIndex((prev) => (prev + 1) % slidesToRender.length);
+    }, intervalSeconds * 1000);
+
+    return () => clearInterval(timer);
+  }, [banner.autoplay, banner.autoplayIntervalSeconds, slidesToRender.length, isPaused]);
+
+  const handlePrevSlide = () => {
+    setCurrentSlideIndex((prev) => (prev === 0 ? slidesToRender.length - 1 : prev - 1));
+  };
+
+  const handleNextSlide = () => {
+    setCurrentSlideIndex((prev) => (prev + 1) % slidesToRender.length);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartXRef.current - touchEndX;
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) {
+        handleNextSlide();
+      } else {
+        handlePrevSlide();
+      }
+    }
+    touchStartXRef.current = null;
+  };
+
+  // --- BESTSELLERS CAROUSEL CONTROLS ---
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -148,63 +232,132 @@ export function HomePageClient({ initialBanner, initialProducts }: HomePageClien
     }
   }, [bestsellers]);
 
-  const activeImage = banner.imageUrl || DEFAULT_HERO_BANNER.imageUrl;
-
   return (
     <div className="space-y-12 sm:space-y-20 lg:space-y-24">
-      {/* 1. EDITORIAL HERO SECTION */}
-      <section className="relative w-full min-h-[500px] sm:min-h-[580px] lg:min-h-[640px] flex items-center justify-center bg-[#150A14] overflow-hidden">
-        {/* Background Image: High-priority immediate rendering */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src={activeImage}
-            alt={banner.title || 'SENSEIN Luxury Fragrance & Elixir'}
-            fetchPriority="high"
-            decoding="sync"
-            loading="eager"
-            className="w-full h-full object-cover object-center filter brightness-[0.85] contrast-[1.08] transition-all duration-300"
-          />
-          {/* Dynamic darkness overlay */}
-          <div
-            className="absolute inset-0 bg-black pointer-events-none transition-opacity duration-300"
-            style={{ opacity: (banner.overlayDarkness ?? 40) / 100 }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#150A14] via-transparent to-black/50 pointer-events-none" />
-        </div>
+      {/* 1. EDITORIAL HERO SLIDESHOW SECTION */}
+      <section
+        className="relative w-full min-h-[520px] sm:min-h-[600px] lg:min-h-[660px] flex items-center justify-center bg-[#150A14] overflow-hidden select-none group"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Render each slide as a layered absolute pane with smooth crossfade */}
+        {slidesToRender.map((slide, idx) => {
+          const isCurrent = idx === currentSlideIndex;
+          const slideImage = slide.imageUrl || DEFAULT_HERO_BANNER.imageUrl;
 
-        {/* Hero Content Centered */}
-        <div
-          className={`relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-24 lg:py-28 flex flex-col ${
-            banner.textAlign === 'left'
-              ? 'items-start text-left'
-              : banner.textAlign === 'right'
-              ? 'items-end text-right'
-              : 'items-center text-center'
-          }`}
-        >
-          {banner.badge && (
-            <span className="inline-block text-[10px] sm:text-xs uppercase tracking-[0.25em] font-bold text-gold/90 bg-black/40 backdrop-blur-md px-3.5 py-1 rounded-full border border-gold/30 mb-4 drop-shadow-md">
-              {banner.badge}
-            </span>
-          )}
-
-          <h1 className="font-display text-3xl sm:text-5xl lg:text-[56px] font-extrabold tracking-tight leading-[1.14] text-white uppercase drop-shadow-[0_4px_16px_rgba(0,0,0,0.85)]">
-            {banner.title || DEFAULT_HERO_BANNER.title}
-          </h1>
-
-          <p className="mt-4 sm:mt-5 text-xs sm:text-sm md:text-base text-white/90 font-light max-w-xl mx-auto leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">
-            {banner.subtitle || DEFAULT_HERO_BANNER.subtitle}
-          </p>
-
-          <div className="mt-7 sm:mt-8">
-            <Link
-              href={banner.ctaLink || '/shop'}
-              className="inline-flex items-center justify-center px-8 py-3.5 sm:px-10 sm:py-4 bg-[#5A3859] hover:bg-[#6D436C] text-white text-xs sm:text-[13px] font-bold uppercase tracking-[0.2em] rounded-sm transition-all duration-300 shadow-2xl hover:shadow-[0_10px_25px_-5px_rgba(90,56,89,0.5)] transform hover:-translate-y-0.5 active:translate-y-0"
+          return (
+            <div
+              key={slide.id || `slide-${idx}`}
+              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                isCurrent ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+              }`}
+              aria-hidden={!isCurrent}
             >
-              {banner.ctaText || 'EXPLORE COLLECTION'}
-            </Link>
-          </div>
-        </div>
+              {/* Background Photography with Depth Filter */}
+              <div className="absolute inset-0 z-0">
+                <img
+                  src={slideImage}
+                  alt={slide.title || 'SENSEIN Luxury Fragrance & Formulation'}
+                  fetchPriority={idx === 0 ? 'high' : 'auto'}
+                  decoding="sync"
+                  loading={idx === 0 ? 'eager' : 'lazy'}
+                  className="w-full h-full object-cover object-center filter brightness-[0.85] contrast-[1.08] transition-transform duration-1000 transform scale-100"
+                />
+                {/* Dynamic Darkness Overlay */}
+                <div
+                  className="absolute inset-0 bg-black pointer-events-none transition-opacity duration-300"
+                  style={{ opacity: (slide.overlayDarkness ?? banner.overlayDarkness ?? 40) / 100 }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#150A14] via-transparent to-black/50 pointer-events-none" />
+              </div>
+
+              {/* Slide Content Centered or Aligned */}
+              <div className="relative z-10 w-full h-full flex items-center justify-center">
+                <div
+                  className={`w-full max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-24 lg:py-28 flex flex-col ${
+                    slide.textAlign === 'left'
+                      ? 'items-start text-left'
+                      : slide.textAlign === 'right'
+                      ? 'items-end text-right'
+                      : 'items-center text-center'
+                  }`}
+                >
+                  {slide.badge && (
+                    <span className="inline-block text-[10px] sm:text-xs uppercase tracking-[0.25em] font-bold text-gold/90 bg-black/40 backdrop-blur-md px-3.5 py-1 rounded-full border border-gold/30 mb-4 drop-shadow-md animate-in fade-in duration-500">
+                      {slide.badge}
+                    </span>
+                  )}
+
+                  <h1 className="font-display text-3xl sm:text-5xl lg:text-[56px] font-extrabold tracking-tight leading-[1.14] text-white uppercase drop-shadow-[0_4px_16px_rgba(0,0,0,0.85)] animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    {slide.title}
+                  </h1>
+
+                  <p className="mt-4 sm:mt-5 text-xs sm:text-sm md:text-base text-white/90 font-light max-w-xl mx-auto leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)] animate-in fade-in slide-in-from-bottom-3 duration-700">
+                    {slide.subtitle}
+                  </p>
+
+                  <div className="mt-7 sm:mt-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <Link
+                      href={slide.ctaLink || '/shop'}
+                      className="inline-flex items-center justify-center px-8 py-3.5 sm:px-10 sm:py-4 bg-[#5A3859] hover:bg-[#6D436C] text-white text-xs sm:text-[13px] font-bold uppercase tracking-[0.2em] rounded-sm transition-all duration-300 shadow-2xl hover:shadow-[0_10px_25px_-5px_rgba(90,56,89,0.5)] transform hover:-translate-y-0.5 active:translate-y-0"
+                    >
+                      {slide.ctaText || 'EXPLORE COLLECTION'}
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* --- SLIDESHOW NAVIGATION CONTROLS --- */}
+        {slidesToRender.length > 1 && (
+          <>
+            {/* Left Previous Slide Button */}
+            <button
+              type="button"
+              onClick={handlePrevSlide}
+              className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/30 hover:bg-black/60 text-white/80 hover:text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 shadow-xl opacity-80 sm:opacity-0 group-hover:opacity-100"
+              aria-label="Previous banner slide"
+            >
+              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+
+            {/* Right Next Slide Button */}
+            <button
+              type="button"
+              onClick={handleNextSlide}
+              className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/30 hover:bg-black/60 text-white/80 hover:text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 shadow-xl opacity-80 sm:opacity-0 group-hover:opacity-100"
+              aria-label="Next banner slide"
+            >
+              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+
+            {/* Bottom Interactive Indicator Dots / Pills */}
+            <div className="absolute bottom-6 sm:bottom-9 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/15 shadow-xl">
+              {slidesToRender.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setCurrentSlideIndex(idx)}
+                  aria-label={`Go to slide ${idx + 1}`}
+                  className={`transition-all duration-300 rounded-full ${
+                    idx === currentSlideIndex
+                      ? 'w-7 sm:w-9 h-2 bg-gradient-to-r from-gold to-white shadow-md'
+                      : 'w-2 h-2 bg-white/40 hover:bg-white/70'
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Top Right Mini Counter Pill */}
+            <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-[10px] font-mono tracking-widest text-white/80">
+              0{currentSlideIndex + 1} / 0{slidesToRender.length}
+            </div>
+          </>
+        )}
 
         {/* Rounded Bottom Arc Divider */}
         {banner.showArc !== false && (

@@ -59,7 +59,21 @@ export interface ProductItem {
   }>;
 }
 
+export interface HeroBannerSlide {
+  id: string;
+  badge?: string;
+  title: string;
+  subtitle: string;
+  ctaText?: string;
+  ctaLink?: string;
+  imageUrl: string;
+  overlayDarkness?: number;
+  textAlign?: 'center' | 'left' | 'right';
+  isActive?: boolean;
+}
+
 export interface HeroBannerConfig {
+  key?: string;
   badge?: string;
   title: string;
   subtitle: string;
@@ -70,6 +84,9 @@ export interface HeroBannerConfig {
   textAlign?: 'center' | 'left' | 'right';
   showArc?: boolean;
   isActive?: boolean;
+  slides?: HeroBannerSlide[];
+  autoplay?: boolean;
+  autoplayIntervalSeconds?: number;
 }
 
 export interface ShowcaseCard {
@@ -137,11 +154,11 @@ export interface AnnouncementBarConfig {
 }
 
 export const DEFAULT_HERO_BANNER: HeroBannerConfig = {
-  badge: '',
-  title: 'SALON LUXURY RE-ENGINEERED',
+  badge: 'INTRODUCING THE NEW PACKAGING',
+  title: 'REPAIR. RESTORE. REVEAL.',
   subtitle:
-    'High-performance botanical formulas crafted with clean ingredients for Indian hair textures.',
-  ctaText: 'EXPLORE COLLECTION',
+    'Meet the refreshed Damage Hair Repair range for your hair-care routine.',
+  ctaText: 'MEET YOUR NEW HAIR CARE',
   ctaLink: '/shop',
   imageUrl:
     'https://res.cloudinary.com/dqddawu42/image/upload/v1789820352/sensein/hero/sensein-perfume-bottle.jpg',
@@ -149,6 +166,38 @@ export const DEFAULT_HERO_BANNER: HeroBannerConfig = {
   textAlign: 'center',
   showArc: true,
   isActive: true,
+  autoplay: true,
+  autoplayIntervalSeconds: 5,
+  slides: [
+    {
+      id: 'slide-1',
+      badge: 'INTRODUCING THE NEW PACKAGING',
+      title: 'REPAIR. RESTORE. REVEAL.',
+      subtitle:
+        'Meet the refreshed Damage Hair Repair range for your hair-care routine.',
+      ctaText: 'MEET YOUR NEW HAIR CARE',
+      ctaLink: '/shop',
+      imageUrl:
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820352/sensein/hero/sensein-perfume-bottle.jpg',
+      overlayDarkness: 40,
+      textAlign: 'center',
+      isActive: true,
+    },
+    {
+      id: 'slide-2',
+      badge: 'OFFICIAL SENSEIN® PARIS',
+      title: 'SALON LUXURY RE-ENGINEERED',
+      subtitle:
+        'High-performance botanical formulas crafted with clean ingredients for Indian hair textures.',
+      ctaText: 'EXPLORE COLLECTION',
+      ctaLink: '/shop',
+      imageUrl:
+        'https://res.cloudinary.com/dqddawu42/image/upload/v1789820352/sensein/hero/sensein-perfume-bottle.jpg',
+      overlayDarkness: 40,
+      textAlign: 'center',
+      isActive: true,
+    },
+  ],
 };
 
 export const DEFAULT_SHOWCASE_CONFIG: ShowcaseConfig = {
@@ -591,7 +640,7 @@ export function getHeroBannerFromStorage(): HeroBannerConfig {
     const raw = localStorage.getItem(HERO_BANNER_STORAGE_KEY);
     if (!raw) return DEFAULT_HERO_BANNER;
     const parsed = JSON.parse(raw);
-    const result = { ...DEFAULT_HERO_BANNER, ...parsed };
+    const result: HeroBannerConfig = { ...DEFAULT_HERO_BANNER, ...parsed };
     if (
       (result.imageUrl && result.imageUrl.includes('sensein-hair-wax-1.jpg')) ||
       (result.title && result.title.includes('HAUTE SALON')) ||
@@ -599,6 +648,22 @@ export function getHeroBannerFromStorage(): HeroBannerConfig {
     ) {
       Object.assign(result, DEFAULT_HERO_BANNER);
       localStorage.setItem(HERO_BANNER_STORAGE_KEY, JSON.stringify(result));
+    }
+    if (!result.slides || !Array.isArray(result.slides) || result.slides.length === 0) {
+      result.slides = [
+        {
+          id: 'slide-1',
+          badge: result.badge || '',
+          title: result.title || DEFAULT_HERO_BANNER.title,
+          subtitle: result.subtitle || DEFAULT_HERO_BANNER.subtitle,
+          ctaText: result.ctaText || DEFAULT_HERO_BANNER.ctaText,
+          ctaLink: result.ctaLink || DEFAULT_HERO_BANNER.ctaLink,
+          imageUrl: result.imageUrl || DEFAULT_HERO_BANNER.imageUrl,
+          overlayDarkness: result.overlayDarkness !== undefined ? result.overlayDarkness : 40,
+          textAlign: result.textAlign || 'center',
+          isActive: true,
+        },
+      ];
     }
     return result;
   } catch (e) {
@@ -651,6 +716,25 @@ export async function fetchHeroBanner(): Promise<HeroBannerConfig> {
           if (imageUrl.includes('sensein-hair-wax-1.jpg')) {
             imageUrl = DEFAULT_HERO_BANNER.imageUrl;
           }
+
+          let slides = Array.isArray(data.slides) && data.slides.length > 0 ? data.slides : null;
+          if (!slides) {
+            slides = [
+              {
+                id: 'slide-1',
+                badge: data.badge ?? DEFAULT_HERO_BANNER.badge,
+                title: data.title || DEFAULT_HERO_BANNER.title,
+                subtitle: data.subtitle || DEFAULT_HERO_BANNER.subtitle,
+                ctaText: data.ctaText || DEFAULT_HERO_BANNER.ctaText,
+                ctaLink: data.ctaLink || DEFAULT_HERO_BANNER.ctaLink,
+                imageUrl,
+                overlayDarkness: data.overlayDarkness !== undefined ? data.overlayDarkness : DEFAULT_HERO_BANNER.overlayDarkness,
+                textAlign: data.textAlign || DEFAULT_HERO_BANNER.textAlign,
+                isActive: true,
+              },
+            ];
+          }
+
           const merged: HeroBannerConfig = {
             badge: data.badge ?? DEFAULT_HERO_BANNER.badge,
             title: data.title || DEFAULT_HERO_BANNER.title,
@@ -662,6 +746,9 @@ export async function fetchHeroBanner(): Promise<HeroBannerConfig> {
             textAlign: data.textAlign || DEFAULT_HERO_BANNER.textAlign,
             showArc: data.showArc !== undefined ? data.showArc : DEFAULT_HERO_BANNER.showArc,
             isActive: data.isActive !== undefined ? data.isActive : true,
+            slides,
+            autoplay: data.autoplay !== undefined ? data.autoplay : true,
+            autoplayIntervalSeconds: data.autoplayIntervalSeconds || 5,
           };
           saveHeroBannerToStorage(merged);
           return merged;

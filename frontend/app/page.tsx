@@ -28,17 +28,36 @@ async function getHeroBannerServer(): Promise<HeroBannerConfig> {
         ) {
           return DEFAULT_HERO_BANNER;
         }
+        const imageUrl = data.imageUrl || DEFAULT_HERO_BANNER.imageUrl;
+        const slides = Array.isArray(data.slides) && data.slides.length > 0 ? data.slides : [
+          {
+            id: 'slide-1',
+            badge: data.badge ?? DEFAULT_HERO_BANNER.badge,
+            title: data.title || DEFAULT_HERO_BANNER.title,
+            subtitle: data.subtitle || DEFAULT_HERO_BANNER.subtitle,
+            ctaText: data.ctaText || DEFAULT_HERO_BANNER.ctaText,
+            ctaLink: data.ctaLink || DEFAULT_HERO_BANNER.ctaLink,
+            imageUrl,
+            overlayDarkness: data.overlayDarkness !== undefined ? data.overlayDarkness : DEFAULT_HERO_BANNER.overlayDarkness,
+            textAlign: data.textAlign || DEFAULT_HERO_BANNER.textAlign,
+            isActive: true,
+          },
+        ];
+
         return {
           badge: data.badge ?? DEFAULT_HERO_BANNER.badge,
           title: data.title || DEFAULT_HERO_BANNER.title,
           subtitle: data.subtitle || DEFAULT_HERO_BANNER.subtitle,
           ctaText: data.ctaText || DEFAULT_HERO_BANNER.ctaText,
           ctaLink: data.ctaLink || DEFAULT_HERO_BANNER.ctaLink,
-          imageUrl: data.imageUrl || DEFAULT_HERO_BANNER.imageUrl,
+          imageUrl,
           overlayDarkness: data.overlayDarkness !== undefined ? data.overlayDarkness : DEFAULT_HERO_BANNER.overlayDarkness,
           textAlign: data.textAlign || DEFAULT_HERO_BANNER.textAlign,
           showArc: data.showArc !== undefined ? data.showArc : DEFAULT_HERO_BANNER.showArc,
           isActive: data.isActive !== undefined ? data.isActive : true,
+          slides,
+          autoplay: data.autoplay !== undefined ? data.autoplay : true,
+          autoplayIntervalSeconds: data.autoplayIntervalSeconds || 5,
         };
       }
     }

@@ -1,5 +1,43 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+export class BannerSlideDto {
+  @ApiPropertyOptional({ example: 'slide-1' })
+  id?: string;
+
+  @ApiPropertyOptional({ example: 'OFFICIAL SENSEIN® PARIS' })
+  badge?: string;
+
+  @ApiProperty({ example: 'SALON LUXURY RE-ENGINEERED' })
+  title: string;
+
+  @ApiProperty({
+    example:
+      'High-performance botanical formulas crafted with clean ingredients for Indian hair textures.',
+  })
+  subtitle: string;
+
+  @ApiPropertyOptional({ example: 'EXPLORE COLLECTION' })
+  ctaText?: string;
+
+  @ApiPropertyOptional({ example: '/shop' })
+  ctaLink?: string;
+
+  @ApiProperty({
+    example:
+      'https://res.cloudinary.com/dqddawu42/image/upload/v1789820352/sensein/hero/sensein-perfume-bottle.jpg',
+  })
+  imageUrl: string;
+
+  @ApiPropertyOptional({ example: 40 })
+  overlayDarkness?: number;
+
+  @ApiPropertyOptional({ example: 'center' })
+  textAlign?: string;
+
+  @ApiPropertyOptional({ example: true })
+  isActive?: boolean;
+}
+
 export class UpdateBannerDto {
   @ApiPropertyOptional({ example: 'OFFICIAL SENSEIN® PARIS' })
   badge?: string;
@@ -36,6 +74,15 @@ export class UpdateBannerDto {
 
   @ApiPropertyOptional({ example: true })
   isActive?: boolean;
+
+  @ApiPropertyOptional({ type: [BannerSlideDto] })
+  slides?: BannerSlideDto[];
+
+  @ApiPropertyOptional({ example: true })
+  autoplay?: boolean;
+
+  @ApiPropertyOptional({ example: 5 })
+  autoplayIntervalSeconds?: number;
 }
 
 export class ShowcaseCardDto {
