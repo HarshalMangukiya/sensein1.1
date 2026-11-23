@@ -81,7 +81,7 @@ export function AdminLogin() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-charcoal mb-1.5">
-              Admin User Name
+              Admin User ID
             </label>
             <input
               type="text"
