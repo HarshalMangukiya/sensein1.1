@@ -169,42 +169,27 @@ export default function HomePage() {
       </section>
 
       {/* 2. CURATED SALON FORMULATION CATEGORIES */}
-      <section className="py-4 sm:py-6 border-y border-border bg-white overflow-hidden">
+      <section className="py-4 sm:py-6 border-y border-border bg-white overflow-hidden select-none">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.3em] font-semibold text-charcoal-muted mb-3 sm:mb-4">
             Curated Salon Categories
           </p>
-          <div className="flex flex-wrap items-center justify-center sm:justify-around gap-4 sm:gap-8 transition-all">
-            <Link
-              href="/shop?category=Hair Care"
-              className="font-sans text-xs sm:text-lg lg:text-xl font-extrabold tracking-widest text-charcoal hover:text-plum transition-colors"
-            >
+          <div className="flex flex-wrap items-center justify-center sm:justify-around gap-4 sm:gap-8">
+            <span className="font-sans text-xs sm:text-lg lg:text-xl font-extrabold tracking-widest text-charcoal">
               HAIR CARE
-            </Link>
-            <Link
-              href="/shop?category=Scalp Care"
-              className="font-sans text-xs sm:text-lg lg:text-xl font-bold tracking-wider text-charcoal hover:text-plum transition-colors"
-            >
+            </span>
+            <span className="font-sans text-xs sm:text-lg lg:text-xl font-bold tracking-wider text-charcoal">
               SCALP CARE
-            </Link>
-            <Link
-              href="/shop?category=Skin Care"
-              className="font-sans text-xs sm:text-lg lg:text-xl font-extrabold tracking-widest text-charcoal hover:text-plum transition-colors"
-            >
+            </span>
+            <span className="font-sans text-xs sm:text-lg lg:text-xl font-extrabold tracking-widest text-charcoal">
               SKIN CARE
-            </Link>
-            <Link
-              href="/shop?category=Hair Styling Wax"
-              className="font-sans text-xs sm:text-lg lg:text-xl font-bold tracking-widest text-charcoal hover:text-plum transition-colors"
-            >
+            </span>
+            <span className="font-sans text-xs sm:text-lg lg:text-xl font-bold tracking-widest text-charcoal">
               HAIR STYLING
-            </Link>
-            <Link
-              href="/shop?category=All"
-              className="font-sans text-xs sm:text-lg lg:text-xl font-extrabold tracking-wider text-charcoal hover:text-plum transition-colors"
-            >
+            </span>
+            <span className="font-sans text-xs sm:text-lg lg:text-xl font-extrabold tracking-wider text-charcoal">
               SALON ESSENTIALS
-            </Link>
+            </span>
           </div>
         </div>
       </section>
