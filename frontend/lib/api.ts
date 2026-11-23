@@ -617,50 +617,59 @@ export function saveHeroBannerToStorage(banner: HeroBannerConfig): void {
 }
 
 export async function fetchHeroBanner(): Promise<HeroBannerConfig> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+  // 1. In browser, try fast local Next.js edge route first, then backend API
+  const endpoints: string[] = [];
+  if (typeof window !== 'undefined') {
+    endpoints.push('/api/banner');
+  }
+  endpoints.push(`${API_BASE_URL}/content/banner`);
 
-    const res = await fetch(`${API_BASE_URL}/content/banner`, {
-      cache: 'no-store',
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
+  for (const url of endpoints) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.title) {
-        if (
-          (data.imageUrl && data.imageUrl.includes('sensein-hair-wax-1.jpg')) ||
-          (data.title && data.title.includes('HAUTE SALON')) ||
-          (data.ctaText && data.ctaText.includes('STYLING WAX'))
-        ) {
-          saveHeroBannerToStorage(DEFAULT_HERO_BANNER);
-          return DEFAULT_HERO_BANNER;
+      const res = await fetch(url, {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.title) {
+          if (
+            (data.imageUrl && data.imageUrl.includes('sensein-hair-wax-1.jpg')) ||
+            (data.title && data.title.includes('HAUTE SALON')) ||
+            (data.ctaText && data.ctaText.includes('STYLING WAX'))
+          ) {
+            saveHeroBannerToStorage(DEFAULT_HERO_BANNER);
+            return DEFAULT_HERO_BANNER;
+          }
+
+          let imageUrl = data.imageUrl || DEFAULT_HERO_BANNER.imageUrl;
+          if (imageUrl.includes('sensein-hair-wax-1.jpg')) {
+            imageUrl = DEFAULT_HERO_BANNER.imageUrl;
+          }
+          const merged: HeroBannerConfig = {
+            badge: data.badge ?? DEFAULT_HERO_BANNER.badge,
+            title: data.title || DEFAULT_HERO_BANNER.title,
+            subtitle: data.subtitle || DEFAULT_HERO_BANNER.subtitle,
+            ctaText: data.ctaText || DEFAULT_HERO_BANNER.ctaText,
+            ctaLink: data.ctaLink || DEFAULT_HERO_BANNER.ctaLink,
+            imageUrl,
+            overlayDarkness: data.overlayDarkness !== undefined ? data.overlayDarkness : DEFAULT_HERO_BANNER.overlayDarkness,
+            textAlign: data.textAlign || DEFAULT_HERO_BANNER.textAlign,
+            showArc: data.showArc !== undefined ? data.showArc : DEFAULT_HERO_BANNER.showArc,
+            isActive: data.isActive !== undefined ? data.isActive : true,
+          };
+          saveHeroBannerToStorage(merged);
+          return merged;
         }
-
-        let imageUrl = data.imageUrl || DEFAULT_HERO_BANNER.imageUrl;
-        if (imageUrl.includes('sensein-hair-wax-1.jpg')) {
-          imageUrl = DEFAULT_HERO_BANNER.imageUrl;
-        }
-        const merged: HeroBannerConfig = {
-          badge: data.badge ?? DEFAULT_HERO_BANNER.badge,
-          title: data.title || DEFAULT_HERO_BANNER.title,
-          subtitle: data.subtitle || DEFAULT_HERO_BANNER.subtitle,
-          ctaText: data.ctaText || DEFAULT_HERO_BANNER.ctaText,
-          ctaLink: data.ctaLink || DEFAULT_HERO_BANNER.ctaLink,
-          imageUrl,
-          overlayDarkness: data.overlayDarkness !== undefined ? data.overlayDarkness : DEFAULT_HERO_BANNER.overlayDarkness,
-          textAlign: data.textAlign || DEFAULT_HERO_BANNER.textAlign,
-          showArc: data.showArc !== undefined ? data.showArc : DEFAULT_HERO_BANNER.showArc,
-          isActive: data.isActive !== undefined ? data.isActive : true,
-        };
-        saveHeroBannerToStorage(merged);
-        return merged;
       }
+    } catch (err) {
+      // Continue to next endpoint fallback
     }
-  } catch (err) {
-    // Backend offline / network timeout fallback
   }
 
   return getHeroBannerFromStorage();
@@ -670,7 +679,18 @@ export async function updateHeroBannerApi(config: HeroBannerConfig): Promise<Her
   // 1. Immediately cache locally & notify all listening components
   saveHeroBannerToStorage(config);
 
-  // 2. Persist to MongoDB Atlas via backend API
+  // 2. Persist to Next.js API route to update server memory cache and revalidate edge immediately
+  if (typeof window !== 'undefined') {
+    try {
+      fetch('/api/banner', {
+        method: 'PUT',
+        headers: getAdminAuthHeaders(true),
+        body: JSON.stringify(config),
+      }).catch(() => {});
+    } catch (_) {}
+  }
+
+  // 3. Persist to MongoDB Atlas via backend API
   try {
     let token = getAdminToken();
     if (!token) {
