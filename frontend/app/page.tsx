@@ -168,28 +168,43 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* 2. PRESS & EDITORIAL RECOGNITION TICKER */}
+      {/* 2. CURATED SALON FORMULATION CATEGORIES */}
       <section className="py-4 sm:py-6 border-y border-border bg-white overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.3em] font-semibold text-charcoal-muted mb-3 sm:mb-4">
-            Recognized in Haute Editorial
+            Curated Salon Categories
           </p>
-          <div className="flex flex-wrap items-center justify-center sm:justify-around gap-4 sm:gap-8 opacity-75 grayscale hover:grayscale-0 transition-all">
-            <span className="font-sans text-base sm:text-2xl font-extrabold tracking-widest text-charcoal">
-              VOGUE
-            </span>
-            <span className="font-sans text-base sm:text-2xl font-bold tracking-wider text-charcoal">
-              HARPER'S BAZAAR
-            </span>
-            <span className="font-sans text-base sm:text-2xl font-extrabold tracking-widest text-charcoal">
-              ELLE
-            </span>
-            <span className="font-sans text-base sm:text-2xl font-bold tracking-widest text-charcoal">
-              L'OFFICIEL
-            </span>
-            <span className="font-sans text-base sm:text-2xl font-extrabold tracking-wider text-charcoal">
-              GRAZIA
-            </span>
+          <div className="flex flex-wrap items-center justify-center sm:justify-around gap-4 sm:gap-8 transition-all">
+            <Link
+              href="/shop?category=Hair Care"
+              className="font-sans text-xs sm:text-lg lg:text-xl font-extrabold tracking-widest text-charcoal hover:text-plum transition-colors"
+            >
+              HAIR CARE
+            </Link>
+            <Link
+              href="/shop?category=Scalp Care"
+              className="font-sans text-xs sm:text-lg lg:text-xl font-bold tracking-wider text-charcoal hover:text-plum transition-colors"
+            >
+              SCALP CARE
+            </Link>
+            <Link
+              href="/shop?category=Skin Care"
+              className="font-sans text-xs sm:text-lg lg:text-xl font-extrabold tracking-widest text-charcoal hover:text-plum transition-colors"
+            >
+              SKIN CARE
+            </Link>
+            <Link
+              href="/shop?category=Hair Styling Wax"
+              className="font-sans text-xs sm:text-lg lg:text-xl font-bold tracking-widest text-charcoal hover:text-plum transition-colors"
+            >
+              HAIR STYLING
+            </Link>
+            <Link
+              href="/shop?category=All"
+              className="font-sans text-xs sm:text-lg lg:text-xl font-extrabold tracking-wider text-charcoal hover:text-plum transition-colors"
+            >
+              SALON ESSENTIALS
+            </Link>
           </div>
         </div>
       </section>
