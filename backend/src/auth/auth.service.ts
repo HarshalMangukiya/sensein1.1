@@ -211,8 +211,14 @@ export class AuthService {
   }
 
   async adminLogin(email: string, pass: string): Promise<{ success: boolean; token: string; access_token?: string; user: any }> {
-    const cleanEmail = (email || '').trim().toLowerCase();
+    let cleanEmail = (email || '').trim().toLowerCase();
     const cleanPass = (pass || '').trim();
+
+    if (cleanEmail === 'admin') {
+      cleanEmail = 'admin@sensein.com';
+    } else if (cleanEmail === 'director') {
+      cleanEmail = 'director@sensein.com';
+    }
 
     const envAdminEmail = (process.env.ADMIN_EMAIL || 'admin@sensein.com').toLowerCase().trim();
     const envAdminPass = (process.env.ADMIN_PASSWORD || 'sensein2026').trim();
@@ -250,7 +256,7 @@ export class AuthService {
 
     if (!match) {
       this.logger.warn(`Failed executive login attempt for: ${cleanEmail}`);
-      throw new UnauthorizedException('Access Denied: Invalid executive email or cryptographic passkey.');
+      throw new UnauthorizedException('Access Denied: Invalid admin username or password.');
     }
 
     const adminId = 'adm_' + Math.random().toString(36).substring(2, 9);

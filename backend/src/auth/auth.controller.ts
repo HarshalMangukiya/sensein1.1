@@ -24,11 +24,12 @@ export class AuthController {
   }
 
   @Post('admin/login')
-  @ApiOperation({ summary: 'Executive Admin Login via Cryptographic Passkey' })
+  @ApiOperation({ summary: 'Executive Admin Login via Username / Password' })
   @ApiResponse({ status: 200, description: 'Admin authentication successful and JWT issued' })
-  async adminLogin(@Body() body: { email: string; pass?: string; password?: string }) {
-    const pass = body.pass || body.password || '';
-    return this.authService.adminLogin(body.email, pass);
+  async adminLogin(@Body() body: { email?: string; username?: string; pass?: string; password?: string }) {
+    const identifier = body.username || body.email || '';
+    const pass = body.password || body.pass || '';
+    return this.authService.adminLogin(identifier, pass);
   }
 
   @Get('me')

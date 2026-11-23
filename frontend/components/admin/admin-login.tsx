@@ -7,7 +7,7 @@ import { BrandLogo } from '@/components/brand-logo';
 
 export function AdminLogin() {
   const { login } = useAdminStore();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +19,7 @@ export function AdminLogin() {
     setLoading(true);
 
     try {
-      const res = await login(email, password);
+      const res = await login(username, password);
       if (!res.success) {
         setError(res.error || 'Authentication failed. Please check credentials.');
       }
@@ -81,32 +81,32 @@ export function AdminLogin() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-charcoal mb-1.5">
-              Corporate Email ID
+              Admin User Name
             </label>
             <input
-              type="email"
+              type="text"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@sensein.com"
-              className="w-full px-4 py-3 bg-white border border-[#D9D2CA] focus:border-plum rounded-lg text-sm text-charcoal placeholder-charcoal-subtle focus:outline-none focus:ring-1 focus:ring-plum transition-all shadow-2xs"
+              autoComplete="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full px-4 py-3 bg-white border border-[#D9D2CA] focus:border-plum rounded-lg text-sm text-charcoal focus:outline-none focus:ring-1 focus:ring-plum transition-all shadow-2xs"
             />
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-[11px] font-bold uppercase tracking-wider text-charcoal">
-                Cryptographic Passkey
+                Password
               </label>
             </div>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                className="w-full px-4 py-3 bg-white border border-[#D9D2CA] focus:border-plum rounded-lg text-sm text-charcoal placeholder-charcoal-subtle focus:outline-none focus:ring-1 focus:ring-plum transition-all pr-10 shadow-2xs"
+                className="w-full px-4 py-3 bg-white border border-[#D9D2CA] focus:border-plum rounded-lg text-sm text-charcoal focus:outline-none focus:ring-1 focus:ring-plum transition-all pr-10 shadow-2xs"
               />
               <button
                 type="button"

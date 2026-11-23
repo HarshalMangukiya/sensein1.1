@@ -26,15 +26,23 @@ export const useAdminStore = create<AdminStore>()(
       adminUser: null,
       adminToken: null,
 
-      login: async (email: string, pass: string) => {
-        const cleanEmail = email.trim().toLowerCase();
-        const cleanPass = pass.trim();
+      login: async (usernameOrEmail: string, pass: string) => {
+        let cleanIdentifier = (usernameOrEmail || '').trim().toLowerCase();
+        if (cleanIdentifier === 'admin') {
+          cleanIdentifier = 'admin@sensein.com';
+        }
+        const cleanPass = (pass || '').trim();
 
         try {
           const res = await fetch(`${API_BASE_URL}/auth/admin/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: cleanEmail, pass: cleanPass }),
+            body: JSON.stringify({
+              email: cleanIdentifier,
+              username: cleanIdentifier,
+              pass: cleanPass,
+              password: cleanPass,
+            }),
           });
 
           const data = await res.json();
@@ -55,7 +63,7 @@ export const useAdminStore = create<AdminStore>()(
 
           return {
             success: false,
-            error: data.message || 'Access Denied: Invalid executive email or cryptographic passkey.',
+            error: data.message || 'Access Denied: Invalid admin username or password.',
           };
         } catch (err: any) {
           return {
