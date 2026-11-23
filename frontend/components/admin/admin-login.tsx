@@ -137,16 +137,6 @@ export function AdminLogin() {
             </button>
           </div>
         </form>
-
-        {/* Security Disclaimers */}
-        <div className="mt-8 pt-6 border-t border-border text-center space-y-1.5">
-          <p className="text-[10px] text-charcoal-muted tracking-wider uppercase font-semibold">
-            256-Bit End-To-End TLS Encrypted • Zero Trust Console
-          </p>
-          <p className="text-[10px] text-charcoal-subtle font-light">
-            Unauthorized intrusion attempts are recorded and reported.
-          </p>
-        </div>
       </div>
     </div>
   );
