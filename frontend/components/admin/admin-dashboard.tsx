@@ -42,6 +42,7 @@ import { useAdminStore } from '@/store/admin-store';
 import { BrandLogo } from '@/components/brand-logo';
 import { AdminCoupons } from './admin-coupons';
 import { AdminBannerEditor } from './admin-banner-editor';
+import { AdminMilestonesEditor } from './admin-milestones-editor';
 import { AdminShowcaseEditor } from './admin-showcase-editor';
 import { AdminBeforeAfterEditor } from './admin-before-after-editor';
 import { AdminAnnouncementEditor } from './admin-announcement-editor';
@@ -157,7 +158,7 @@ const normalizeInquiry = (inq: any) => ({
 
 export function AdminDashboard() {
   const { adminUser, logout } = useAdminStore();
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'products' | 'banner' | 'showcase' | 'before-after' | 'announcements' | 'coupons' | 'wholesale' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'products' | 'banner' | 'milestones' | 'showcase' | 'before-after' | 'announcements' | 'coupons' | 'wholesale' | 'settings'>('overview');
   const [couponsCount, setCouponsCount] = useState(0);
 
   // Orders State (Live MongoDB Atlas)
@@ -637,10 +638,27 @@ export function AdminDashboard() {
             >
               <div className="flex items-center gap-3">
                 <ImageIcon className={`w-4 h-4 ${activeTab === 'banner' ? 'text-white' : 'text-plum'}`} />
-                <span>Hero Banner</span>
+                <span>Storefront Banners</span>
               </div>
               <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${activeTab === 'banner' ? 'bg-white/20 text-white' : 'bg-plum/10 text-plum'}`}>
                 LIVE
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('milestones')}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
+                activeTab === 'milestones'
+                  ? 'bg-plum text-white shadow-sm'
+                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Gift className={`w-4 h-4 ${activeTab === 'milestones' ? 'text-white' : 'text-plum'}`} />
+                <span>Milestone Cards</span>
+              </div>
+              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${activeTab === 'milestones' ? 'bg-white/20 text-white' : 'bg-gold/15 text-gold'}`}>
+                3 TIERS
               </span>
             </button>
 
@@ -1490,6 +1508,11 @@ export function AdminDashboard() {
           {/* TAB: STOREFRONT HERO BANNER STUDIO */}
           {activeTab === 'banner' && (
             <AdminBannerEditor setToast={setToast} />
+          )}
+
+          {/* TAB: CART REWARD MILESTONE CARDS STUDIO */}
+          {activeTab === 'milestones' && (
+            <AdminMilestonesEditor setToast={setToast} />
           )}
 
           {/* TAB: 3D PRODUCT SHOWCASE CAROUSEL DECK */}

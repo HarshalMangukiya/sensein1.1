@@ -85,6 +85,41 @@ export const DEFAULT_PRIVILEGE_BANNER = {
   isActive: true,
 };
 
+export const DEFAULT_CART_MILESTONES = {
+  key: 'cart-milestones',
+  title: 'Complimentary Gifts Included:',
+  isActive: true,
+  tiers: [
+    {
+      id: 'tier-1',
+      threshold: 999,
+      itemsRequired: 1,
+      subtitle: '1 Product',
+      cardLabel: 'Sample Vial',
+      reward: 'Complimentary Botanical Sample Vial (15ml)',
+      rewardValue: 299,
+    },
+    {
+      id: 'tier-2',
+      threshold: 1999,
+      itemsRequired: 2,
+      subtitle: '2 Products',
+      cardLabel: 'Travel Kit',
+      reward: 'Velvet Travel Pouch & Rosewood Styling Comb',
+      rewardValue: 599,
+    },
+    {
+      id: 'tier-3',
+      threshold: 2999,
+      itemsRequired: 3,
+      subtitle: '3+ Products',
+      cardLabel: 'Luxury Elixir',
+      reward: 'Full-Size Luxury French Plum Hair Elixir',
+      rewardValue: 1499,
+    },
+  ],
+};
+
 export const DEFAULT_SHOWCASE_CONFIG = {
   key: 'real-results-showcase',
   badge: 'REAL PEOPLE REAL RESULTS',
@@ -181,6 +216,7 @@ export class ContentService implements OnModuleInit {
   private readonly logger = new Logger(ContentService.name);
   private cachedHeroBanner: any = { ...DEFAULT_HERO_BANNER };
   private cachedPrivilegeBanner: any = { ...DEFAULT_PRIVILEGE_BANNER };
+  private cachedCartMilestones: any = { ...DEFAULT_CART_MILESTONES };
   private cachedShowcase: any = { ...DEFAULT_SHOWCASE_CONFIG };
   private cachedBeforeAfter: any = { ...DEFAULT_BEFORE_AFTER_CONFIG };
   private cachedAnnouncement: any = { ...DEFAULT_ANNOUNCEMENT_CONFIG };
@@ -268,6 +304,19 @@ export class ContentService implements OnModuleInit {
       }
     } catch (err: any) {
       this.logger.warn(`Privilege banner initialization notice: ${err.message}`);
+    }
+
+    // 6. Seed Cart Reward Milestones in MongoDB
+    try {
+      const existingMilestones = await this.bannerModel.findOne({ key: 'cart-milestones' });
+      if (!existingMilestones) {
+        this.logger.log('Seeding initial Cart Reward Milestones in MongoDB...');
+        await this.bannerModel.create(DEFAULT_CART_MILESTONES);
+      } else {
+        this.cachedCartMilestones = existingMilestones.toObject ? existingMilestones.toObject() : existingMilestones;
+      }
+    } catch (err: any) {
+      this.logger.warn(`Cart milestones initialization notice: ${err.message}`);
     }
   }
 
@@ -405,6 +454,51 @@ export class ContentService implements OnModuleInit {
       ...payload,
     };
     return this.cachedPrivilegeBanner;
+  }
+
+  // --- CART REWARD MILESTONE TIERS ---
+  async getCartMilestones(): Promise<any> {
+    try {
+      const found = await this.bannerModel.findOne({ key: 'cart-milestones' }).lean();
+      if (found && Array.isArray((found as any).tiers) && (found as any).tiers.length > 0) {
+        this.cachedCartMilestones = found as any;
+        return found;
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to fetch cart milestones from MongoDB: ${err.message}`);
+    }
+    return this.cachedCartMilestones;
+  }
+
+  async updateCartMilestones(dto: any): Promise<any> {
+    const payload = {
+      ...dto,
+      key: 'cart-milestones',
+    };
+
+    try {
+      const updated = await this.bannerModel
+        .findOneAndUpdate(
+          { key: 'cart-milestones' },
+          { $set: payload },
+          { new: true, upsert: true }
+        )
+        .lean();
+
+      if (updated) {
+        this.cachedCartMilestones = updated as any;
+        this.logger.log('Cart reward milestones updated successfully in MongoDB Atlas');
+        return updated;
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to update cart milestones in MongoDB: ${err.message}`);
+    }
+
+    this.cachedCartMilestones = {
+      ...this.cachedCartMilestones,
+      ...payload,
+    };
+    return this.cachedCartMilestones;
   }
 
   // --- 3D PRODUCT SHOWCASE DECK ---

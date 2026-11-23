@@ -1,5 +1,10 @@
 import { create } from 'zustand';
-import { validateCouponApi } from '@/lib/api';
+import {
+  validateCouponApi,
+  CartMilestonesConfig,
+  DEFAULT_CART_MILESTONES,
+  getCartMilestonesFromStorage,
+} from '@/lib/api';
 
 export interface CartItem {
   id: string;
@@ -14,8 +19,11 @@ export interface CartItem {
 }
 
 export interface Milestone {
+  id?: string;
   threshold: number;
   itemsRequired: number;
+  subtitle?: string;
+  cardLabel?: string;
   reward: string;
   rewardValue: number;
   unlocked: boolean;
@@ -28,6 +36,7 @@ interface CartStore {
   discountAmount: number;
   couponError: string | null;
   activeUserEmail: string | null;
+  milestonesConfig: CartMilestonesConfig;
 
   isCartBouncing: boolean;
   triggerCartBounce: () => void;
@@ -58,6 +67,7 @@ interface CartStore {
   removeCoupon: () => void;
   switchUserCart: (newUserEmail: string | null) => void;
   syncWithCurrentUser: () => void;
+  setMilestonesConfig: (config: CartMilestonesConfig) => void;
 
   // Computed Getters
   getSubtotal: () => number;
@@ -159,6 +169,11 @@ export const useCartStore = create<CartStore>((set, get) => ({
   couponCode: initialData.couponCode,
   discountAmount: initialData.discountAmount,
   couponError: null,
+  milestonesConfig: getCartMilestonesFromStorage(),
+
+  setMilestonesConfig: (config: CartMilestonesConfig) => {
+    set({ milestonesConfig: config });
+  },
 
   triggerCartBounce: () => {
     set({ isCartBouncing: true });
@@ -460,29 +475,19 @@ export const useCartStore = create<CartStore>((set, get) => ({
 
   getMilestones: () => {
     const itemCount = get().getItemCount();
-    const milestones: Milestone[] = [
-      {
-        threshold: 999,
-        itemsRequired: 1,
-        reward: 'Complimentary Botanical Sample Vial (15ml)',
-        rewardValue: 299,
-        unlocked: itemCount >= 1,
-      },
-      {
-        threshold: 1999,
-        itemsRequired: 2,
-        reward: 'Velvet Travel Pouch & Rosewood Styling Comb',
-        rewardValue: 599,
-        unlocked: itemCount >= 2,
-      },
-      {
-        threshold: 2999,
-        itemsRequired: 3,
-        reward: 'Full-Size Luxury French Plum Hair Elixir',
-        rewardValue: 1499,
-        unlocked: itemCount >= 3,
-      },
-    ];
+    const config = get().milestonesConfig || DEFAULT_CART_MILESTONES;
+    const rawTiers = config.tiers && config.tiers.length > 0 ? config.tiers : DEFAULT_CART_MILESTONES.tiers;
+
+    const milestones: Milestone[] = rawTiers.map((t, idx) => ({
+      id: t.id || `tier-${idx + 1}`,
+      threshold: Number(t.threshold) || DEFAULT_CART_MILESTONES.tiers[idx]?.threshold || 999,
+      itemsRequired: Number(t.itemsRequired) || (idx + 1),
+      subtitle: t.subtitle || DEFAULT_CART_MILESTONES.tiers[idx]?.subtitle || `${idx + 1} Products`,
+      cardLabel: t.cardLabel || DEFAULT_CART_MILESTONES.tiers[idx]?.cardLabel || 'Gift',
+      reward: t.reward || DEFAULT_CART_MILESTONES.tiers[idx]?.reward || '',
+      rewardValue: Number(t.rewardValue) || DEFAULT_CART_MILESTONES.tiers[idx]?.rewardValue || 299,
+      unlocked: itemCount >= (Number(t.itemsRequired) || (idx + 1)),
+    }));
 
     let nextMilestone: Milestone | null = null;
     let productsNeededForNext = 0;
@@ -501,8 +506,8 @@ export const useCartStore = create<CartStore>((set, get) => ({
       currentTierIndex = milestones.length;
     }
 
-    // Progress bar calculations (0% for 0, 33% for 1, 67% for 2, 100% for 3+)
-    const progressPercentage = Math.min(100, Math.round((itemCount / 3) * 100));
+    const maxItems = milestones.length > 0 ? milestones[milestones.length - 1].itemsRequired : 3;
+    const progressPercentage = Math.min(100, Math.round((itemCount / Math.max(1, maxItems)) * 100));
 
     return {
       milestones,
@@ -514,3 +519,22 @@ export const useCartStore = create<CartStore>((set, get) => ({
     };
   },
 }));
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('sensein-cart-milestones-updated', (e: any) => {
+    if (e?.detail) {
+      useCartStore.getState().setMilestonesConfig(e.detail);
+    }
+  });
+
+  window.addEventListener('storage', (e: StorageEvent) => {
+    if (e.key === 'sensein_cart_milestones_config' && e.newValue) {
+      try {
+        const parsed = JSON.parse(e.newValue);
+        if (parsed && Array.isArray(parsed.tiers)) {
+          useCartStore.getState().setMilestonesConfig(parsed);
+        }
+      } catch (_) {}
+    }
+  });
+}

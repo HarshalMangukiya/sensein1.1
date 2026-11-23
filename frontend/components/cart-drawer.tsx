@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   X,
@@ -16,6 +16,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { useCartStore } from '@/store/cart-store';
+import { fetchCartMilestones } from '@/lib/api';
 
 export function CartDrawer() {
   const {
@@ -29,6 +30,7 @@ export function CartDrawer() {
     getShippingFee,
     getFinalTotal,
     getMilestones,
+    setMilestonesConfig,
     couponCode,
     applyCoupon,
     applyCouponAsync,
@@ -38,6 +40,19 @@ export function CartDrawer() {
 
   const [inputCoupon, setInputCoupon] = useState('');
   const [couponAppliedSuccess, setCouponAppliedSuccess] = useState(false);
+
+  // Sync cart milestones from API
+  useEffect(() => {
+    let mounted = true;
+    fetchCartMilestones().then((config) => {
+      if (mounted && config) {
+        setMilestonesConfig(config);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [setMilestonesConfig]);
 
   const subtotal = getSubtotal();
   const discount = getTotalDiscount();
@@ -117,7 +132,7 @@ export function CartDrawer() {
           <div className="grid grid-cols-3 gap-2 mt-3 pt-1">
             {milestones.map((m, idx) => (
               <div
-                key={m.threshold}
+                key={m.id || m.threshold || idx}
                 className={`text-center p-1.5 rounded border transition-all text-[10px] ${
                   m.unlocked
                     ? 'bg-emerald-light/40 border-emerald/40 text-emerald font-medium'
@@ -126,11 +141,11 @@ export function CartDrawer() {
               >
                 <div className="font-bold text-[10.5px]">₹{m.threshold}</div>
                 <div className="text-[8.5px] opacity-75 font-semibold leading-tight">
-                  {idx === 0 ? '1 Product' : idx === 1 ? '2 Products' : '3+ Products'}
+                  {m.subtitle || (idx === 0 ? '1 Product' : idx === 1 ? '2 Products' : '3+ Products')}
                 </div>
                 <div className="truncate text-[9px] mt-0.5" title={m.reward}>
                   {m.unlocked ? '✓ ' : ''}
-                  {idx === 0 ? 'Sample Vial' : idx === 1 ? 'Travel Kit' : 'Luxury Elixir'}
+                  {m.cardLabel || (idx === 0 ? 'Sample Vial' : idx === 1 ? 'Travel Kit' : 'Luxury Elixir')}
                 </div>
               </div>
             ))}

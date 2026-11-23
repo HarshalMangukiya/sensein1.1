@@ -263,3 +263,38 @@ export class UpdateAnnouncementDto {
   items: AnnouncementItemDto[];
 }
 
+export class CartMilestoneTierDto {
+  @ApiProperty({ example: 'tier-1' })
+  id: string;
+
+  @ApiProperty({ example: 999 })
+  threshold: number;
+
+  @ApiProperty({ example: 1 })
+  itemsRequired: number;
+
+  @ApiProperty({ example: '1 Product' })
+  subtitle: string;
+
+  @ApiProperty({ example: 'Sample Vial' })
+  cardLabel: string;
+
+  @ApiProperty({ example: 'Complimentary Botanical Sample Vial (15ml)' })
+  reward: string;
+
+  @ApiProperty({ example: 299 })
+  rewardValue: number;
+}
+
+export class UpdateCartMilestonesDto {
+  @ApiPropertyOptional({ example: 'Complimentary Gifts Included:' })
+  title?: string;
+
+  @ApiPropertyOptional({ example: true })
+  isActive?: boolean;
+
+  @ApiProperty({ type: [CartMilestoneTierDto] })
+  tiers: CartMilestoneTierDto[];
+}
+
+

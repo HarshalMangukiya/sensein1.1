@@ -40,14 +40,15 @@ import {
   fetchPrivilegeBanner,
   updatePrivilegeBannerApi,
 } from '@/lib/api';
+import { AdminMilestonesEditor } from './admin-milestones-editor';
 
 interface AdminBannerEditorProps {
   setToast: (toast: { text: string; type: 'success' | 'error' | 'info' }) => void;
 }
 
 export function AdminBannerEditor({ setToast }: AdminBannerEditorProps) {
-  // Tab selector between Hero Banner Slideshow & Privilege Milestone Callout Banner
-  const [activeStudioTab, setActiveStudioTab] = useState<'hero' | 'privilege'>('hero');
+  // Tab selector between Hero Banner Slideshow, Privilege Milestone Callout Banner, & Cart Milestone Cards
+  const [activeStudioTab, setActiveStudioTab] = useState<'hero' | 'privilege' | 'cart-cards'>('hero');
 
   // Hero banner state
   const [banner, setBanner] = useState<HeroBannerConfig>(DEFAULT_HERO_BANNER);
@@ -485,7 +486,29 @@ export function AdminBannerEditor({ setToast }: AdminBannerEditorProps) {
                   : 'bg-gold/20 text-gold'
               }`}
             >
-              TIER GIFTS
+              HOMEPAGE
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveStudioTab('cart-cards')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+              activeStudioTab === 'cart-cards'
+                ? 'bg-plum text-white shadow-xs'
+                : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+            }`}
+          >
+            <Sparkles className={`w-3.5 h-3.5 ${activeStudioTab === 'cart-cards' ? 'text-gold' : 'text-plum'}`} />
+            <span>Cart Milestone Cards</span>
+            <span
+              className={`text-[9px] px-2 py-0.5 rounded-full font-mono ${
+                activeStudioTab === 'cart-cards'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-emerald-light text-emerald-accent font-bold'
+              }`}
+            >
+              3 CARDS
             </span>
           </button>
         </div>
@@ -1556,6 +1579,13 @@ export function AdminBannerEditor({ setToast }: AdminBannerEditorProps) {
             </div>
           </form>
         </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODE 3: CART REWARD MILESTONE CARDS STUDIO                     */}
+      {/* ============================================================== */}
+      {activeStudioTab === 'cart-cards' && (
+        <AdminMilestonesEditor setToast={setToast} />
       )}
     </div>
   );

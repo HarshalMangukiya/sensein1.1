@@ -62,6 +62,29 @@ export class ContentController {
     return this.contentService.updatePrivilegeBanner(dto);
   }
 
+  // --- CART REWARD MILESTONE TIERS ---
+  @Get(['cart-milestones', 'milestones'])
+  @ApiOperation({ summary: 'Get active cart reward milestone tiers configuration' })
+  @ApiResponse({ status: 200, description: 'Cart reward milestone tiers returned' })
+  async getCartMilestones() {
+    return this.contentService.getCartMilestones();
+  }
+
+  @Put(['cart-milestones', 'milestones'])
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Update cart reward milestone tiers (Admin Authorized)' })
+  @ApiResponse({ status: 200, description: 'Cart milestones updated in MongoDB Atlas' })
+  async updateCartMilestones(@Body() dto: any) {
+    return this.contentService.updateCartMilestones(dto);
+  }
+
+  @Patch(['cart-milestones', 'milestones'])
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Patch cart reward milestone tiers (Admin Authorized)' })
+  async patchCartMilestones(@Body() dto: any) {
+    return this.contentService.updateCartMilestones(dto);
+  }
+
   // --- 3D PRODUCT SHOWCASE CAROUSEL ---
   @Get(['showcase', 'deck', 'real-results'])
   @ApiOperation({ summary: 'Get active 3D product showcase carousel configuration' })

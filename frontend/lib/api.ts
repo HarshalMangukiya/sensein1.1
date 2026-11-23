@@ -101,6 +101,24 @@ export interface PrivilegeBannerConfig {
   isActive?: boolean;
 }
 
+export interface CartMilestoneTier {
+  id: string;
+  threshold: number;
+  itemsRequired: number;
+  subtitle: string;
+  cardLabel: string;
+  reward: string;
+  rewardValue: number;
+}
+
+export interface CartMilestonesConfig {
+  key?: string;
+  title?: string;
+  isActive?: boolean;
+  tiers: CartMilestoneTier[];
+  updatedAt?: string;
+}
+
 export interface ShowcaseCard {
   id: string;
   mediaType?: 'image' | 'video';
@@ -225,6 +243,41 @@ export const DEFAULT_PRIVILEGE_BANNER: PrivilegeBannerConfig = {
   isActive: true,
 };
 
+export const DEFAULT_CART_MILESTONES: CartMilestonesConfig = {
+  key: 'cart-milestones',
+  title: 'Complimentary Gifts Included:',
+  isActive: true,
+  tiers: [
+    {
+      id: 'tier-1',
+      threshold: 999,
+      itemsRequired: 1,
+      subtitle: '1 Product',
+      cardLabel: 'Sample Vial',
+      reward: 'Complimentary Botanical Sample Vial (15ml)',
+      rewardValue: 299,
+    },
+    {
+      id: 'tier-2',
+      threshold: 1999,
+      itemsRequired: 2,
+      subtitle: '2 Products',
+      cardLabel: 'Travel Kit',
+      reward: 'Velvet Travel Pouch & Rosewood Styling Comb',
+      rewardValue: 599,
+    },
+    {
+      id: 'tier-3',
+      threshold: 2999,
+      itemsRequired: 3,
+      subtitle: '3+ Products',
+      cardLabel: 'Luxury Elixir',
+      reward: 'Full-Size Luxury French Plum Hair Elixir',
+      rewardValue: 1499,
+    },
+  ],
+};
+
 export const DEFAULT_SHOWCASE_CONFIG: ShowcaseConfig = {
   badge: 'REAL PEOPLE REAL RESULTS',
   title: 'REAL PEOPLE. REAL RESULTS.',
@@ -336,6 +389,7 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 const CUSTOM_PRODUCTS_KEY = 'sensein_custom_products';
 const HERO_BANNER_STORAGE_KEY = 'sensein_hero_banner';
 const PRIVILEGE_BANNER_STORAGE_KEY = 'sensein_privilege_banner';
+export const CART_MILESTONES_STORAGE_KEY = 'sensein_cart_milestones_config';
 const SHOWCASE_STORAGE_KEY = 'sensein_showcase_deck';
 const BEFORE_AFTER_STORAGE_KEY = 'sensein_before_after';
 const ANNOUNCEMENT_STORAGE_KEY = 'sensein_announcement_bar';
@@ -928,6 +982,118 @@ export async function updatePrivilegeBannerApi(config: PrivilegeBannerConfig): P
     }
   } catch (err) {
     console.warn('Backend privilege banner update fallback to browser storage:', err);
+  }
+
+  return config;
+}
+
+export function getCartMilestonesFromStorage(): CartMilestonesConfig {
+  if (typeof window === 'undefined') return DEFAULT_CART_MILESTONES;
+  try {
+    const raw = localStorage.getItem(CART_MILESTONES_STORAGE_KEY);
+    if (!raw) return DEFAULT_CART_MILESTONES;
+    const parsed = JSON.parse(raw);
+    if (parsed && Array.isArray(parsed.tiers) && parsed.tiers.length > 0) {
+      return { ...DEFAULT_CART_MILESTONES, ...parsed };
+    }
+    return DEFAULT_CART_MILESTONES;
+  } catch (e) {
+    return DEFAULT_CART_MILESTONES;
+  }
+}
+
+export function saveCartMilestonesToStorage(config: CartMilestonesConfig): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(CART_MILESTONES_STORAGE_KEY, JSON.stringify(config));
+    window.dispatchEvent(new CustomEvent('sensein-cart-milestones-updated', { detail: config }));
+  } catch (e) {
+    console.warn('Failed to save cart milestones in local storage:', e);
+  }
+}
+
+export async function fetchCartMilestones(): Promise<CartMilestonesConfig> {
+  const endpoints: string[] = [];
+  if (typeof window !== 'undefined') {
+    endpoints.push('/api/cart-milestones');
+  }
+  endpoints.push(`${API_BASE_URL}/content/cart-milestones`);
+
+  for (const url of endpoints) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+      const res = await fetch(url, {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.tiers) && data.tiers.length > 0) {
+          const merged: CartMilestonesConfig = {
+            key: 'cart-milestones',
+            title: data.title || DEFAULT_CART_MILESTONES.title,
+            isActive: data.isActive !== undefined ? data.isActive : true,
+            tiers: data.tiers.map((t: any, i: number) => ({
+              id: t.id || `tier-${i + 1}`,
+              threshold: Number(t.threshold) || DEFAULT_CART_MILESTONES.tiers[i]?.threshold || 999,
+              itemsRequired: Number(t.itemsRequired) || (i + 1),
+              subtitle: t.subtitle || DEFAULT_CART_MILESTONES.tiers[i]?.subtitle || `${i + 1} Products`,
+              cardLabel: t.cardLabel || DEFAULT_CART_MILESTONES.tiers[i]?.cardLabel || 'Gift',
+              reward: t.reward || DEFAULT_CART_MILESTONES.tiers[i]?.reward || '',
+              rewardValue: Number(t.rewardValue) || DEFAULT_CART_MILESTONES.tiers[i]?.rewardValue || 299,
+            })),
+          };
+          saveCartMilestonesToStorage(merged);
+          return merged;
+        }
+      }
+    } catch (err) {
+      // Fallback to next endpoint
+    }
+  }
+
+  return getCartMilestonesFromStorage();
+}
+
+export async function updateCartMilestonesApi(config: CartMilestonesConfig): Promise<CartMilestonesConfig> {
+  // 1. Immediately cache in local storage & dispatch sync event
+  saveCartMilestonesToStorage(config);
+
+  // 2. Persist to Next.js API route to update server memory cache and revalidate edge immediately
+  if (typeof window !== 'undefined') {
+    try {
+      fetch('/api/cart-milestones', {
+        method: 'PUT',
+        headers: getAdminAuthHeaders(true),
+        body: JSON.stringify(config),
+      }).catch(() => {});
+    } catch (_) {}
+  }
+
+  // 3. Persist to MongoDB Atlas via backend API
+  try {
+    let token = getAdminToken();
+    if (!token) {
+      token = await ensureAdminToken();
+    }
+
+    const res = await fetch(`${API_BASE_URL}/content/cart-milestones`, {
+      method: 'PUT',
+      headers: getAdminAuthHeaders(true),
+      body: JSON.stringify(config),
+    });
+
+    if (res.ok) {
+      const saved = await res.json();
+      saveCartMilestonesToStorage(saved);
+      return saved;
+    }
+  } catch (err) {
+    console.warn('Backend cart milestones update fallback to browser storage:', err);
   }
 
   return config;
