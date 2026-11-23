@@ -39,6 +39,29 @@ export class ContentController {
     return this.contentService.updateHeroBanner(dto);
   }
 
+  // --- PRIVILEGE MILESTONE CALLOUT BANNER ---
+  @Get(['privilege-banner', 'milestone-banner'])
+  @ApiOperation({ summary: 'Get active storefront privilege milestone callout banner configuration' })
+  @ApiResponse({ status: 200, description: 'Active privilege milestone banner configuration returned' })
+  async getPrivilegeBanner() {
+    return this.contentService.getPrivilegeBanner();
+  }
+
+  @Put(['privilege-banner', 'milestone-banner'])
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Update storefront privilege milestone callout banner (Admin Authorized)' })
+  @ApiResponse({ status: 200, description: 'Privilege banner updated in MongoDB Atlas' })
+  async updatePrivilegeBanner(@Body() dto: any) {
+    return this.contentService.updatePrivilegeBanner(dto);
+  }
+
+  @Patch(['privilege-banner', 'milestone-banner'])
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Patch storefront privilege milestone callout banner (Admin Authorized)' })
+  async patchPrivilegeBanner(@Body() dto: any) {
+    return this.contentService.updatePrivilegeBanner(dto);
+  }
+
   // --- 3D PRODUCT SHOWCASE CAROUSEL ---
   @Get(['showcase', 'deck', 'real-results'])
   @ApiOperation({ summary: 'Get active 3D product showcase carousel configuration' })

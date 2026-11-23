@@ -22,14 +22,24 @@ import {
   DEFAULT_HERO_BANNER,
   HeroBannerConfig,
   HeroBannerSlide,
+  fetchPrivilegeBanner,
+  getPrivilegeBannerFromStorage,
+  savePrivilegeBannerToStorage,
+  DEFAULT_PRIVILEGE_BANNER,
+  PrivilegeBannerConfig,
 } from '@/lib/api';
 
 interface HomePageClientProps {
   initialBanner?: HeroBannerConfig;
   initialProducts?: any[];
+  initialPrivilegeBanner?: PrivilegeBannerConfig;
 }
 
-export function HomePageClient({ initialBanner, initialProducts }: HomePageClientProps) {
+export function HomePageClient({
+  initialBanner,
+  initialProducts,
+  initialPrivilegeBanner,
+}: HomePageClientProps) {
   const [bestsellers, setBestsellers] = useState<any[]>(initialProducts || []);
   const [loading, setLoading] = useState(!initialProducts || initialProducts.length === 0);
   const [banner, setBanner] = useState<HeroBannerConfig>(() => {
@@ -37,6 +47,12 @@ export function HomePageClient({ initialBanner, initialProducts }: HomePageClien
       return initialBanner;
     }
     return DEFAULT_HERO_BANNER;
+  });
+  const [privilegeBanner, setPrivilegeBanner] = useState<PrivilegeBannerConfig>(() => {
+    if (initialPrivilegeBanner && initialPrivilegeBanner.title) {
+      return initialPrivilegeBanner;
+    }
+    return DEFAULT_PRIVILEGE_BANNER;
   });
 
   // --- SLIDESHOW STATE ---
@@ -187,6 +203,25 @@ export function HomePageClient({ initialBanner, initialProducts }: HomePageClien
     }
     loadBanner();
 
+    async function loadPrivilegeBanner() {
+      try {
+        const pb = await fetchPrivilegeBanner();
+        if (pb && pb.title) {
+          setPrivilegeBanner(pb);
+        }
+      } catch (err) {
+        console.error('Failed to load privilege banner', err);
+      }
+    }
+    loadPrivilegeBanner();
+
+    if (typeof window !== 'undefined') {
+      const storedPb = getPrivilegeBannerFromStorage();
+      if (storedPb && storedPb.title) {
+        setPrivilegeBanner(storedPb);
+      }
+    }
+
     const handleProductsUpdated = () => {
       loadData();
     };
@@ -199,6 +234,14 @@ export function HomePageClient({ initialBanner, initialProducts }: HomePageClien
       }
     };
 
+    const handlePrivilegeBannerUpdated = (e: any) => {
+      if (e.detail) {
+        setPrivilegeBanner(e.detail);
+      } else {
+        loadPrivilegeBanner();
+      }
+    };
+
     // Cross-tab synchronization when updated in another tab
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'sensein_hero_banner' && e.newValue) {
@@ -207,14 +250,22 @@ export function HomePageClient({ initialBanner, initialProducts }: HomePageClien
           setBanner((prev) => ({ ...prev, ...parsed }));
         } catch (_) {}
       }
+      if (e.key === 'sensein_privilege_banner' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          setPrivilegeBanner((prev) => ({ ...prev, ...parsed }));
+        } catch (_) {}
+      }
     };
 
     window.addEventListener('sensein-products-updated', handleProductsUpdated);
     window.addEventListener('sensein-banner-updated', handleBannerUpdated);
+    window.addEventListener('sensein-privilege-banner-updated', handlePrivilegeBannerUpdated);
     window.addEventListener('storage', handleStorageChange);
     return () => {
       window.removeEventListener('sensein-products-updated', handleProductsUpdated);
       window.removeEventListener('sensein-banner-updated', handleBannerUpdated);
+      window.removeEventListener('sensein-privilege-banner-updated', handlePrivilegeBannerUpdated);
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
@@ -405,29 +456,36 @@ export function HomePageClient({ initialBanner, initialProducts }: HomePageClien
       </section>
 
       {/* 3. GAMIFIED MILESTONE CALLOUT BANNER */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-[#5A3859] text-white rounded-sm p-5 sm:p-8 shadow-luxury relative overflow-hidden border border-[#764A75]/30">
-          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-6">
-            <div className="space-y-1.5 sm:space-y-2 text-center md:text-left">
-              <div className="inline-flex items-center gap-1.5 text-[#E8D5C4] text-[11px] sm:text-xs font-semibold uppercase tracking-[0.2em]">
-                <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#D4AF37]" /> Privilege Unlocks
+      {privilegeBanner.isActive !== false && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div
+            className="text-white rounded-sm p-5 sm:p-8 shadow-luxury relative overflow-hidden border border-white/10 transition-colors duration-300"
+            style={{ backgroundColor: privilegeBanner.backgroundColor || '#5A3859' }}
+          >
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-6">
+              <div className="space-y-1.5 sm:space-y-2 text-center md:text-left">
+                {privilegeBanner.badge && (
+                  <div className="inline-flex items-center gap-1.5 text-[#E8D5C4] text-[11px] sm:text-xs font-semibold uppercase tracking-[0.2em]">
+                    <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#D4AF37]" /> {privilegeBanner.badge}
+                  </div>
+                )}
+                <h3 className="font-sans text-xl sm:text-3xl font-bold leading-snug tracking-tight text-white">
+                  {privilegeBanner.title}
+                </h3>
+                <p className="text-xs sm:text-sm text-white/85 max-w-xl leading-relaxed font-light">
+                  {privilegeBanner.subtitle}
+                </p>
               </div>
-              <h3 className="font-sans text-xl sm:text-3xl font-bold leading-snug tracking-tight text-white">
-                Luxury Tier Gifts with Every Order
-              </h3>
-              <p className="text-xs sm:text-sm text-white/85 max-w-xl leading-relaxed font-light">
-                Unlock complimentary deluxe samples at ₹999, our Rosewood & Velvet Travel Pouch at ₹1,999, and a Full-Size French Plum Elixir (₹1,499 value) at ₹2,999.
-              </p>
+              <Link
+                href={privilegeBanner.ctaLink || '/shop'}
+                className="w-full sm:w-auto text-center flex-shrink-0 px-7 py-3.5 bg-white hover:bg-[#FAF7F5] text-[#5A3859] hover:text-[#432542] text-xs font-bold uppercase tracking-widest rounded-sm transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 active:translate-y-0"
+              >
+                {privilegeBanner.ctaText || 'Start Curating Your Bag'}
+              </Link>
             </div>
-            <Link
-              href="/shop"
-              className="w-full sm:w-auto text-center flex-shrink-0 px-7 py-3.5 bg-white hover:bg-[#FAF7F5] text-[#5A3859] hover:text-[#432542] text-xs font-bold uppercase tracking-widest rounded-sm transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 active:translate-y-0"
-            >
-              Start Curating Your Bag
-            </Link>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* 4. BESTSELLER FORMULATIONS SHOWCASE */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

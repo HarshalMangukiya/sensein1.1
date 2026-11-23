@@ -72,6 +72,19 @@ export const DEFAULT_HERO_BANNER = {
   ],
 };
 
+export const DEFAULT_PRIVILEGE_BANNER = {
+  key: 'privilege-banner',
+  badge: 'Privilege Unlocks',
+  title: 'Luxury Tier Gifts with Every Order',
+  subtitle:
+    'Unlock complimentary deluxe samples at ₹999, our Rosewood & Velvet Travel Pouch at ₹1,999, and a Full-Size French Plum Elixir (₹1,499 value) at ₹2,999.',
+  ctaText: 'Start Curating Your Bag',
+  ctaLink: '/shop',
+  backgroundColor: '#5A3859',
+  textColor: '#FFFFFF',
+  isActive: true,
+};
+
 export const DEFAULT_SHOWCASE_CONFIG = {
   key: 'real-results-showcase',
   badge: 'REAL PEOPLE REAL RESULTS',
@@ -167,6 +180,7 @@ export const DEFAULT_BEFORE_AFTER_CONFIG = {
 export class ContentService implements OnModuleInit {
   private readonly logger = new Logger(ContentService.name);
   private cachedHeroBanner: any = { ...DEFAULT_HERO_BANNER };
+  private cachedPrivilegeBanner: any = { ...DEFAULT_PRIVILEGE_BANNER };
   private cachedShowcase: any = { ...DEFAULT_SHOWCASE_CONFIG };
   private cachedBeforeAfter: any = { ...DEFAULT_BEFORE_AFTER_CONFIG };
   private cachedAnnouncement: any = { ...DEFAULT_ANNOUNCEMENT_CONFIG };
@@ -241,6 +255,19 @@ export class ContentService implements OnModuleInit {
       }
     } catch (err: any) {
       this.logger.warn(`Announcement bar initialization notice: ${err.message}`);
+    }
+
+    // 5. Seed Privilege Callout Banner in MongoDB
+    try {
+      const existingPrivilege = await this.bannerModel.findOne({ key: 'privilege-banner' });
+      if (!existingPrivilege) {
+        this.logger.log('Seeding initial Privilege Milestone Callout Banner in MongoDB...');
+        await this.bannerModel.create(DEFAULT_PRIVILEGE_BANNER);
+      } else {
+        this.cachedPrivilegeBanner = existingPrivilege.toObject ? existingPrivilege.toObject() : existingPrivilege;
+      }
+    } catch (err: any) {
+      this.logger.warn(`Privilege banner initialization notice: ${err.message}`);
     }
   }
 
@@ -333,6 +360,51 @@ export class ContentService implements OnModuleInit {
       ...payload,
     };
     return this.cachedHeroBanner;
+  }
+
+  // --- PRIVILEGE MILESTONE CALLOUT BANNER ---
+  async getPrivilegeBanner(): Promise<any> {
+    try {
+      const found = await this.bannerModel.findOne({ key: 'privilege-banner' }).lean();
+      if (found) {
+        this.cachedPrivilegeBanner = found as any;
+        return found;
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to fetch privilege banner from MongoDB: ${err.message}`);
+    }
+    return this.cachedPrivilegeBanner;
+  }
+
+  async updatePrivilegeBanner(dto: any): Promise<any> {
+    const payload = {
+      ...dto,
+      key: 'privilege-banner',
+    };
+
+    try {
+      const updated = await this.bannerModel
+        .findOneAndUpdate(
+          { key: 'privilege-banner' },
+          { $set: payload },
+          { new: true, upsert: true }
+        )
+        .lean();
+
+      if (updated) {
+        this.cachedPrivilegeBanner = updated as any;
+        this.logger.log('Privilege callout banner updated successfully in MongoDB Atlas');
+        return updated;
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to update privilege banner in MongoDB: ${err.message}`);
+    }
+
+    this.cachedPrivilegeBanner = {
+      ...this.cachedPrivilegeBanner,
+      ...payload,
+    };
+    return this.cachedPrivilegeBanner;
   }
 
   // --- 3D PRODUCT SHOWCASE DECK ---

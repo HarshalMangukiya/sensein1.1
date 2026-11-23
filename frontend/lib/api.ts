@@ -89,6 +89,18 @@ export interface HeroBannerConfig {
   autoplayIntervalSeconds?: number;
 }
 
+export interface PrivilegeBannerConfig {
+  key?: string;
+  badge?: string;
+  title: string;
+  subtitle: string;
+  ctaText: string;
+  ctaLink: string;
+  backgroundColor?: string;
+  textColor?: string;
+  isActive?: boolean;
+}
+
 export interface ShowcaseCard {
   id: string;
   mediaType?: 'image' | 'video';
@@ -198,6 +210,19 @@ export const DEFAULT_HERO_BANNER: HeroBannerConfig = {
       isActive: true,
     },
   ],
+};
+
+export const DEFAULT_PRIVILEGE_BANNER: PrivilegeBannerConfig = {
+  key: 'privilege-banner',
+  badge: 'Privilege Unlocks',
+  title: 'Luxury Tier Gifts with Every Order',
+  subtitle:
+    'Unlock complimentary deluxe samples at ₹999, our Rosewood & Velvet Travel Pouch at ₹1,999, and a Full-Size French Plum Elixir (₹1,499 value) at ₹2,999.',
+  ctaText: 'Start Curating Your Bag',
+  ctaLink: '/shop',
+  backgroundColor: '#5A3859',
+  textColor: '#FFFFFF',
+  isActive: true,
 };
 
 export const DEFAULT_SHOWCASE_CONFIG: ShowcaseConfig = {
@@ -310,6 +335,7 @@ export const DEFAULT_ANNOUNCEMENT_CONFIG: AnnouncementBarConfig = {
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
 const CUSTOM_PRODUCTS_KEY = 'sensein_custom_products';
 const HERO_BANNER_STORAGE_KEY = 'sensein_hero_banner';
+const PRIVILEGE_BANNER_STORAGE_KEY = 'sensein_privilege_banner';
 const SHOWCASE_STORAGE_KEY = 'sensein_showcase_deck';
 const BEFORE_AFTER_STORAGE_KEY = 'sensein_before_after';
 const ANNOUNCEMENT_STORAGE_KEY = 'sensein_announcement_bar';
@@ -797,6 +823,111 @@ export async function updateHeroBannerApi(config: HeroBannerConfig): Promise<Her
     }
   } catch (err) {
     console.warn('Backend banner update fallback to browser storage:', err);
+  }
+
+  return config;
+}
+
+export function getPrivilegeBannerFromStorage(): PrivilegeBannerConfig {
+  if (typeof window === 'undefined') return DEFAULT_PRIVILEGE_BANNER;
+  try {
+    const raw = localStorage.getItem(PRIVILEGE_BANNER_STORAGE_KEY);
+    if (!raw) return DEFAULT_PRIVILEGE_BANNER;
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_PRIVILEGE_BANNER, ...parsed };
+  } catch (e) {
+    return DEFAULT_PRIVILEGE_BANNER;
+  }
+}
+
+export function savePrivilegeBannerToStorage(banner: PrivilegeBannerConfig): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(PRIVILEGE_BANNER_STORAGE_KEY, JSON.stringify(banner));
+    window.dispatchEvent(new CustomEvent('sensein-privilege-banner-updated', { detail: banner }));
+  } catch (e) {
+    console.warn('Failed to save privilege banner in local storage:', e);
+  }
+}
+
+export async function fetchPrivilegeBanner(): Promise<PrivilegeBannerConfig> {
+  const endpoints: string[] = [];
+  if (typeof window !== 'undefined') {
+    endpoints.push('/api/privilege-banner');
+  }
+  endpoints.push(`${API_BASE_URL}/content/privilege-banner`);
+
+  for (const url of endpoints) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+      const res = await fetch(url, {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.title) {
+          const merged: PrivilegeBannerConfig = {
+            badge: data.badge ?? DEFAULT_PRIVILEGE_BANNER.badge,
+            title: data.title || DEFAULT_PRIVILEGE_BANNER.title,
+            subtitle: data.subtitle || DEFAULT_PRIVILEGE_BANNER.subtitle,
+            ctaText: data.ctaText || DEFAULT_PRIVILEGE_BANNER.ctaText,
+            ctaLink: data.ctaLink || DEFAULT_PRIVILEGE_BANNER.ctaLink,
+            backgroundColor: data.backgroundColor || DEFAULT_PRIVILEGE_BANNER.backgroundColor,
+            textColor: data.textColor || DEFAULT_PRIVILEGE_BANNER.textColor,
+            isActive: data.isActive !== undefined ? data.isActive : true,
+          };
+          savePrivilegeBannerToStorage(merged);
+          return merged;
+        }
+      }
+    } catch (err) {
+      // Fallback to next endpoint
+    }
+  }
+
+  return getPrivilegeBannerFromStorage();
+}
+
+export async function updatePrivilegeBannerApi(config: PrivilegeBannerConfig): Promise<PrivilegeBannerConfig> {
+  // 1. Immediately cache in local storage & dispatch sync event
+  savePrivilegeBannerToStorage(config);
+
+  // 2. Persist to Next.js API route to update server memory cache and revalidate edge immediately
+  if (typeof window !== 'undefined') {
+    try {
+      fetch('/api/privilege-banner', {
+        method: 'PUT',
+        headers: getAdminAuthHeaders(true),
+        body: JSON.stringify(config),
+      }).catch(() => {});
+    } catch (_) {}
+  }
+
+  // 3. Persist to MongoDB Atlas via backend API
+  try {
+    let token = getAdminToken();
+    if (!token) {
+      token = await ensureAdminToken();
+    }
+
+    const res = await fetch(`${API_BASE_URL}/content/privilege-banner`, {
+      method: 'PUT',
+      headers: getAdminAuthHeaders(true),
+      body: JSON.stringify(config),
+    });
+
+    if (res.ok) {
+      const saved = await res.json();
+      savePrivilegeBannerToStorage(saved);
+      return saved;
+    }
+  } catch (err) {
+    console.warn('Backend privilege banner update fallback to browser storage:', err);
   }
 
   return config;

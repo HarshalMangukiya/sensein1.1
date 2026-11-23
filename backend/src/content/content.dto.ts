@@ -85,6 +85,35 @@ export class UpdateBannerDto {
   autoplayIntervalSeconds?: number;
 }
 
+export class UpdatePrivilegeBannerDto {
+  @ApiPropertyOptional({ example: 'Privilege Unlocks' })
+  badge?: string;
+
+  @ApiProperty({ example: 'Luxury Tier Gifts with Every Order' })
+  title: string;
+
+  @ApiProperty({
+    example:
+      'Unlock complimentary deluxe samples at ₹999, our Rosewood & Velvet Travel Pouch at ₹1,999, and a Full-Size French Plum Elixir (₹1,499 value) at ₹2,999.',
+  })
+  subtitle: string;
+
+  @ApiPropertyOptional({ example: 'Start Curating Your Bag' })
+  ctaText?: string;
+
+  @ApiPropertyOptional({ example: '/shop' })
+  ctaLink?: string;
+
+  @ApiPropertyOptional({ example: '#5A3859' })
+  backgroundColor?: string;
+
+  @ApiPropertyOptional({ example: '#FFFFFF' })
+  textColor?: string;
+
+  @ApiPropertyOptional({ example: true })
+  isActive?: boolean;
+}
+
 export class ShowcaseCardDto {
   @ApiProperty({ example: 'card-1' })
   id: string;

@@ -1,6 +1,11 @@
 import React from 'react';
 import { HomePageClient } from '@/components/home-page-client';
-import { DEFAULT_HERO_BANNER, HeroBannerConfig } from '@/lib/api';
+import {
+  DEFAULT_HERO_BANNER,
+  DEFAULT_PRIVILEGE_BANNER,
+  HeroBannerConfig,
+  PrivilegeBannerConfig,
+} from '@/lib/api';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
 
@@ -88,10 +93,43 @@ async function getFeaturedProductsServer(): Promise<any[]> {
   return [];
 }
 
+async function getPrivilegeBannerServer(): Promise<PrivilegeBannerConfig> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+
+    const res = await fetch(`${API_BASE_URL}/content/privilege-banner`, {
+      next: { revalidate: 30, tags: ['privilege-banner'] },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.title) {
+        return {
+          badge: data.badge ?? DEFAULT_PRIVILEGE_BANNER.badge,
+          title: data.title || DEFAULT_PRIVILEGE_BANNER.title,
+          subtitle: data.subtitle || DEFAULT_PRIVILEGE_BANNER.subtitle,
+          ctaText: data.ctaText || DEFAULT_PRIVILEGE_BANNER.ctaText,
+          ctaLink: data.ctaLink || DEFAULT_PRIVILEGE_BANNER.ctaLink,
+          backgroundColor: data.backgroundColor || DEFAULT_PRIVILEGE_BANNER.backgroundColor,
+          textColor: data.textColor || DEFAULT_PRIVILEGE_BANNER.textColor,
+          isActive: data.isActive !== undefined ? data.isActive : true,
+        };
+      }
+    }
+  } catch (err) {
+    // Timeout fallback
+  }
+  return DEFAULT_PRIVILEGE_BANNER;
+}
+
 export default async function HomePage() {
-  const [initialBanner, initialProducts] = await Promise.all([
+  const [initialBanner, initialProducts, initialPrivilegeBanner] = await Promise.all([
     getHeroBannerServer(),
     getFeaturedProductsServer(),
+    getPrivilegeBannerServer(),
   ]);
 
   const activeImageUrl = initialBanner.imageUrl || DEFAULT_HERO_BANNER.imageUrl;
@@ -99,7 +137,11 @@ export default async function HomePage() {
   return (
     <>
       <link rel="preload" as="image" href={activeImageUrl} fetchPriority="high" />
-      <HomePageClient initialBanner={initialBanner} initialProducts={initialProducts} />
+      <HomePageClient
+        initialBanner={initialBanner}
+        initialProducts={initialProducts}
+        initialPrivilegeBanner={initialPrivilegeBanner}
+      />
     </>
   );
 }
