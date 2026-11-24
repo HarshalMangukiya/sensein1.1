@@ -63,19 +63,22 @@ export class ProductsService implements OnModuleInit {
 
   constructor(
     @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     try {
+      // Only insert products that do NOT already exist in MongoDB.
+      // This prevents re-creating products that were intentionally deleted via the admin panel.
       for (const prod of this.products) {
-        await this.productModel.updateOne(
-          { $or: [{ id: prod.id }, { slug: prod.slug }] },
-          { $set: prod },
-          { upsert: true }
-        );
+        const exists = await this.productModel.findOne({
+          $or: [{ id: prod.id }, { slug: prod.slug }],
+        });
+        if (!exists) {
+          await this.productModel.create(prod);
+        }
       }
       const count = await this.productModel.countDocuments();
-      this.logger.log(`MongoDB Atlas product catalog synchronized (${count} active product).`);
+      this.logger.log(`MongoDB Atlas product catalog ready (${count} active products).`);
     } catch (err: any) {
       this.logger.warn(`MongoDB product sync notice: ${err.message}`);
     }
@@ -2294,17 +2297,29 @@ export class ProductsService implements OnModuleInit {
     else if (filters?.sort === 'discount') sortOption = { discountPercentage: -1 };
 
     let mapped: any[] = [];
+    let mongoSucceeded = false;
     try {
       const dbProducts = await this.productModel.find(query).sort(sortOption).lean();
       mapped = (dbProducts || []).map((p: any) => ({
         ...p,
         id: p._id?.toString() || p.id,
       }));
+      mongoSucceeded = true;
     } catch (err: any) {
       this.logger.warn(`MongoDB product fetch notice: ${err.message}`);
     }
 
-    // Collect all existing slugs and IDs from database products to prevent memory duplication
+    // If MongoDB succeeded, return ONLY database results so deletions are respected.
+    // Only fall back to in-memory products if MongoDB is completely unreachable.
+    if (mongoSucceeded) {
+      if (filters?.sort === 'price-low') mapped.sort((a, b) => a.price - b.price);
+      else if (filters?.sort === 'price-high') mapped.sort((a, b) => b.price - a.price);
+      else if (filters?.sort === 'rating') mapped.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      else if (filters?.sort === 'discount') mapped.sort((a, b) => (b.discountPercentage || 0) - (a.discountPercentage || 0));
+      return { products: mapped, total: mapped.length };
+    }
+
+    // MongoDB unreachable: fall back to in-memory list with filtering
     const mappedSlugs = new Set<string>();
     const mappedIds = new Set<string>();
 

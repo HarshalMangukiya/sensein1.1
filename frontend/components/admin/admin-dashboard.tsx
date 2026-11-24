@@ -57,6 +57,7 @@ import {
   updateProductStockApi,
   deleteProductApi,
   removeCustomProductFromStorage,
+  markProductAsDeleted,
   createDelhiveryShipmentApi,
   requestDelhiveryPickupApi,
   trackDelhiveryAwbApi,
@@ -78,10 +79,10 @@ const normalizeOrder = (ord: any) => {
   const customerPincode = ord.customer?.pincode || ord.pincode || '';
   const dateStr = ord.createdAt
     ? new Date(ord.createdAt).toLocaleDateString('en-IN', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      })
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
     : ord.date || 'Recent';
 
   const rawStatus = (ord.orderStatus || ord.status || 'Confirmed').toString();
@@ -90,12 +91,12 @@ const normalizeOrder = (ord: any) => {
     lowerStatus === 'confirmed'
       ? 'Confirmed'
       : lowerStatus === 'shipped' || lowerStatus === 'dispatched'
-      ? 'Shipped'
-      : lowerStatus === 'delivered'
-      ? 'Delivered'
-      : lowerStatus === 'cancelled'
-      ? 'Cancelled'
-      : 'Confirmed';
+        ? 'Shipped'
+        : lowerStatus === 'delivered'
+          ? 'Delivered'
+          : lowerStatus === 'cancelled'
+            ? 'Cancelled'
+            : 'Confirmed';
 
   const orderId = ord.orderNumber || ord.id || (ord._id ? ord._id.toString() : 'ORD-RECENT');
 
@@ -149,10 +150,10 @@ const normalizeInquiry = (inq: any) => ({
   status: inq.status || 'New Inquiry',
   date: inq.submittedAt
     ? new Date(inq.submittedAt).toLocaleDateString('en-IN', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      })
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
     : inq.date || 'Recent',
 });
 
@@ -394,12 +395,12 @@ export function AdminDashboard() {
           prev.map((o) =>
             o.id === ord.id || o.orderNumber === ord.orderNumber
               ? {
-                  ...o,
-                  awbNumber: res.waybill,
-                  carrier: 'Delhivery Express Priority',
-                  status: 'Shipped',
-                  trackingUrl: res.trackingUrl,
-                }
+                ...o,
+                awbNumber: res.waybill,
+                carrier: 'Delhivery Express Priority',
+                status: 'Shipped',
+                trackingUrl: res.trackingUrl,
+              }
               : o
           )
         );
@@ -472,6 +473,9 @@ export function AdminDashboard() {
       })
     );
 
+    // Mark both ID and slug as deleted so they don't reappear from SEED_PRODUCTS / localStorage
+    if (cleanId) markProductAsDeleted(cleanId);
+    if (targetSlug && targetSlug !== cleanId) markProductAsDeleted(targetSlug);
     if (targetSlug) {
       removeCustomProductFromStorage(targetSlug);
     }
@@ -581,11 +585,10 @@ export function AdminDashboard() {
           <nav className="flex md:flex-col gap-1.5 sm:gap-2 w-full flex-1">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
-                activeTab === 'overview'
-                  ? 'bg-plum text-white shadow-sm'
-                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
-              }`}
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${activeTab === 'overview'
+                ? 'bg-plum text-white shadow-sm'
+                : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+                }`}
             >
               <LayoutDashboard className={`w-4 h-4 ${activeTab === 'overview' ? 'text-white' : 'text-plum'}`} />
               <span>Overview</span>
@@ -596,11 +599,10 @@ export function AdminDashboard() {
                 setActiveTab('orders');
                 fetchOrders(debouncedSearch, orderFilter);
               }}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
-                activeTab === 'orders'
-                  ? 'bg-plum text-white shadow-sm'
-                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
-              }`}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${activeTab === 'orders'
+                ? 'bg-plum text-white shadow-sm'
+                : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+                }`}
             >
               <div className="flex items-center gap-3">
                 <ShoppingBag className={`w-4 h-4 ${activeTab === 'orders' ? 'text-white' : 'text-plum'}`} />
@@ -613,11 +615,10 @@ export function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('products')}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
-                activeTab === 'products'
-                  ? 'bg-plum text-white shadow-sm'
-                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
-              }`}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${activeTab === 'products'
+                ? 'bg-plum text-white shadow-sm'
+                : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+                }`}
             >
               <div className="flex items-center gap-3">
                 <Boxes className={`w-4 h-4 ${activeTab === 'products' ? 'text-white' : 'text-plum'}`} />
@@ -630,11 +631,10 @@ export function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('banner')}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
-                activeTab === 'banner'
-                  ? 'bg-plum text-white shadow-sm'
-                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
-              }`}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${activeTab === 'banner'
+                ? 'bg-plum text-white shadow-sm'
+                : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+                }`}
             >
               <div className="flex items-center gap-3">
                 <ImageIcon className={`w-4 h-4 ${activeTab === 'banner' ? 'text-white' : 'text-plum'}`} />
@@ -647,11 +647,10 @@ export function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('milestones')}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
-                activeTab === 'milestones'
-                  ? 'bg-plum text-white shadow-sm'
-                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
-              }`}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${activeTab === 'milestones'
+                ? 'bg-plum text-white shadow-sm'
+                : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+                }`}
             >
               <div className="flex items-center gap-3">
                 <Gift className={`w-4 h-4 ${activeTab === 'milestones' ? 'text-white' : 'text-plum'}`} />
@@ -664,11 +663,10 @@ export function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('showcase')}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
-                activeTab === 'showcase'
-                  ? 'bg-plum text-white shadow-sm'
-                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
-              }`}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${activeTab === 'showcase'
+                ? 'bg-plum text-white shadow-sm'
+                : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+                }`}
             >
               <div className="flex items-center gap-3">
                 <Sparkles className={`w-4 h-4 ${activeTab === 'showcase' ? 'text-white' : 'text-plum'}`} />
@@ -681,11 +679,10 @@ export function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('before-after')}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
-                activeTab === 'before-after'
-                  ? 'bg-plum text-white shadow-sm'
-                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
-              }`}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${activeTab === 'before-after'
+                ? 'bg-plum text-white shadow-sm'
+                : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+                }`}
             >
               <div className="flex items-center gap-3">
                 <SplitSquareVertical className={`w-4 h-4 ${activeTab === 'before-after' ? 'text-white' : 'text-plum'}`} />
@@ -698,11 +695,10 @@ export function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('announcements')}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
-                activeTab === 'announcements'
-                  ? 'bg-plum text-white shadow-sm'
-                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
-              }`}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${activeTab === 'announcements'
+                ? 'bg-plum text-white shadow-sm'
+                : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+                }`}
             >
               <div className="flex items-center gap-3">
                 <Megaphone className={`w-4 h-4 ${activeTab === 'announcements' ? 'text-white' : 'text-plum'}`} />
@@ -715,11 +711,10 @@ export function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('coupons')}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
-                activeTab === 'coupons'
-                  ? 'bg-plum text-white shadow-sm'
-                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
-              }`}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${activeTab === 'coupons'
+                ? 'bg-plum text-white shadow-sm'
+                : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+                }`}
             >
               <div className="flex items-center gap-3">
                 <Tag className={`w-4 h-4 ${activeTab === 'coupons' ? 'text-white' : 'text-plum'}`} />
@@ -732,11 +727,10 @@ export function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('wholesale')}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
-                activeTab === 'wholesale'
-                  ? 'bg-plum text-white shadow-sm'
-                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
-              }`}
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${activeTab === 'wholesale'
+                ? 'bg-plum text-white shadow-sm'
+                : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+                }`}
             >
               <div className="flex items-center gap-3">
                 <Building2 className={`w-4 h-4 ${activeTab === 'wholesale' ? 'text-white' : 'text-plum'}`} />
@@ -749,11 +743,10 @@ export function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('settings')}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${
-                activeTab === 'settings'
-                  ? 'bg-plum text-white shadow-sm'
-                  : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
-              }`}
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all w-full text-left whitespace-nowrap ${activeTab === 'settings'
+                ? 'bg-plum text-white shadow-sm'
+                : 'text-charcoal-muted hover:text-charcoal hover:bg-[#FAF7F5]'
+                }`}
             >
               <Settings className={`w-4 h-4 ${activeTab === 'settings' ? 'text-white' : 'text-plum'}`} />
               <span>Settings</span>
@@ -975,13 +968,12 @@ export function AdminDashboard() {
                           <td className="py-3 font-bold text-charcoal">₹{ord.total}</td>
                           <td className="py-3">
                             <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                ord.status === 'Delivered'
-                                  ? 'bg-emerald-light text-emerald-accent'
-                                  : ord.status === 'Shipped'
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${ord.status === 'Delivered'
+                                ? 'bg-emerald-light text-emerald-accent'
+                                : ord.status === 'Shipped'
                                   ? 'bg-blue-50 text-blue-700'
                                   : 'bg-amber-50 text-amber-700'
-                              }`}
+                                }`}
                             >
                               {ord.status}
                             </span>
@@ -1037,11 +1029,10 @@ export function AdminDashboard() {
                     <button
                       key={status}
                       onClick={() => setOrderFilter(status)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wider uppercase transition-colors whitespace-nowrap ${
-                        orderFilter === status
-                          ? 'bg-plum text-white shadow-xs'
-                          : 'bg-[#FAF7F5] text-charcoal-muted hover:text-charcoal border border-border'
-                      }`}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wider uppercase transition-colors whitespace-nowrap ${orderFilter === status
+                        ? 'bg-plum text-white shadow-xs'
+                        : 'bg-[#FAF7F5] text-charcoal-muted hover:text-charcoal border border-border'
+                        }`}
                     >
                       {status}
                     </button>
@@ -1127,13 +1118,12 @@ export function AdminDashboard() {
                               <p className="font-bold text-charcoal text-sm">₹{Number(ord.total).toLocaleString('en-IN')}</p>
                               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                 <span
-                                  className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
-                                    ord.paymentStatus === 'PAID'
-                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                      : ord.paymentStatus === 'FAILED'
+                                  className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${ord.paymentStatus === 'PAID'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : ord.paymentStatus === 'FAILED'
                                       ? 'bg-red-50 text-red-700 border border-red-200'
                                       : 'bg-amber-50 text-amber-700 border border-amber-200'
-                                  }`}
+                                    }`}
                                 >
                                   {ord.paymentStatus}
                                 </span>
@@ -1150,15 +1140,14 @@ export function AdminDashboard() {
 
                             <td className="p-4">
                               <span
-                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 ${
-                                  ord.status === 'Delivered'
-                                    ? 'bg-emerald-light text-emerald-accent'
-                                    : ord.status === 'Shipped'
+                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 ${ord.status === 'Delivered'
+                                  ? 'bg-emerald-light text-emerald-accent'
+                                  : ord.status === 'Shipped'
                                     ? 'bg-blue-50 text-blue-700'
                                     : ord.status === 'Cancelled'
-                                    ? 'bg-red-50 text-red-700'
-                                    : 'bg-amber-50 text-amber-700'
-                                }`}
+                                      ? 'bg-red-50 text-red-700'
+                                      : 'bg-amber-50 text-amber-700'
+                                  }`}
                               >
                                 {ord.status === 'Delivered' && <CheckCircle2 className="w-3 h-3" />}
                                 {ord.status === 'Shipped' && <Truck className="w-3 h-3" />}
@@ -1242,9 +1231,8 @@ export function AdminDashboard() {
                     <Plus className="w-4 h-4 text-gold" />
                     <span>+ Add Product</span>
                     <ChevronDown
-                      className={`w-3.5 h-3.5 text-white/80 transition-transform duration-200 ${
-                        isAddProductTypeMenuOpen ? 'rotate-180' : ''
-                      }`}
+                      className={`w-3.5 h-3.5 text-white/80 transition-transform duration-200 ${isAddProductTypeMenuOpen ? 'rotate-180' : ''
+                        }`}
                     />
                   </button>
 
@@ -1342,22 +1330,20 @@ export function AdminDashboard() {
                   <button
                     type="button"
                     onClick={() => setProductFormatFilter('all')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                      productFormatFilter === 'all'
-                        ? 'bg-charcoal text-white font-bold'
-                        : 'bg-[#FAF7F5] text-charcoal-muted hover:text-charcoal border border-border/80'
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${productFormatFilter === 'all'
+                      ? 'bg-charcoal text-white font-bold'
+                      : 'bg-[#FAF7F5] text-charcoal-muted hover:text-charcoal border border-border/80'
+                      }`}
                   >
                     All ({products.length})
                   </button>
                   <button
                     type="button"
                     onClick={() => setProductFormatFilter('single')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                      productFormatFilter === 'single'
-                        ? 'bg-blue-700 text-white font-bold'
-                        : 'bg-[#FAF7F5] text-charcoal-muted hover:text-charcoal border border-border/80'
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${productFormatFilter === 'single'
+                      ? 'bg-blue-700 text-white font-bold'
+                      : 'bg-[#FAF7F5] text-charcoal-muted hover:text-charcoal border border-border/80'
+                      }`}
                   >
                     <Package className="w-3 h-3" />
                     Single ({singleProductsCount})
@@ -1365,11 +1351,10 @@ export function AdminDashboard() {
                   <button
                     type="button"
                     onClick={() => setProductFormatFilter('combo')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                      productFormatFilter === 'combo'
-                        ? 'bg-plum text-white font-bold'
-                        : 'bg-[#FAF7F5] text-charcoal-muted hover:text-charcoal border border-border/80'
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${productFormatFilter === 'combo'
+                      ? 'bg-plum text-white font-bold'
+                      : 'bg-[#FAF7F5] text-charcoal-muted hover:text-charcoal border border-border/80'
+                      }`}
                   >
                     <Gift className="w-3 h-3 text-gold" />
                     Combos ({comboProductsCount})
@@ -1436,13 +1421,12 @@ export function AdminDashboard() {
 
                           <td className="p-4">
                             <span
-                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 ${
-                                (p.stock || 0) <= 5
-                                  ? 'bg-red-50 text-red-700'
-                                  : (p.stock || 0) <= 15
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 ${(p.stock || 0) <= 5
+                                ? 'bg-red-50 text-red-700'
+                                : (p.stock || 0) <= 15
                                   ? 'bg-amber-50 text-amber-700'
                                   : 'bg-emerald-light text-emerald-accent'
-                              }`}
+                                }`}
                             >
                               {(p.stock || 0) <= 5 && <AlertTriangle className="w-3 h-3 text-red-600" />}
                               {p.stock} units
@@ -1560,13 +1544,12 @@ export function AdminDashboard() {
                           {inq.type}
                         </span>
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                            inq.status === 'In Contract'
-                              ? 'bg-emerald-light text-emerald-accent'
-                              : inq.status === 'Contacted'
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${inq.status === 'In Contract'
+                            ? 'bg-emerald-light text-emerald-accent'
+                            : inq.status === 'Contacted'
                               ? 'bg-blue-50 text-blue-700'
                               : 'bg-amber-50 text-amber-700'
-                          }`}
+                            }`}
                         >
                           {inq.status}
                         </span>
@@ -1786,13 +1769,12 @@ export function AdminDashboard() {
       {/* Floating Status / Action Toast Notification */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-lg border text-xs font-medium flex items-center gap-2.5 animate-in slide-in-from-bottom-5 duration-200 ${
-            toast.type === 'error'
-              ? 'bg-red-50 border-red-200 text-red-800'
-              : toast.type === 'success'
+          className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-lg border text-xs font-medium flex items-center gap-2.5 animate-in slide-in-from-bottom-5 duration-200 ${toast.type === 'error'
+            ? 'bg-red-50 border-red-200 text-red-800'
+            : toast.type === 'success'
               ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
               : 'bg-white border-border text-charcoal'
-          }`}
+            }`}
         >
           {toast.type === 'error' ? (
             <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />

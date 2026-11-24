@@ -16,6 +16,8 @@ import { BeforeAfterSection } from '@/components/before-after-section';
 import { WhyChooseSensein } from '@/components/why-choose-sensein';
 import {
   fetchProducts,
+  getDeletedProductKeys,
+  getCustomProductsFromStorage,
   fetchHeroBanner,
   getHeroBannerFromStorage,
   saveHeroBannerToStorage,
@@ -40,7 +42,26 @@ export function HomePageClient({
   initialProducts,
   initialPrivilegeBanner,
 }: HomePageClientProps) {
-  const [bestsellers, setBestsellers] = useState<any[]>(initialProducts || []);
+  const [bestsellers, setBestsellers] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      const deletedKeys = getDeletedProductKeys();
+      const customProducts = getCustomProductsFromStorage();
+      const isDeleted = (p: any) => {
+        if (!deletedKeys.size) return false;
+        const s = (p.slug || '').toLowerCase().trim();
+        const id = (p.id || p._id || '').toString().toLowerCase().trim();
+        return deletedKeys.has(s) || deletedKeys.has(id);
+      };
+
+      const fromInitial = (initialProducts || []).filter((p) => !isDeleted(p));
+      const seen = new Set(fromInitial.map((p) => (p.slug || p.id || '').toLowerCase()));
+      const extraCustom = customProducts.filter(
+        (p) => !isDeleted(p) && !seen.has((p.slug || p.id || '').toLowerCase())
+      );
+      return [...extraCustom, ...fromInitial];
+    }
+    return initialProducts || [];
+  });
   const [loading, setLoading] = useState(!initialProducts || initialProducts.length === 0);
   const [banner, setBanner] = useState<HeroBannerConfig>(() => {
     if (initialBanner && initialBanner.title) {
@@ -65,19 +86,19 @@ export function HomePageClient({
     banner.slides && Array.isArray(banner.slides) && banner.slides.length > 0
       ? banner.slides
       : [
-          {
-            id: 'slide-1',
-            badge: banner.badge,
-            title: banner.title || DEFAULT_HERO_BANNER.title,
-            subtitle: banner.subtitle || DEFAULT_HERO_BANNER.subtitle,
-            ctaText: banner.ctaText || DEFAULT_HERO_BANNER.ctaText,
-            ctaLink: banner.ctaLink || DEFAULT_HERO_BANNER.ctaLink,
-            imageUrl: banner.imageUrl || DEFAULT_HERO_BANNER.imageUrl,
-            overlayDarkness: banner.overlayDarkness ?? 40,
-            textAlign: banner.textAlign || 'center',
-            isActive: true,
-          },
-        ];
+        {
+          id: 'slide-1',
+          badge: banner.badge,
+          title: banner.title || DEFAULT_HERO_BANNER.title,
+          subtitle: banner.subtitle || DEFAULT_HERO_BANNER.subtitle,
+          ctaText: banner.ctaText || DEFAULT_HERO_BANNER.ctaText,
+          ctaLink: banner.ctaLink || DEFAULT_HERO_BANNER.ctaLink,
+          imageUrl: banner.imageUrl || DEFAULT_HERO_BANNER.imageUrl,
+          overlayDarkness: banner.overlayDarkness ?? 40,
+          textAlign: banner.textAlign || 'center',
+          isActive: true,
+        },
+      ];
 
   const activeSlides = rawSlides.filter((s) => s.isActive !== false);
   const slidesToRender = activeSlides.length > 0 ? activeSlides : rawSlides;
@@ -146,8 +167,8 @@ export function HomePageClient({
   const handleScroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
       const container = scrollContainerRef.current;
-      const cardWidth = container.clientWidth < 640 
-        ? container.clientWidth * 0.85 
+      const cardWidth = container.clientWidth < 640
+        ? container.clientWidth * 0.85
         : container.clientWidth * 0.5;
       container.scrollBy({
         left: direction === 'left' ? -cardWidth : cardWidth,
@@ -160,7 +181,7 @@ export function HomePageClient({
     async function loadData() {
       try {
         const data = await fetchProducts({ sort: 'featured' });
-        if (data.products && data.products.length > 0) {
+        if (data && Array.isArray(data.products)) {
           setBestsellers(data.products);
         }
       } catch (err) {
@@ -170,9 +191,8 @@ export function HomePageClient({
       }
     }
 
-    if (!initialProducts || initialProducts.length === 0) {
-      loadData();
-    }
+    // Always fetch fresh products on client mount so deletions and additions sync immediately
+    loadData();
 
     // Instant local synchronization: if SSR sent default but client's local storage has the newly uploaded banner, sync immediately!
     if (typeof window !== 'undefined') {
@@ -248,13 +268,16 @@ export function HomePageClient({
         try {
           const parsed = JSON.parse(e.newValue);
           setBanner((prev) => ({ ...prev, ...parsed }));
-        } catch (_) {}
+        } catch (_) { }
       }
       if (e.key === 'sensein_privilege_banner' && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue);
           setPrivilegeBanner((prev) => ({ ...prev, ...parsed }));
-        } catch (_) {}
+        } catch (_) { }
+      }
+      if (e.key === 'sensein_custom_products' || e.key === 'sensein_deleted_products') {
+        loadData();
       }
     };
 
@@ -301,9 +324,8 @@ export function HomePageClient({
           return (
             <div
               key={slide.id || `slide-${idx}`}
-              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
-                isCurrent ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-              }`}
+              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${isCurrent ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+                }`}
               aria-hidden={!isCurrent}
             >
               {/* Background Photography with Depth Filter */}
@@ -327,13 +349,12 @@ export function HomePageClient({
               {/* Slide Content Centered or Aligned */}
               <div className="relative z-10 w-full h-full flex items-center justify-center">
                 <div
-                  className={`w-full max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-24 lg:py-28 flex flex-col ${
-                    slide.textAlign === 'left'
-                      ? 'items-start text-left'
-                      : slide.textAlign === 'right'
+                  className={`w-full max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-24 lg:py-28 flex flex-col ${slide.textAlign === 'left'
+                    ? 'items-start text-left'
+                    : slide.textAlign === 'right'
                       ? 'items-end text-right'
                       : 'items-center text-center'
-                  }`}
+                    }`}
                 >
                   {slide.badge && (
                     <span className="inline-block text-[10px] sm:text-xs uppercase tracking-[0.25em] font-bold text-gold/90 bg-black/40 backdrop-blur-md px-3.5 py-1 rounded-full border border-gold/30 mb-4 drop-shadow-md animate-in fade-in duration-500">
@@ -394,11 +415,10 @@ export function HomePageClient({
                   type="button"
                   onClick={() => setCurrentSlideIndex(idx)}
                   aria-label={`Go to slide ${idx + 1}`}
-                  className={`transition-all duration-300 rounded-full ${
-                    idx === currentSlideIndex
-                      ? 'w-7 sm:w-9 h-2 bg-gradient-to-r from-gold to-white shadow-md'
-                      : 'w-2 h-2 bg-white/40 hover:bg-white/70'
-                  }`}
+                  className={`transition-all duration-300 rounded-full ${idx === currentSlideIndex
+                    ? 'w-7 sm:w-9 h-2 bg-gradient-to-r from-gold to-white shadow-md'
+                    : 'w-2 h-2 bg-white/40 hover:bg-white/70'
+                    }`}
                 />
               ))}
             </div>
@@ -513,9 +533,8 @@ export function HomePageClient({
           <button
             onClick={() => handleScroll('left')}
             disabled={!canScrollLeft}
-            className={`absolute -left-2 sm:-left-4 top-[36%] -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white shadow-md border border-neutral-200/90 flex items-center justify-center text-charcoal hover:bg-neutral-50 hover:scale-105 active:scale-95 transition-all duration-200 ${
-              !canScrollLeft ? 'opacity-30 cursor-not-allowed pointer-events-none' : 'opacity-90 hover:opacity-100'
-            }`}
+            className={`absolute -left-2 sm:-left-4 top-[36%] -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white shadow-md border border-neutral-200/90 flex items-center justify-center text-charcoal hover:bg-neutral-50 hover:scale-105 active:scale-95 transition-all duration-200 ${!canScrollLeft ? 'opacity-30 cursor-not-allowed pointer-events-none' : 'opacity-90 hover:opacity-100'
+              }`}
             aria-label="Previous products"
           >
             <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-charcoal" />
@@ -525,9 +544,8 @@ export function HomePageClient({
           <button
             onClick={() => handleScroll('right')}
             disabled={!canScrollRight}
-            className={`absolute -right-2 sm:-right-4 top-[36%] -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white shadow-md border border-neutral-200/90 flex items-center justify-center text-charcoal hover:bg-neutral-50 hover:scale-105 active:scale-95 transition-all duration-200 ${
-              !canScrollRight ? 'opacity-30 cursor-not-allowed pointer-events-none' : 'opacity-90 hover:opacity-100'
-            }`}
+            className={`absolute -right-2 sm:-right-4 top-[36%] -translate-y-1/2 z-20 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white shadow-md border border-neutral-200/90 flex items-center justify-center text-charcoal hover:bg-neutral-50 hover:scale-105 active:scale-95 transition-all duration-200 ${!canScrollRight ? 'opacity-30 cursor-not-allowed pointer-events-none' : 'opacity-90 hover:opacity-100'
+              }`}
             aria-label="Next products"
           >
             <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-charcoal" />
@@ -550,7 +568,7 @@ export function HomePageClient({
             >
               {bestsellers.map((product) => (
                 <div
-                  key={product.id}
+                  key={product.id || product.slug || product._id}
                   className="shrink-0 snap-start w-[calc(50%-6px)] sm:w-[calc(33.333%-11px)] lg:w-[calc(25%-18px)] flex flex-col"
                 >
                   <ProductCard product={product} />

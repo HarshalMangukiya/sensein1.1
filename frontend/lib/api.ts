@@ -387,6 +387,7 @@ export const DEFAULT_ANNOUNCEMENT_CONFIG: AnnouncementBarConfig = {
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
 const CUSTOM_PRODUCTS_KEY = 'sensein_custom_products';
+const DELETED_PRODUCTS_KEY = 'sensein_deleted_products';
 const HERO_BANNER_STORAGE_KEY = 'sensein_hero_banner';
 const PRIVILEGE_BANNER_STORAGE_KEY = 'sensein_privilege_banner';
 export const CART_MILESTONES_STORAGE_KEY = 'sensein_cart_milestones_config';
@@ -434,7 +435,7 @@ export async function fetchAnnouncementBarConfig(): Promise<AnnouncementBarConfi
       if (typeof window !== 'undefined') {
         try {
           res = await fetch('/api/announcements', { cache: 'no-store' });
-        } catch (_) {}
+        } catch (_) { }
       }
     }
     clearTimeout(timeoutId);
@@ -488,7 +489,7 @@ export async function updateAnnouncementBarConfigApi(config: AnnouncementBarConf
             headers: getAdminAuthHeaders(true),
             body: JSON.stringify(config),
           });
-        } catch (_) {}
+        } catch (_) { }
       }
     }
 
@@ -853,8 +854,8 @@ export async function updateHeroBannerApi(config: HeroBannerConfig): Promise<Her
         method: 'PUT',
         headers: getAdminAuthHeaders(true),
         body: JSON.stringify(config),
-      }).catch(() => {});
-    } catch (_) {}
+      }).catch(() => { });
+    } catch (_) { }
   }
 
   // 3. Persist to MongoDB Atlas via backend API
@@ -958,8 +959,8 @@ export async function updatePrivilegeBannerApi(config: PrivilegeBannerConfig): P
         method: 'PUT',
         headers: getAdminAuthHeaders(true),
         body: JSON.stringify(config),
-      }).catch(() => {});
-    } catch (_) {}
+      }).catch(() => { });
+    } catch (_) { }
   }
 
   // 3. Persist to MongoDB Atlas via backend API
@@ -1070,8 +1071,8 @@ export async function updateCartMilestonesApi(config: CartMilestonesConfig): Pro
         method: 'PUT',
         headers: getAdminAuthHeaders(true),
         body: JSON.stringify(config),
-      }).catch(() => {});
-    } catch (_) {}
+      }).catch(() => { });
+    } catch (_) { }
   }
 
   // 3. Persist to MongoDB Atlas via backend API
@@ -1184,6 +1185,33 @@ export function removeCustomProductFromStorage(productIdOrSlug: string): void {
   }
 }
 
+// Track deleted product slugs/IDs so they are filtered out from SEED_PRODUCTS fallback
+export function getDeletedProductKeys(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(DELETED_PRODUCTS_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.map((k: string) => k.toLowerCase().trim()));
+  } catch (e) {
+    return new Set();
+  }
+}
+
+export function markProductAsDeleted(productIdOrSlug: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const key = (productIdOrSlug || '').toLowerCase().trim();
+    const existing = getDeletedProductKeys();
+    existing.add(key);
+    localStorage.setItem(DELETED_PRODUCTS_KEY, JSON.stringify(Array.from(existing)));
+    window.dispatchEvent(new CustomEvent('sensein-products-updated', { detail: productIdOrSlug }));
+  } catch (e) {
+    console.warn('Failed to record deleted product key:', e);
+  }
+}
+
 function matchesCategory(itemCategory: string = '', productType?: string, target: string = ''): boolean {
   if (!target || target === 'All' || target.toLowerCase() === 'all') return true;
   const t = target.toLowerCase().trim();
@@ -1256,6 +1284,17 @@ export async function fetchProducts(params?: {
   // Load custom products stored in browser
   const customProducts = getCustomProductsFromStorage();
 
+  // Load the set of deleted product IDs/slugs to exclude them from all sources
+  const deletedKeys = getDeletedProductKeys();
+
+  // Helper to check if a product has been deleted
+  const isDeleted = (item: ProductItem): boolean => {
+    if (!deletedKeys.size) return false;
+    const s = (item.slug || '').toLowerCase().trim();
+    const id = (item.id || (item as any)._id || '').toString().toLowerCase().trim();
+    return deletedKeys.has(s) || deletedKeys.has(id);
+  };
+
   // Deduplicate products across custom storage and backend
   const seenSlugs = new Set<string>();
   const seenIds = new Set<string>();
@@ -1263,6 +1302,8 @@ export async function fetchProducts(params?: {
 
   const addUnique = (item: ProductItem) => {
     if (!item) return;
+    // Skip products that have been deleted
+    if (isDeleted(item)) return;
     const s = (item.slug || '').toLowerCase().trim();
     const id = (item.id || (item as any)._id || '').toString().toLowerCase().trim();
     const mongoId = (item as any)._id ? (item as any)._id.toString().toLowerCase().trim() : '';
@@ -1282,9 +1323,12 @@ export async function fetchProducts(params?: {
   customProducts.forEach(addUnique);
 
   if (backendSucceeded) {
+    // When backend succeeds, trust it as the source of truth — don't add SEED_PRODUCTS on top.
+    // Backend already correctly reflects all deletions from MongoDB.
     backendProducts.forEach(addUnique);
   } else {
-    SEED_PRODUCTS.forEach(addUnique);
+    // Backend offline: use SEED_PRODUCTS but skip any that the user has deleted
+    SEED_PRODUCTS.filter((p) => !isDeleted(p)).forEach(addUnique);
   }
 
   // Apply complete filtering
@@ -1356,6 +1400,11 @@ export async function fetchProduct(idOrSlug: string): Promise<ProductItem> {
     console.warn('Backend product fetch notice:', err);
   }
 
+  const deletedKeys = getDeletedProductKeys();
+  if (deletedKeys.has(cleanKey)) {
+    throw new Error(`Product not found in catalog: ${idOrSlug}`);
+  }
+
   // Fallback 1: check custom products in localStorage
   const customProducts = getCustomProductsFromStorage();
   const foundCustom = customProducts.find(
@@ -1363,7 +1412,9 @@ export async function fetchProduct(idOrSlug: string): Promise<ProductItem> {
       (p.id && p.id.toLowerCase() === cleanKey) ||
       (p.slug && p.slug.toLowerCase() === cleanKey)
   );
-  if (foundCustom) return foundCustom;
+  if (foundCustom && !deletedKeys.has((foundCustom.slug || foundCustom.id || '').toLowerCase())) {
+    return foundCustom;
+  }
 
   // Fallback 2: check SEED_PRODUCTS
   const foundSeed = SEED_PRODUCTS.find(
@@ -1377,7 +1428,9 @@ export async function fetchProduct(idOrSlug: string): Promise<ProductItem> {
       (cleanKey.includes('face') && p.slug === '5-in-1-total-face-cleanup-facewash') ||
       (cleanKey.includes('combo') && p.slug === 'hair-face-care-combo-pack')
   );
-  if (foundSeed) return foundSeed;
+  if (foundSeed && !deletedKeys.has((foundSeed.slug || foundSeed.id || '').toLowerCase())) {
+    return foundSeed;
+  }
 
   throw new Error(`Product not found in catalog: ${idOrSlug}`);
 }
@@ -1908,10 +1961,38 @@ export async function createProductApi(productData: any): Promise<any> {
 }
 
 export async function deleteProductApi(productId: string): Promise<any> {
-  // 1. Remove from local storage and trigger update
-  removeCustomProductFromStorage(productId);
+  const cleanKey = (productId || '').toLowerCase().trim();
 
-  // 2. Also notify backend
+  // 1. Remove from local custom product storage
+  removeCustomProductFromStorage(cleanKey);
+
+  // 2. Mark as deleted so it won't re-appear from SEED_PRODUCTS fallback
+  markProductAsDeleted(cleanKey);
+
+  // 3. Look up related slug / id in SEED_PRODUCTS and custom storage to delete all identifiers
+  const allKnown = [...getCustomProductsFromStorage(), ...SEED_PRODUCTS];
+  const found = allKnown.find(
+    (p) =>
+      (p.id && p.id.toLowerCase().trim() === cleanKey) ||
+      (p.slug && p.slug.toLowerCase().trim() === cleanKey) ||
+      ((p as any)._id && String((p as any)._id).toLowerCase().trim() === cleanKey)
+  );
+  if (found) {
+    if (found.id) {
+      markProductAsDeleted(found.id);
+      removeCustomProductFromStorage(found.id);
+    }
+    if (found.slug) {
+      markProductAsDeleted(found.slug);
+      removeCustomProductFromStorage(found.slug);
+    }
+    if ((found as any)._id) {
+      markProductAsDeleted(String((found as any)._id));
+      removeCustomProductFromStorage(String((found as any)._id));
+    }
+  }
+
+  // 4. Also notify backend to delete from MongoDB
   try {
     const res = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productId)}`, {
       method: 'DELETE',

@@ -78,7 +78,7 @@ async function getFeaturedProductsServer(): Promise<any[]> {
     const timeoutId = setTimeout(() => controller.abort(), 2500);
 
     const res = await fetch(`${API_BASE_URL}/products?sort=featured`, {
-      next: { revalidate: 60, tags: ['products'] },
+      cache: 'no-store',
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
