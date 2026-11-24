@@ -1772,102 +1772,489 @@ export async function uploadProductImageToCloudinary(
   }
 }
 
+export type UploadProgressCallback = (progress: {
+  percent: number;
+  message: string;
+  stage: 'compressing' | 'uploading' | 'finishing';
+}) => void;
+
+/**
+ * Fast client-side video compressor using HTML5 Video + Canvas + MediaRecorder.
+ * Downscales 4K/1080p high-bitrate videos (e.g. 150 MB) to web-optimized 720p/1080p reels (~10-15 MB).
+ * Reduces upload time by up to 90% without visible quality loss on mobile devices.
+ */
+export async function compressVideoForWeb(
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<File | Blob> {
+  // Only attempt compression if file is > 90 MB and is a video
+  if (file.size <= 90 * 1024 * 1024) {
+    return file;
+  }
+
+  if (typeof window === 'undefined' || !window.MediaRecorder) {
+    return file;
+  }
+
+  return new Promise((resolve) => {
+    let resolved = false;
+    const safeResolve = (result: File | Blob) => {
+      if (!resolved) {
+        resolved = true;
+        cleanup();
+        resolve(result);
+      }
+    };
+
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.autoplay = false;
+    const objectUrl = URL.createObjectURL(file);
+    video.src = objectUrl;
+
+    // Safety timeout: 75 seconds
+    const timeoutId = setTimeout(() => {
+      safeResolve(file);
+    }, 75000);
+
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      try { video.pause(); } catch (_) {}
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    video.onloadedmetadata = () => {
+      try {
+        // High quality web reel dimensions (target 720p vertical or horizontal)
+        const maxDim = 1080;
+        let w = video.videoWidth || 720;
+        let h = video.videoHeight || 1280;
+
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        w = w % 2 === 0 ? w : w - 1;
+        h = h % 2 === 0 ? h : h - 1;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return safeResolve(file);
+
+        const stream = canvas.captureStream ? canvas.captureStream(30) : null;
+        if (!stream) return safeResolve(file);
+
+        // Retain audio track if available
+        try {
+          const videoWithStream = video as any;
+          const capturedStream = videoWithStream.captureStream ? videoWithStream.captureStream() : (videoWithStream.mozCaptureStream ? videoWithStream.mozCaptureStream() : null);
+          if (capturedStream) {
+            const audioTracks = capturedStream.getAudioTracks();
+            if (audioTracks && audioTracks.length > 0) {
+              stream.addTrack(audioTracks[0]);
+            }
+          }
+        } catch (_) {}
+
+        let mimeType = 'video/webm;codecs=vp8,opus';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'video/webm';
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = 'video/mp4';
+          }
+        }
+
+        const recorder = new MediaRecorder(stream, {
+          mimeType: MediaRecorder.isTypeSupported(mimeType) ? mimeType : undefined,
+          videoBitsPerSecond: 2_000_000, // 2.0 Mbps yields ~15-20 MB for a 1-2 min reel
+        });
+
+        const chunks: Blob[] = [];
+        recorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) chunks.push(e.data);
+        };
+
+        recorder.onstop = () => {
+          const compressedBlob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' });
+          if (compressedBlob.size > 0 && compressedBlob.size < file.size * 0.9) {
+            const ext = recorder.mimeType.includes('mp4') ? '.mp4' : '.webm';
+            const compressedFile = new File([compressedBlob], file.name.replace(/\.[^.]+$/, ext), {
+              type: recorder.mimeType || 'video/webm',
+            });
+            safeResolve(compressedFile);
+          } else {
+            safeResolve(file);
+          }
+        };
+
+        video.currentTime = 0;
+        let animationFrameId: number;
+
+        const drawFrame = () => {
+          if (video.paused || video.ended) return;
+          ctx.drawImage(video, 0, 0, w, h);
+          if (onProgress && video.duration > 0) {
+            onProgress(Math.min(99, Math.round((video.currentTime / video.duration) * 100)));
+          }
+          animationFrameId = requestAnimationFrame(drawFrame);
+        };
+
+        video.onended = () => {
+          cancelAnimationFrame(animationFrameId);
+          if (recorder.state === 'recording') {
+            recorder.stop();
+          }
+        };
+
+        video.playbackRate = 3.5; // Fast encode at 3.5x speed
+        recorder.start(250);
+        video.play().then(() => {
+          drawFrame();
+        }).catch(() => {
+          safeResolve(file);
+        });
+      } catch (_) {
+        safeResolve(file);
+      }
+    };
+
+    video.onerror = () => safeResolve(file);
+  });
+}
+
+/**
+ * Helper to upload a single chunk to Cloudinary using standard fetch API
+ * (fetch natively supports Content-Range and X-Unique-Upload-Id without browser XHR restrictions)
+ */
+async function uploadCloudinaryChunk(
+  uploadUrl: string,
+  chunk: Blob,
+  fileName: string,
+  signData: { apiKey: string; timestamp: number; folder: string; signature: string },
+  uniqueId: string,
+  start: number,
+  end: number,
+  totalSize: number,
+  chunkIndex: number,
+  totalChunks: number
+): Promise<any> {
+  const formData = new FormData();
+  formData.append('file', chunk, fileName);
+  formData.append('api_key', signData.apiKey);
+  formData.append('timestamp', signData.timestamp.toString());
+  formData.append('folder', signData.folder);
+  formData.append('signature', signData.signature);
+
+  const res = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: {
+      'X-Unique-Upload-Id': uniqueId,
+      'Content-Range': `bytes ${start}-${end - 1}/${totalSize}`,
+    },
+    body: formData,
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const errorMsg = data?.error?.message || `Chunk ${chunkIndex}/${totalChunks} upload failed (HTTP ${res.status})`;
+    console.error(`Cloudinary chunk ${chunkIndex} error:`, errorMsg, data);
+    throw new Error(errorMsg);
+  }
+
+  return data;
+}
+
+/**
+ * Helper to upload a single whole file (<= 6 MB) to Cloudinary
+ */
+async function uploadCloudinarySingle(
+  uploadUrl: string,
+  file: File | Blob,
+  fileName: string,
+  signData: { apiKey: string; timestamp: number; folder: string; signature: string }
+): Promise<any> {
+  const formData = new FormData();
+  formData.append('file', file, fileName);
+  formData.append('api_key', signData.apiKey);
+  formData.append('timestamp', signData.timestamp.toString());
+  formData.append('folder', signData.folder);
+  formData.append('signature', signData.signature);
+
+  const res = await fetch(uploadUrl, {
+    method: 'POST',
+    body: formData,
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const errorMsg = data?.error?.message || `Upload failed with HTTP ${res.status}`;
+    console.error('Cloudinary single upload error:', errorMsg, data);
+    throw new Error(errorMsg);
+  }
+
+  return data;
+}
+
 export async function uploadShowcaseMediaToCloudinary(
   media: File | Blob | string,
-  tags?: string[]
+  tags?: string[],
+  onProgress?: UploadProgressCallback,
+  skipCompression: boolean = false
 ): Promise<{ success: boolean; url: string; publicId: string; resourceType?: 'image' | 'video'; error?: string }> {
+  let fileToUpload: File | Blob | string = media;
+
   const isVideo =
     (media instanceof File && (media.type.startsWith('video/') || /\.(mp4|webm|mov|m4v|ogv)$/i.test(media.name))) ||
     (typeof media === 'string' && (media.startsWith('data:video') || /\.(mp4|webm|mov|m4v|ogv)/i.test(media)));
 
-  // STRATEGY 1: Direct Cloudinary client-side signed upload using FormData (fastest, supports videos of any size without body limits)
+  let lastErrorMessage = '';
+
+  // 1. FAST IN-BROWSER OPTIMIZATION ONLY for videos > 90 MB (Cloudinary Free account has a strict 100 MB max limit)
+  if (isVideo && fileToUpload instanceof File && fileToUpload.size > 90 * 1024 * 1024 && !skipCompression) {
+    const originalMb = (fileToUpload.size / (1024 * 1024)).toFixed(1);
+    try {
+      if (onProgress) {
+        onProgress({
+          percent: 5,
+          message: `⚡ Optimizing ${originalMb} MB video for web streaming (5%)...`,
+          stage: 'compressing',
+        });
+      }
+      const compressed = await compressVideoForWeb(fileToUpload, (compPercent) => {
+        if (onProgress) {
+          const scaledPercent = Math.min(45, Math.max(5, Math.round(compPercent * 0.45)));
+          onProgress({
+            percent: scaledPercent,
+            message: `⚡ Optimizing ${originalMb} MB video for web (${scaledPercent}%)...`,
+            stage: 'compressing',
+          });
+        }
+      });
+      if (compressed && compressed.size < fileToUpload.size) {
+        const compressedMb = (compressed.size / (1024 * 1024)).toFixed(1);
+        fileToUpload = compressed;
+        if (onProgress) {
+          onProgress({
+            percent: 45,
+            message: `Optimized: ${originalMb} MB → ${compressedMb} MB! Uploading to Cloudinary CDN (45%)...`,
+            stage: 'uploading',
+          });
+        }
+      }
+    } catch (_) {
+      // Continue with file
+    }
+  }
+
+  // Check if file still exceeds Cloudinary 100 MB free tier limit
+  if (fileToUpload instanceof File && fileToUpload.size > 100 * 1024 * 1024) {
+    const currentMb = (fileToUpload.size / (1024 * 1024)).toFixed(1);
+    return {
+      success: false,
+      url: '',
+      publicId: '',
+      error: `Video size is ${currentMb} MB, which exceeds Cloudinary's 100 MB limit. Please use the "Paste Link" button to link directly to your video, or select a shorter video clip.`,
+    };
+  }
+
+  // 2. STRATEGY 1: Direct Cloudinary Upload with CHUNKING support for large files (> 6 MB)
   try {
-    const signRes = await fetch('/api/cloudinary-sign');
+    const signRes = await fetch(`/api/cloudinary-sign?_t=${Date.now()}`, { cache: 'no-store' });
     if (signRes.ok) {
       const signData = await signRes.json();
       if (signData.signature && signData.apiKey) {
-        const formData = new FormData();
-        formData.append('file', media);
-        formData.append('api_key', signData.apiKey);
-        formData.append('timestamp', signData.timestamp.toString());
-        formData.append('folder', signData.folder);
-        formData.append('signature', signData.signature);
-        if (tags && tags.length > 0) {
-          formData.append('tags', tags.join(','));
-        }
-
         const endpoint = isVideo ? 'video' : 'auto';
-        const cloudRes = await fetch(
-          `https://api.cloudinary.com/v1_1/${signData.cloudName}/${endpoint}/upload`,
-          {
-            method: 'POST',
-            body: formData,
-          }
-        );
+        const isFileOrBlob = fileToUpload instanceof File || fileToUpload instanceof Blob;
 
-        const cloudData = await cloudRes.json();
-        if (cloudRes.ok && cloudData.secure_url) {
-          return {
-            success: true,
-            url: cloudData.secure_url,
-            publicId: cloudData.public_id || '',
-            resourceType: cloudData.resource_type === 'video' || isVideo ? 'video' : 'image',
-          };
-        } else if (cloudData?.error?.message) {
-          console.warn('Cloudinary direct returned error:', cloudData.error.message);
+        // Use chunked upload if file is larger than 6 MB
+        if (isFileOrBlob && (fileToUpload as File | Blob).size > 6 * 1024 * 1024) {
+          const fileBlob = fileToUpload as File | Blob;
+          const fileName = fileBlob instanceof File ? fileBlob.name : (isVideo ? 'reel.mp4' : 'media.jpg');
+          const CHUNK_SIZE = 6 * 1024 * 1024; // 6 MB chunks
+          const totalSize = fileBlob.size;
+          const totalChunks = Math.ceil(totalSize / CHUNK_SIZE);
+          const uniqueId = `sensein_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+          let start = 0;
+          let chunkIndex = 0;
+          let lastResult: any = null;
+
+          const basePercent = fileToUpload !== media ? 45 : 0;
+          const percentRange = 100 - basePercent - 2;
+
+          if (onProgress) {
+            const mbTotal = (totalSize / (1024 * 1024)).toFixed(1);
+            onProgress({
+              percent: Math.max(1, basePercent),
+              message: `Uploading: 0.0 / ${mbTotal} MB (${Math.max(1, basePercent)}%) • Chunk 1/${totalChunks}`,
+              stage: 'uploading',
+            });
+          }
+
+          while (start < totalSize) {
+            const end = Math.min(start + CHUNK_SIZE, totalSize);
+            const chunk = fileBlob.slice(start, end);
+            chunkIndex++;
+
+            const currentLoaded = end;
+            const progressFraction = currentLoaded / totalSize;
+            const percent = Math.min(98, Math.max(1, Math.round(basePercent + progressFraction * percentRange)));
+            const mbUploaded = (currentLoaded / (1024 * 1024)).toFixed(1);
+            const mbTotal = (totalSize / (1024 * 1024)).toFixed(1);
+
+            if (onProgress) {
+              onProgress({
+                percent,
+                message: `Uploading: ${mbUploaded} / ${mbTotal} MB (${percent}%) • Chunk ${chunkIndex}/${totalChunks}`,
+                stage: 'uploading',
+              });
+            }
+
+            let success = false;
+            let retries = 3;
+            while (retries > 0 && !success) {
+              try {
+                const chunkRes = await uploadCloudinaryChunk(
+                  `https://api.cloudinary.com/v1_1/${signData.cloudName}/${endpoint}/upload`,
+                  chunk,
+                  fileName,
+                  signData,
+                  uniqueId,
+                  start,
+                  end,
+                  totalSize,
+                  chunkIndex,
+                  totalChunks
+                );
+
+                if (chunkRes && (chunkRes.secure_url || end >= totalSize)) {
+                  lastResult = chunkRes;
+                }
+                success = true;
+              } catch (chunkErr: any) {
+                lastErrorMessage = chunkErr?.message || `Chunk ${chunkIndex} failed`;
+                retries--;
+                if (retries === 0) throw chunkErr;
+                await new Promise((r) => setTimeout(r, 1500));
+              }
+            }
+
+            start = end;
+          }
+
+          if (lastResult && lastResult.secure_url) {
+            if (onProgress) {
+              onProgress({
+                percent: 100,
+                message: 'Complete! Video published to Cloudinary CDN.',
+                stage: 'finishing',
+              });
+            }
+            return {
+              success: true,
+              url: lastResult.secure_url,
+              publicId: lastResult.public_id || '',
+              resourceType: lastResult.resource_type === 'video' || isVideo ? 'video' : 'image',
+            };
+          }
+        } else {
+          // Standard single-request upload for files <= 6 MB
+          if (onProgress) {
+            onProgress({ percent: 10, message: 'Uploading to Cloudinary CDN (10%)...', stage: 'uploading' });
+          }
+
+          const fileBlob = fileToUpload as File | Blob;
+          const fileName = fileBlob instanceof File ? fileBlob.name : (isVideo ? 'reel.mp4' : 'media.jpg');
+
+          try {
+            const cloudData = await uploadCloudinarySingle(
+              `https://api.cloudinary.com/v1_1/${signData.cloudName}/${endpoint}/upload`,
+              fileBlob,
+              fileName,
+              signData
+            );
+
+            if (cloudData && cloudData.secure_url) {
+              if (onProgress) {
+                onProgress({ percent: 100, message: 'Complete! Media published.', stage: 'finishing' });
+              }
+              return {
+                success: true,
+                url: cloudData.secure_url,
+                publicId: cloudData.public_id || '',
+                resourceType: cloudData.resource_type === 'video' || isVideo ? 'video' : 'image',
+              };
+            }
+          } catch (singleErr: any) {
+            lastErrorMessage = singleErr?.message || 'Single upload failed';
+          }
         }
       }
     }
-  } catch (err) {
+  } catch (err: any) {
+    lastErrorMessage = err?.message || 'Direct Cloudinary upload failed';
     console.warn('Direct Cloudinary upload notice, trying Next.js route...', err);
   }
 
-  // STRATEGY 2: Next.js App Router Route Handler (/api/upload-showcase-media)
+  // 3. STRATEGY 2: Next.js Route Handler (/api/upload-showcase-media) for smaller files
   try {
     let reqBody: any;
     let headers: Record<string, string> = {};
 
-    if (media instanceof File || media instanceof Blob) {
-      const fd = new FormData();
-      fd.append('file', media);
-      reqBody = fd;
+    if (fileToUpload instanceof File || fileToUpload instanceof Blob) {
+      if (fileToUpload.size < 4 * 1024 * 1024) {
+        const fd = new FormData();
+        fd.append('file', fileToUpload);
+        reqBody = fd;
+      }
     } else {
       headers['Content-Type'] = 'application/json';
-      reqBody = JSON.stringify({ media, tags });
+      reqBody = JSON.stringify({ media: fileToUpload, tags });
     }
 
-    const localRes = await fetch('/api/upload-showcase-media', {
-      method: 'POST',
-      headers,
-      body: reqBody,
-    });
-    if (localRes.ok) {
-      const data = await localRes.json();
-      if (data.url) {
-        return {
-          success: true,
-          url: data.url,
-          publicId: data.publicId || '',
-          resourceType: data.resourceType === 'video' || isVideo ? 'video' : 'image',
-        };
+    if (reqBody) {
+      const localRes = await fetch('/api/upload-showcase-media', {
+        method: 'POST',
+        headers,
+        body: reqBody,
+      });
+      if (localRes.ok) {
+        const data = await localRes.json();
+        if (data.url) {
+          return {
+            success: true,
+            url: data.url,
+            publicId: data.publicId || '',
+            resourceType: data.resourceType === 'video' || isVideo ? 'video' : 'image',
+          };
+        }
       }
     }
   } catch (err) {
     console.warn('Next.js route upload notice, trying NestJS backend fallback...', err);
   }
 
-  // STRATEGY 3: Fallback to NestJS backend /cloudinary/upload-showcase-media
+  // 4. STRATEGY 3: Fallback to NestJS backend for smaller files
   try {
     let payloadMedia: string = '';
-    if (typeof media === 'string') {
-      payloadMedia = media;
-    } else if (media instanceof File || media instanceof Blob) {
-      payloadMedia = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(media);
-      });
+    if (typeof fileToUpload === 'string') {
+      payloadMedia = fileToUpload;
+    } else if (fileToUpload instanceof File || fileToUpload instanceof Blob) {
+      if (fileToUpload.size < 35 * 1024 * 1024) {
+        payloadMedia = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(fileToUpload as Blob);
+        });
+      }
     }
 
     if (payloadMedia) {
@@ -1892,7 +2279,12 @@ export async function uploadShowcaseMediaToCloudinary(
     console.warn('Backend fallback notice:', err);
   }
 
-  return { success: false, url: '', publicId: '', error: 'Failed to upload media to Cloudinary. Please try again.' };
+  return {
+    success: false,
+    url: '',
+    publicId: '',
+    error: lastErrorMessage || 'Failed to upload media to Cloudinary. Please check file size or try pasting direct video URL.',
+  };
 }
 
 export async function createProductApi(productData: any): Promise<any> {

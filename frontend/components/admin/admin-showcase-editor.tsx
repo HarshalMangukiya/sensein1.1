@@ -20,6 +20,11 @@ import {
   Play,
   Film,
   Plus,
+  Link as LinkIcon,
+  Check,
+  CheckCircle,
+  X,
+  Zap,
 } from 'lucide-react';
 import {
   ShowcaseConfig,
@@ -88,6 +93,9 @@ export function AdminShowcaseEditor({ setToast }: AdminShowcaseEditorProps) {
   const [saving, setSaving] = useState(false);
   const [uploadingCardId, setUploadingCardId] = useState<string | null>(null);
   const [uploadingNew, setUploadingNew] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, { percent: number; message: string; stage: string }>>({});
+  const [urlInputCardIdx, setUrlInputCardIdx] = useState<number | null>(null);
+  const [customUrlInput, setCustomUrlInput] = useState<string>('');
 
   // 3D Deck Preview Carousel State
   const [activeIndex, setActiveIndex] = useState(0);
@@ -154,9 +162,23 @@ export function AdminShowcaseEditor({ setToast }: AdminShowcaseEditorProps) {
   const handleCardMediaUpload = async (index: number, file: File) => {
     const cardId = config.cards[index]?.id || `${index}`;
     setUploadingCardId(cardId);
+    setUploadProgress((prev) => ({
+      ...prev,
+      [cardId]: { percent: 0, message: 'Starting upload...', stage: 'uploading' },
+    }));
+
     try {
       const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov|m4v|ogv)$/i.test(file.name);
-      const res = await uploadShowcaseMediaToCloudinary(file, ['showcase', isVideo ? 'video' : 'photo']);
+      const res = await uploadShowcaseMediaToCloudinary(
+        file,
+        ['showcase', isVideo ? 'video' : 'photo'],
+        (prog) => {
+          setUploadProgress((prev) => ({
+            ...prev,
+            [cardId]: prog,
+          }));
+        }
+      );
       if (res.success && res.url) {
         const finalUrl = res.url;
         const isActuallyVideo = isVideo || res.resourceType === 'video';
@@ -176,21 +198,43 @@ export function AdminShowcaseEditor({ setToast }: AdminShowcaseEditorProps) {
           type: 'success',
         });
       } else {
-        setToast({ text: res.error || 'Media upload failed. Please try again.', type: 'error' });
+        const errorText = res.error || 'Media upload failed. Please try again or paste direct video URL.';
+        setToast({ text: errorText, type: 'error' });
       }
     } catch (e: any) {
       setToast({ text: e.message || 'Media upload error', type: 'error' });
     } finally {
+      // Allow user to see 100% complete state briefly before clearing
+      await new Promise((r) => setTimeout(r, 650));
       setUploadingCardId(null);
+      setUploadProgress((prev) => {
+        const next = { ...prev };
+        delete next[cardId];
+        return next;
+      });
     }
   };
 
   // Upload handler for adding a new card directly from file picker
   const handleAddNewMediaFile = async (file: File) => {
     setUploadingNew(true);
+    setUploadProgress((prev) => ({
+      ...prev,
+      'new-slot': { percent: 0, message: 'Starting upload...', stage: 'uploading' },
+    }));
+
     try {
       const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov|m4v|ogv)$/i.test(file.name);
-      const res = await uploadShowcaseMediaToCloudinary(file, ['showcase', isVideo ? 'video' : 'photo']);
+      const res = await uploadShowcaseMediaToCloudinary(
+        file,
+        ['showcase', isVideo ? 'video' : 'photo'],
+        (prog) => {
+          setUploadProgress((prev) => ({
+            ...prev,
+            'new-slot': prog,
+          }));
+        }
+      );
       if (res.success && res.url) {
         const finalUrl = res.url;
         const isActuallyVideo = isVideo || res.resourceType === 'video';
@@ -211,13 +255,51 @@ export function AdminShowcaseEditor({ setToast }: AdminShowcaseEditorProps) {
           type: 'success',
         });
       } else {
-        setToast({ text: res.error || 'Media upload failed. Please try again.', type: 'error' });
+        const errorText = res.error || 'Media upload failed. Please try again or paste direct video URL.';
+        setToast({ text: errorText, type: 'error' });
       }
     } catch (e: any) {
       setToast({ text: e.message || 'Upload failed', type: 'error' });
     } finally {
+      // Allow user to see 100% complete state briefly before clearing
+      await new Promise((r) => setTimeout(r, 650));
       setUploadingNew(false);
+      setUploadProgress((prev) => {
+        const next = { ...prev };
+        delete next['new-slot'];
+        return next;
+      });
     }
+  };
+
+  const handleSetCustomUrl = (index: number) => {
+    const raw = customUrlInput.trim();
+    if (!raw) return;
+
+    const lower = raw.toLowerCase();
+    const isVideo =
+      lower.endsWith('.mp4') ||
+      lower.endsWith('.webm') ||
+      lower.endsWith('.mov') ||
+      lower.endsWith('.m4v') ||
+      lower.includes('/video/') ||
+      lower.includes('resource_type=video');
+
+    setConfig((prev) => {
+      const updated = [...prev.cards];
+      updated[index] = {
+        ...updated[index],
+        mediaType: isVideo ? 'video' : updated[index].mediaType || 'image',
+        image: raw,
+        mediaUrl: raw,
+        videoUrl: isVideo ? raw : undefined,
+      };
+      return { ...prev, cards: updated };
+    });
+
+    setUrlInputCardIdx(null);
+    setCustomUrlInput('');
+    setToast({ text: `Card #${index + 1} media URL updated!`, type: 'success' });
   };
 
   const handleAddCardSlot = () => {
@@ -682,13 +764,37 @@ export function AdminShowcaseEditor({ setToast }: AdminShowcaseEditorProps) {
               <span>+ Upload Photo</span>
             </button>
           </div>
+          {uploadProgress['new-slot'] && (
+            <div className="w-full mt-2 p-2.5 bg-white rounded-lg border border-plum/30 shadow-xs space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-plum">
+                <span className="flex items-center gap-1.5 truncate">
+                  {uploadProgress['new-slot'].percent === 100 ? (
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  ) : (
+                    <UploadCloud className="w-3.5 h-3.5 animate-bounce text-plum shrink-0" />
+                  )}
+                  <span>{uploadProgress['new-slot'].message}</span>
+                </span>
+                <span className="font-mono text-xs font-bold shrink-0 ml-2">{uploadProgress['new-slot'].percent}%</span>
+              </div>
+              <div className="w-full h-2 bg-neutral-200 rounded-full overflow-hidden shadow-inner">
+                <div
+                  className={`h-full transition-all duration-300 rounded-full ${
+                    uploadProgress['new-slot'].percent === 100 ? 'bg-emerald-600' : 'bg-gradient-to-r from-plum to-purple-600'
+                  }`}
+                  style={{ width: `${uploadProgress['new-slot'].percent}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Cards List */}
         <div className="space-y-3">
           {config.cards.map((card, idx) => {
             const isVideo = isVideoMedia(card);
-            const isUploading = uploadingCardId === (card.id || `${idx}`);
+            const cardId = card.id || `${idx}`;
+            const isUploading = uploadingCardId === cardId;
 
             return (
               <div
@@ -790,50 +896,143 @@ export function AdminShowcaseEditor({ setToast }: AdminShowcaseEditorProps) {
                   </div>
                 </div>
 
-                {/* Clean Media Status & Direct Replace File Button (NO URL INPUT) */}
-                <div className="flex-1 w-full bg-white p-3.5 rounded-xl border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-charcoal">
-                        {isVideo ? '🎬 Product Video Reel' : '📸 High-Res Studio Photo'}
-                      </span>
-                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                        Cloudinary CDN Active
-                      </span>
+                {/* Clean Media Status & Direct Replace File Button */}
+                <div className="flex-1 w-full bg-white p-3.5 rounded-xl border border-border flex flex-col justify-between gap-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-charcoal">
+                          {isVideo ? '🎬 Product Video Reel' : '📸 High-Res Studio Photo'}
+                        </span>
+                        <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          Cloudinary CDN Active
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-charcoal-muted">
+                        {isVideo
+                          ? 'Plays as an autoplaying loop video reel in the 3D deck.'
+                          : 'Displays as a crisp high-definition photography slide in the 3D deck.'}
+                      </p>
                     </div>
-                    <p className="text-[11px] text-charcoal-muted">
-                      {isVideo
-                        ? 'Plays as an autoplaying loop video reel in the 3D deck.'
-                        : 'Displays as a crisp high-definition photography slide in the 3D deck.'}
-                    </p>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Paste Direct Video Link Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (urlInputCardIdx === idx) {
+                            setUrlInputCardIdx(null);
+                          } else {
+                            setUrlInputCardIdx(idx);
+                            setCustomUrlInput(card.videoUrl || card.mediaUrl || card.image || '');
+                          }
+                        }}
+                        className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition border cursor-pointer ${
+                          urlInputCardIdx === idx
+                            ? 'bg-plum text-white border-plum shadow-2xs'
+                            : 'bg-white hover:bg-neutral-50 text-charcoal-muted hover:text-charcoal border-border'
+                        }`}
+                        title="Paste direct video URL or Cloudinary link"
+                      >
+                        <LinkIcon className="w-3.5 h-3.5" />
+                        <span>{urlInputCardIdx === idx ? 'Close Link' : 'Paste Link'}</span>
+                      </button>
+
+                      {/* Direct File Replace Button */}
+                      <label
+                        className="px-3.5 py-2 bg-[#FAF7F5] hover:bg-plum/10 text-charcoal hover:text-plum border border-border hover:border-plum/30 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer shadow-2xs flex-shrink-0"
+                      >
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-plum" />
+                            <span>
+                              {uploadProgress[cardId]?.percent !== undefined
+                                ? uploadProgress[cardId].percent === 100
+                                  ? '100%'
+                                  : `${uploadProgress[cardId].percent}%`
+                                : 'Uploading...'}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <UploadCloud className="w-3.5 h-3.5 text-plum" />
+                            <span>Replace {isVideo ? 'Video' : 'Photo'}</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*,video/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleCardMediaUpload(idx, file);
+                          }}
+                          className="hidden"
+                          disabled={isUploading}
+                        />
+                      </label>
+                    </div>
                   </div>
 
-                  {/* Direct File Replace Button */}
-                  <label
-                    className="px-3.5 py-2 bg-[#FAF7F5] hover:bg-plum/10 text-charcoal hover:text-plum border border-border hover:border-plum/30 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer shadow-2xs self-start sm:self-auto flex-shrink-0"
-                  >
-                    {isUploading ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-plum" />
-                        <span>Uploading...</span>
-                      </>
-                    ) : (
-                      <>
-                        <UploadCloud className="w-3.5 h-3.5 text-plum" />
-                        <span>Replace {isVideo ? 'Video' : 'Photo'}</span>
-                      </>
-                    )}
-                    <input
-                      type="file"
-                      accept="image/*,video/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleCardMediaUpload(idx, file);
-                      }}
-                      className="hidden"
-                      disabled={isUploading}
-                    />
-                  </label>
+                  {/* Real-time Upload Progress Bar for Large Videos */}
+                  {uploadProgress[cardId] && (
+                    <div className="w-full pt-1 pb-1 space-y-1.5 bg-[#FAF7F5] p-2.5 rounded-lg border border-plum/20">
+                      <div className="flex items-center justify-between text-[11px] font-semibold text-plum">
+                        <span className="flex items-center gap-1.5 truncate">
+                          {uploadProgress[cardId].percent === 100 ? (
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          ) : uploadProgress[cardId].stage === 'compressing' ? (
+                            <Zap className="w-3.5 h-3.5 text-amber-500 animate-pulse shrink-0" />
+                          ) : (
+                            <UploadCloud className="w-3.5 h-3.5 text-plum animate-bounce shrink-0" />
+                          )}
+                          <span className="truncate">{uploadProgress[cardId].message}</span>
+                        </span>
+                        <span className="font-mono text-xs ml-2 shrink-0 font-bold">{uploadProgress[cardId].percent}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-neutral-200/80 rounded-full overflow-hidden shadow-inner">
+                        <div
+                          className={`h-full transition-all duration-300 rounded-full ${
+                            uploadProgress[cardId].percent === 100
+                              ? 'bg-emerald-600'
+                              : 'bg-gradient-to-r from-plum to-purple-600'
+                          }`}
+                          style={{ width: `${uploadProgress[cardId].percent}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Expandable Direct URL Input */}
+                  {urlInputCardIdx === idx && (
+                    <div className="w-full pt-2 border-t border-dashed border-border/80 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="url"
+                          placeholder="Paste direct video URL (e.g., https://.../video.mp4 or Cloudinary link)"
+                          value={customUrlInput}
+                          onChange={(e) => setCustomUrlInput(e.target.value)}
+                          className="w-full px-3 py-2 text-xs bg-[#FAF7F5] border border-border rounded-lg text-charcoal focus:outline-none focus:border-plum focus:ring-1 focus:ring-plum font-mono"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleSetCustomUrl(idx)}
+                          className="px-3 py-2 bg-plum text-white text-xs font-bold rounded-lg hover:bg-plum-hover transition shadow-2xs flex items-center gap-1"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Set URL</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUrlInputCardIdx(null)}
+                          className="px-2.5 py-2 text-xs text-charcoal-muted hover:text-charcoal bg-white border border-border rounded-lg"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Move & Delete Actions */}
