@@ -56,8 +56,9 @@ import {
   createProductApi,
   updateProductStockApi,
   deleteProductApi,
-  removeCustomProductFromStorage,
-  markProductAsDeleted,
+  clearLegacyProductStorage,
+  PRODUCTS_SYNC_TS_KEY,
+  PRODUCTS_SYNC_CHANNEL,
   createDelhiveryShipmentApi,
   requestDelhiveryPickupApi,
   trackDelhiveryAwbApi,
@@ -191,6 +192,9 @@ export function AdminDashboard() {
 
   // Products State (Live MongoDB Atlas)
   const [products, setProducts] = useState<any[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
+  const [productsError, setProductsError] = useState<string | null>(null);
   const [productSearch, setProductSearch] = useState('');
   const [productFormatFilter, setProductFormatFilter] = useState<'all' | 'single' | 'combo'>('all');
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
@@ -241,11 +245,52 @@ export function AdminDashboard() {
     fetchOrders(debouncedSearch, orderFilter);
   }, [debouncedSearch, orderFilter, activeTab]);
 
+  // Sync live products directly from MongoDB Atlas
+  const refreshProducts = React.useCallback(async (silent = false) => {
+    try {
+      if (!silent) setProductsLoading(true);
+      setProductsError(null);
+      const prodsData = await fetchProducts();
+      const rawProducts = prodsData?.products || [];
+
+      const seenSlugs = new Set<string>();
+      const seenIds = new Set<string>();
+      const deduped: any[] = [];
+
+      for (const p of rawProducts) {
+        const s = (p.slug || '').toLowerCase().trim();
+        const id = (p.id || (p as any)._id || '').toString().toLowerCase().trim();
+        if (s && seenSlugs.has(s)) continue;
+        if (id && seenIds.has(id)) continue;
+        if (s) seenSlugs.add(s);
+        if (id) seenIds.add(id);
+        deduped.push({
+          ...p,
+          stock: typeof p.stock === 'number' ? p.stock : 50,
+        });
+      }
+
+      setProducts(deduped);
+    } catch (err: any) {
+      console.error('Failed to sync products from MongoDB Atlas:', err);
+      setProductsError(err?.message || 'Failed to sync inventory from database');
+      if (!silent) {
+        setToast({
+          text: err?.message || 'Failed to sync inventory from MongoDB Atlas.',
+          type: 'error',
+        });
+      }
+    } finally {
+      if (!silent) setProductsLoading(false);
+    }
+  }, []);
+
   // Load initial live data from MongoDB Atlas
   const loadData = async () => {
+    clearLegacyProductStorage();
     try {
       setLoading(true);
-      const [ordersData, prodsData, inqsData, couponsData] = await Promise.all([
+      const [ordersRes, prodsRes, inqsRes, couponsRes] = await Promise.allSettled([
         fetchAllOrders({
           search: debouncedSearch,
           status: orderFilter === 'All' ? undefined : orderFilter,
@@ -255,36 +300,36 @@ export function AdminDashboard() {
         fetchCouponsApi(),
       ]);
 
-      if (ordersData && Array.isArray(ordersData)) {
-        setOrders(ordersData.map(normalizeOrder));
+      if (ordersRes.status === 'fulfilled' && Array.isArray(ordersRes.value)) {
+        setOrders(ordersRes.value.map(normalizeOrder));
       }
-      if (prodsData?.products) {
+      if (prodsRes.status === 'fulfilled' && prodsRes.value?.products) {
         const seenSlugs = new Set<string>();
         const seenIds = new Set<string>();
         const deduped: any[] = [];
 
-        for (const p of prodsData.products) {
+        for (const p of prodsRes.value.products) {
           const s = (p.slug || '').toLowerCase().trim();
           const id = (p.id || (p as any)._id || '').toString().toLowerCase().trim();
           if (s && seenSlugs.has(s)) continue;
           if (id && seenIds.has(id)) continue;
           if (s) seenSlugs.add(s);
           if (id) seenIds.add(id);
-          deduped.push(p);
-        }
-
-        setProducts(
-          deduped.map((p: any, idx: number) => ({
+          deduped.push({
             ...p,
-            stock: p.stock !== undefined ? p.stock : 45 + idx * 10,
-          }))
-        );
+            stock: typeof p.stock === 'number' ? p.stock : 50,
+          });
+        }
+        setProducts(deduped);
+        setProductsError(null);
+      } else if (prodsRes.status === 'rejected') {
+        setProductsError(prodsRes.reason?.message || 'Failed to load inventory from database');
       }
-      if (inqsData && Array.isArray(inqsData)) {
-        setInquiries(inqsData.map(normalizeInquiry));
+      if (inqsRes.status === 'fulfilled' && Array.isArray(inqsRes.value)) {
+        setInquiries(inqsRes.value.map(normalizeInquiry));
       }
-      if (couponsData && Array.isArray(couponsData)) {
-        setCouponsCount(couponsData.length);
+      if (couponsRes.status === 'fulfilled' && Array.isArray(couponsRes.value)) {
+        setCouponsCount(couponsRes.value.length);
       }
     } catch (err) {
       console.error('Failed to load MongoDB Atlas data for Admin Console', err);
@@ -296,6 +341,47 @@ export function AdminDashboard() {
   React.useEffect(() => {
     loadData();
   }, []);
+
+  // Always refresh live inventory when switching to Inventory/Overview tab or returning focus
+  React.useEffect(() => {
+    if (activeTab === 'products' || activeTab === 'overview') {
+      refreshProducts(true);
+    }
+  }, [activeTab, refreshProducts]);
+
+  React.useEffect(() => {
+    const handleSync = () => {
+      refreshProducts(true);
+    };
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === PRODUCTS_SYNC_TS_KEY) {
+        refreshProducts(true);
+      }
+    };
+    const handleFocus = () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        refreshProducts(true);
+      }
+    };
+
+    let bc: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+      bc = new BroadcastChannel(PRODUCTS_SYNC_CHANNEL);
+      bc.onmessage = () => refreshProducts(true);
+    }
+
+    window.addEventListener('sensein-products-updated', handleSync);
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+    return () => {
+      if (bc) bc.close();
+      window.removeEventListener('sensein-products-updated', handleSync);
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [refreshProducts]);
 
   // Status Updater persisting directly to MongoDB Atlas
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
@@ -425,22 +511,33 @@ export function AdminDashboard() {
   };
 
   const updateProductStock = async (productId: string, delta: number) => {
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === productId || (p as any)._id === productId
-          ? { ...p, stock: Math.max(0, (p.stock || 0) + delta) }
-          : p
-      )
-    );
-    await updateProductStockApi(productId, delta);
+    try {
+      const updated = await updateProductStockApi(productId, delta);
+      if (updated) {
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === productId || (p as any)._id === productId
+              ? { ...p, stock: updated.stock }
+              : p
+          )
+        );
+      } else {
+        await refreshProducts(true);
+      }
+    } catch (err: any) {
+      setToast({
+        text: err?.message || 'Failed to update stock in MongoDB Atlas.',
+        type: 'error',
+      });
+      await refreshProducts(true);
+    }
   };
 
-  const handleProductSaved = (savedProduct: any) => {
+  const handleProductSaved = async (savedProduct: any) => {
     setProducts((prev) => {
       const targetSlug = (savedProduct.slug || '').toLowerCase().trim();
       const targetId = (savedProduct.id || (savedProduct as any)._id || '').toString().toLowerCase().trim();
 
-      // Eliminate all previous instances matching by id or slug to ensure no duplicate rows ever remain
       const withoutSaved = prev.filter((p) => {
         const pSlug = (p.slug || '').toLowerCase().trim();
         const pId = (p.id || (p as any)._id || '').toString().toLowerCase().trim();
@@ -451,39 +548,46 @@ export function AdminDashboard() {
 
       return [savedProduct, ...withoutSaved];
     });
+    await refreshProducts(true);
     setToast({
-      text: `Formulation "${savedProduct.name}" saved to MongoDB Atlas & Cloudinary!`,
+      text: `Formulation "${savedProduct.name}" saved to MongoDB Atlas!`,
       type: 'success',
     });
   };
 
   const handleDeleteProduct = async (productId: string, name: string) => {
     if (!confirm(`Are you sure you want to permanently delete "${name}" from MongoDB Atlas?`)) return;
+    if (deletingProductId) return;
+
     const target = products.find((p) => p.id === productId || (p as any)._id === productId);
     const targetSlug = (target?.slug || '').toLowerCase().trim();
     const cleanId = (productId || '').toLowerCase().trim();
 
-    setProducts((prev) =>
-      prev.filter((p) => {
-        const pSlug = (p.slug || '').toLowerCase().trim();
-        const pId = (p.id || (p as any)._id || '').toString().toLowerCase().trim();
-        if (cleanId && pId === cleanId) return false;
-        if (targetSlug && pSlug === targetSlug) return false;
-        return true;
-      })
-    );
-
-    // Mark both ID and slug as deleted so they don't reappear from SEED_PRODUCTS / localStorage
-    if (cleanId) markProductAsDeleted(cleanId);
-    if (targetSlug && targetSlug !== cleanId) markProductAsDeleted(targetSlug);
-    if (targetSlug) {
-      removeCustomProductFromStorage(targetSlug);
+    setDeletingProductId(productId);
+    try {
+      await deleteProductApi(productId);
+      setProducts((prev) =>
+        prev.filter((p) => {
+          const pSlug = (p.slug || '').toLowerCase().trim();
+          const pId = (p.id || (p as any)._id || '').toString().toLowerCase().trim();
+          if (cleanId && pId === cleanId) return false;
+          if (targetSlug && pSlug === targetSlug) return false;
+          return true;
+        })
+      );
+      await refreshProducts(true);
+      setToast({
+        text: `Formulation "${name}" permanently deleted from database.`,
+        type: 'info',
+      });
+    } catch (err: any) {
+      setToast({
+        text: err?.message || `Failed to delete "${name}" from database.`,
+        type: 'error',
+      });
+    } finally {
+      setDeletingProductId(null);
     }
-    await deleteProductApi(productId);
-    setToast({
-      text: `Formulation "${name}" removed from catalog.`,
-      type: 'info',
-    });
   };
 
   const updateInquiryStatus = async (idOrRef: string, newStatus: string) => {
@@ -1220,8 +1324,20 @@ export function AdminDashboard() {
                     Manage catalog pricing, unit inventory, and dispatch thresholds.
                   </p>
                 </div>
-                {/* Single "+ Add Product" Button with Choice of Single or Combo */}
-                <div className="relative">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => refreshProducts(false)}
+                    disabled={productsLoading}
+                    className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-white hover:bg-[#FAF7F5] border border-border text-charcoal text-xs font-bold uppercase tracking-wider rounded-lg transition-all shadow-2xs disabled:opacity-60"
+                    title="Sync inventory from MongoDB Atlas"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-plum ${productsLoading ? 'animate-spin' : ''}`} />
+                    <span>Sync DB</span>
+                  </button>
+
+                  {/* Single "+ Add Product" Button with Choice of Single or Combo */}
+                  <div className="relative">
                   <button
                     type="button"
                     onClick={() => setIsAddProductTypeMenuOpen((prev) => !prev)}
@@ -1310,7 +1426,24 @@ export function AdminDashboard() {
                     </>
                   )}
                 </div>
+                </div>
               </div>
+
+              {productsError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between gap-4 text-xs text-red-700">
+                  <span className="flex items-center gap-2 font-medium">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    Database sync error: {productsError}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => refreshProducts(false)}
+                    className="px-3 py-1 bg-white border border-red-200 rounded font-bold uppercase tracking-wider hover:bg-red-100"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
 
               {/* Product Search & Format Filter Tabs */}
               <div className="p-4 bg-white border border-border rounded-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shadow-xs">
@@ -1461,10 +1594,15 @@ export function AdminDashboard() {
                               </button>
                               <button
                                 onClick={() => handleDeleteProduct(p.id, p.name)}
-                                className="p-1.5 text-charcoal-muted hover:text-red-600 hover:bg-red-50 border border-border rounded transition-colors"
+                                disabled={deletingProductId === p.id}
+                                className="p-1.5 text-charcoal-muted hover:text-red-600 hover:bg-red-50 border border-border rounded transition-colors disabled:opacity-50"
                                 title="Delete formulation from catalog"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                {deletingProductId === p.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-red-600" />
+                                ) : (
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                )}
                               </button>
                             </div>
                           </td>
@@ -1544,11 +1682,11 @@ export function AdminDashboard() {
                           {inq.type}
                         </span>
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${inq.status === 'In Contract'
-                            ? 'bg-emerald-light text-emerald-accent'
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${inq.status === 'Reviewed' || inq.status === 'In Contract'
+                            ? 'bg-emerald-light border-emerald/30 text-emerald-accent'
                             : inq.status === 'Contacted'
-                              ? 'bg-blue-50 text-blue-700'
-                              : 'bg-amber-50 text-amber-700'
+                              ? 'bg-blue-50 border-blue-200 text-blue-700'
+                              : 'bg-amber-50 border-amber-200 text-amber-700'
                             }`}
                         >
                           {inq.status}
@@ -1564,22 +1702,40 @@ export function AdminDashboard() {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2.5 w-full md:w-auto">
-                      <a
-                        href={`mailto:${inq.email}?subject=SENSEIN%20Enterprise%20Wholesale%20Partnership`}
-                        className="flex-1 md:flex-none px-4 py-2 bg-[#FAF7F5] hover:bg-neutral-200 border border-border text-charcoal text-xs font-bold uppercase tracking-wider rounded-lg text-center transition-colors shadow-2xs"
-                      >
-                        Email Client
-                      </a>
-                      <button
-                        onClick={() => {
-                          const nextStatus = inq.status === 'New Inquiry' ? 'Contacted' : 'In Contract';
-                          updateInquiryStatus(inq.id, nextStatus);
-                        }}
-                        className="flex-1 md:flex-none px-4 py-2 bg-plum hover:bg-plum-hover text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-colors shadow-xs"
-                      >
-                        Advance Status
-                      </button>
+                    <div className="flex items-center w-full md:w-auto">
+                      {inq.status === 'Reviewed' ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateInquiryStatus(inq.id, 'Pending Review');
+                            setToast({
+                              text: `Dossier ${inq.id} status changed to Pending Review.`,
+                              type: 'info',
+                            });
+                          }}
+                          className="w-full md:w-auto px-5 py-2.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold uppercase tracking-wider rounded-lg transition-all shadow-2xs flex items-center justify-center gap-2 group"
+                          title="Status: Reviewed (Click to mark as Pending Review)"
+                        >
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+                          <span>Reviewed</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateInquiryStatus(inq.id, 'Reviewed');
+                            setToast({
+                              text: `Dossier ${inq.id} marked as Reviewed.`,
+                              type: 'success',
+                            });
+                          }}
+                          className="w-full md:w-auto px-5 py-2.5 bg-plum hover:bg-plum-hover text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all shadow-xs flex items-center justify-center gap-2 hover:shadow"
+                          title="Click to review details and mark as Reviewed"
+                        >
+                          <CheckCircle2 className="w-4 h-4 text-white/80" />
+                          <span>Mark as Reviewed</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

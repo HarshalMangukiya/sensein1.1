@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, OnModuleInit, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  InternalServerErrorException,
+  OnModuleInit,
+  Logger,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Product, ProductDocument } from './product.schema';
@@ -67,21 +73,59 @@ export class ProductsService implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      // Only insert products that do NOT already exist in MongoDB.
-      // This prevents re-creating products that were intentionally deleted via the admin panel.
-      for (const prod of this.products) {
-        const exists = await this.productModel.findOne({
-          $or: [{ id: prod.id }, { slug: prod.slug }],
-        });
-        if (!exists) {
-          await this.productModel.create(prod);
+      const metaCol = this.productModel.db.collection('catalog_metadata');
+      const seededFlag = await metaCol.findOne({ key: 'catalog_seeded' });
+      const existingCount = await this.productModel.countDocuments();
+
+      // Only seed once on a completely fresh, unseeded database.
+      // Never re-insert seed products if the catalog was already initialized,
+      // otherwise intentionally deleted products would reappear on server restart/cold start.
+      if (seededFlag || existingCount > 0) {
+        if (!seededFlag) {
+          await metaCol.updateOne(
+            { key: 'catalog_seeded' },
+            { $set: { key: 'catalog_seeded', seededAt: new Date() } },
+            { upsert: true },
+          );
         }
+        this.logger.log(
+          `MongoDB Atlas product catalog ready (${existingCount} active products). Seed skipped to preserve admin state.`,
+        );
+        return;
       }
+
+      for (const prod of this.products) {
+        await this.productModel.updateOne(
+          { $or: [{ id: prod.id }, { slug: prod.slug }] },
+          { $setOnInsert: { stock: 50, ...prod } },
+          { upsert: true },
+        );
+      }
+
+      await metaCol.updateOne(
+        { key: 'catalog_seeded' },
+        { $set: { key: 'catalog_seeded', seededAt: new Date() } },
+        { upsert: true },
+      );
       const count = await this.productModel.countDocuments();
-      this.logger.log(`MongoDB Atlas product catalog ready (${count} active products).`);
+      this.logger.log(`Initial catalog seeded into MongoDB Atlas (${count} active products).`);
     } catch (err: any) {
-      this.logger.warn(`MongoDB product sync notice: ${err.message}`);
+      this.logger.error(`MongoDB product initialization error: ${err.message}`);
     }
+  }
+
+  private normalizeProduct(doc: any): any {
+    if (!doc) return null;
+    const obj = doc.toObject ? doc.toObject() : doc;
+    const mongoId = obj._id ? obj._id.toString() : undefined;
+    const stock = typeof obj.stock === 'number' && !isNaN(obj.stock) ? obj.stock : 50;
+    return {
+      ...obj,
+      _id: mongoId,
+      id: mongoId || obj.id || obj.slug,
+      stock,
+      inStock: obj.inStock !== false,
+    };
   }
 
   private products: ProductItem[] = [
@@ -2247,11 +2291,13 @@ export class ProductsService implements OnModuleInit {
     search?: string;
     sort?: string;
   }): Promise<{ products: any[]; total: number }> {
+    const andConditions: any[] = [];
     const query: any = {};
+
     if (filters?.category && filters.category.toLowerCase() !== 'all') {
       const cat = filters.category.trim();
       if (/^combos?$/i.test(cat) || /travelling/i.test(cat) || /kit/i.test(cat)) {
-        query.$or = [{ category: /combo/i }, { category: /kit/i }, { productType: 'combo' }];
+        andConditions.push({ $or: [{ category: /combo/i }, { category: /kit/i }, { productType: 'combo' }] });
       } else if (/mask/i.test(cat)) {
         query.category = /mask/i;
       } else if (/wax/i.test(cat)) {
@@ -2265,7 +2311,7 @@ export class ProductsService implements OnModuleInit {
       } else if (/serum/i.test(cat)) {
         query.category = /serum/i;
       } else {
-        query.category = new RegExp(cat, 'i');
+        query.category = new RegExp(cat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
       }
     }
     if (filters?.collection && filters.collection.toLowerCase() !== 'all') {
@@ -2273,7 +2319,7 @@ export class ProductsService implements OnModuleInit {
       if (/bestseller/i.test(col)) {
         query.curatedCollection = /best\s*sellers?/i;
       } else {
-        query.curatedCollection = new RegExp(col, 'i');
+        query.curatedCollection = new RegExp(col.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
       }
     }
     if (filters?.minPrice !== undefined && !isNaN(filters.minPrice)) {
@@ -2286,8 +2332,12 @@ export class ProductsService implements OnModuleInit {
       query.rating = { $gte: filters.minRating };
     }
     if (filters?.search && filters.search.trim()) {
-      const regex = new RegExp(filters.search.trim(), 'i');
-      query.$or = [{ name: regex }, { description: regex }, { category: regex }];
+      const regex = new RegExp(filters.search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      andConditions.push({ $or: [{ name: regex }, { description: regex }, { category: regex }, { slug: regex }] });
+    }
+
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
     }
 
     let sortOption: any = { createdAt: -1, _id: -1 };
@@ -2296,129 +2346,14 @@ export class ProductsService implements OnModuleInit {
     else if (filters?.sort === 'rating') sortOption = { rating: -1 };
     else if (filters?.sort === 'discount') sortOption = { discountPercentage: -1 };
 
-    let mapped: any[] = [];
-    let mongoSucceeded = false;
     try {
       const dbProducts = await this.productModel.find(query).sort(sortOption).lean();
-      mapped = (dbProducts || []).map((p: any) => ({
-        ...p,
-        id: p._id?.toString() || p.id,
-      }));
-      mongoSucceeded = true;
-    } catch (err: any) {
-      this.logger.warn(`MongoDB product fetch notice: ${err.message}`);
-    }
-
-    // If MongoDB succeeded, return ONLY database results so deletions are respected.
-    // Only fall back to in-memory products if MongoDB is completely unreachable.
-    if (mongoSucceeded) {
-      if (filters?.sort === 'price-low') mapped.sort((a, b) => a.price - b.price);
-      else if (filters?.sort === 'price-high') mapped.sort((a, b) => b.price - a.price);
-      else if (filters?.sort === 'rating') mapped.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-      else if (filters?.sort === 'discount') mapped.sort((a, b) => (b.discountPercentage || 0) - (a.discountPercentage || 0));
+      const mapped = (dbProducts || []).map((p: any) => this.normalizeProduct(p));
       return { products: mapped, total: mapped.length };
+    } catch (err: any) {
+      this.logger.error(`MongoDB product fetch failed: ${err.message}`);
+      throw new InternalServerErrorException('Failed to fetch products from database');
     }
-
-    // MongoDB unreachable: fall back to in-memory list with filtering
-    const mappedSlugs = new Set<string>();
-    const mappedIds = new Set<string>();
-
-    for (const p of mapped) {
-      if (p.slug) mappedSlugs.add(String(p.slug).toLowerCase().trim());
-      if (p.id) mappedIds.add(String(p.id).toLowerCase().trim());
-      if (p._id) mappedIds.add(String(p._id).toLowerCase().trim());
-    }
-
-    let memoryExtra = this.products.filter((p) => {
-      const s = (p.slug || '').toLowerCase().trim();
-      const id = String(p.id || '').toLowerCase().trim();
-      const mongoId = (p as any)._id ? String((p as any)._id).toLowerCase().trim() : '';
-
-      if (s && mappedSlugs.has(s)) return false;
-      if (id && mappedIds.has(id)) return false;
-      if (mongoId && mappedIds.has(mongoId)) return false;
-      return true;
-    });
-
-    if (filters?.category && filters.category.toLowerCase() !== 'all') {
-      const cat = filters.category.toLowerCase().trim();
-      memoryExtra = memoryExtra.filter((p) => {
-        const c = (p.category || '').toLowerCase();
-        const pt = (p.productType || '').toLowerCase();
-        if (cat.includes('combo') || cat.includes('kit')) {
-          return pt === 'combo' || c.includes('combo') || c.includes('kit');
-        }
-        if (cat.includes('mask')) return c.includes('mask');
-        if (cat.includes('wax')) return c.includes('wax');
-        if (cat.includes('oil')) return c.includes('oil');
-        if (cat.includes('shampoo')) return c.includes('shampoo');
-        if (cat.includes('facewash') || cat.includes('face')) return c.includes('face') || c.includes('clean');
-        return c.includes(cat);
-      });
-    }
-
-    if (filters?.collection && filters.collection.toLowerCase() !== 'all') {
-      const col = filters.collection.toLowerCase().trim();
-      memoryExtra = memoryExtra.filter((p) => {
-        const c = (p.curatedCollection || '').toLowerCase();
-        if (col.includes('bestseller')) return c.includes('best') || c.includes('seller');
-        return c.includes(col);
-      });
-    }
-
-    if (filters?.minPrice !== undefined && !isNaN(filters.minPrice)) {
-      memoryExtra = memoryExtra.filter((p) => p.price >= filters.minPrice!);
-    }
-    if (filters?.maxPrice !== undefined && !isNaN(filters.maxPrice)) {
-      memoryExtra = memoryExtra.filter((p) => p.price <= filters.maxPrice!);
-    }
-    if (filters?.minRating !== undefined && !isNaN(filters.minRating)) {
-      memoryExtra = memoryExtra.filter((p) => (p.rating || 0) >= filters.minRating!);
-    }
-    if (filters?.search && filters.search.trim()) {
-      const q = filters.search.toLowerCase().trim();
-      memoryExtra = memoryExtra.filter(
-        (p) =>
-          (p.name && p.name.toLowerCase().includes(q)) ||
-          (p.description && p.description.toLowerCase().includes(q)) ||
-          (p.category && p.category.toLowerCase().includes(q))
-      );
-    }
-
-    // Merge memoryExtra (newest) and mapped, enforcing absolute uniqueness by slug and ID
-    const seenSlugs = new Set<string>();
-    const seenIds = new Set<string>();
-    const combined: any[] = [];
-
-    const addProductUnique = (item: any) => {
-      if (!item) return;
-      const s = (item.slug || '').toLowerCase().trim();
-      const id = String(item.id || item._id || '').toLowerCase().trim();
-      const mongoId = item._id ? String(item._id).toLowerCase().trim() : '';
-
-      if (s && seenSlugs.has(s)) return;
-      if (id && seenIds.has(id)) return;
-      if (mongoId && seenIds.has(mongoId)) return;
-
-      if (s) seenSlugs.add(s);
-      if (id) seenIds.add(id);
-      if (mongoId) seenIds.add(mongoId);
-
-      combined.push({
-        ...item,
-        id: item.id || item._id?.toString() || s,
-      });
-    };
-
-    memoryExtra.forEach(addProductUnique);
-    mapped.forEach(addProductUnique);
-
-    if (filters?.sort === 'price-low') combined.sort((a, b) => a.price - b.price);
-    else if (filters?.sort === 'price-high') combined.sort((a, b) => b.price - a.price);
-    else if (filters?.sort === 'rating') combined.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    else if (filters?.sort === 'discount') combined.sort((a, b) => (b.discountPercentage || 0) - (a.discountPercentage || 0));
-
-    return { products: combined, total: combined.length };
   }
 
   async findOne(idOrSlug: string): Promise<any> {
@@ -2579,22 +2514,23 @@ export class ProductsService implements OnModuleInit {
 
 
 
+    const escaped = idOrSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     let found = await this.productModel.findOne(condition).lean();
     if (!found) {
-      found = await this.productModel.findOne({ slug: new RegExp(idOrSlug, 'i') }).lean();
+      found = await this.productModel.findOne({ slug: new RegExp(`^${escaped}$`, 'i') }).lean();
     }
     if (!found) {
-      found = await this.productModel.findOne({ name: new RegExp(idOrSlug, 'i') }).lean();
+      found = await this.productModel.findOne({ name: new RegExp(`^${escaped}$`, 'i') }).lean();
     }
 
     if (found) {
-      return { ...(found as any), id: (found as any)._id?.toString() || (found as any).id };
+      return this.normalizeProduct(found);
     }
     throw new NotFoundException(`Product not found with identifier: ${idOrSlug}`);
   }
 
   async getCategories(): Promise<Array<{ name: string; count: number; slug: string }>> {
-    const dbProducts = await this.productModel.find().lean();
+    const dbProducts = await this.productModel.find({}, { category: 1 }).lean();
     const categoriesMap = new Map<string, number>();
     (dbProducts || []).forEach((p: any) => {
       if (p.category) {
@@ -2613,113 +2549,120 @@ export class ProductsService implements OnModuleInit {
   }
 
   async create(dto: any): Promise<any> {
-    const baseSlug = (dto.slug || dto.name || 'product')
+    const { _id, __v, createdAt, updatedAt, ...cleanDto } = dto || {};
+    const baseSlug = (cleanDto.slug || cleanDto.name || 'product')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
-    let slug = baseSlug;
+    let slug = baseSlug || `product-${Date.now()}`;
 
-    // Check if slug already exists to prevent duplicate key error
-    try {
-      const existing = await this.productModel.findOne({ slug });
-      if (existing) {
-        slug = `${baseSlug}-${Date.now().toString().slice(-4)}`;
-      }
-    } catch (e) {
-      // Continue
+    // Ensure slug uniqueness in MongoDB
+    const existing = await this.productModel.findOne({ slug }).lean();
+    if (existing) {
+      slug = `${slug}-${Date.now().toString().slice(-4)}`;
     }
 
-    const id = dto.id || slug || `sensein-${Date.now()}`;
+    const id = cleanDto.id || `sensein-${slug}-${Date.now().toString().slice(-4)}`;
+    const stockNum =
+      cleanDto.stock !== undefined && cleanDto.stock !== '' && !isNaN(Number(cleanDto.stock))
+        ? Math.max(0, Number(cleanDto.stock))
+        : 50;
+
     const payload = {
       curatedCollection: 'Bestsellers',
-      productType: dto.productType || (dto.category === 'Combos' ? 'combo' : 'single'),
-      stock: dto.stock !== undefined ? Number(dto.stock) : 50,
-      inStock: dto.inStock !== false,
-      rating: dto.rating !== undefined ? Number(dto.rating) : 5.0,
-      reviewCount: dto.reviewCount !== undefined ? Number(dto.reviewCount) : 1,
-      badges: dto.badges && dto.badges.length > 0 ? dto.badges : ['Official SENSEIN®', 'Salon Exclusive'],
-      ...dto,
+      productType: cleanDto.productType || (cleanDto.category === 'Combos' ? 'combo' : 'single'),
+      inStock: cleanDto.inStock !== false,
+      rating: cleanDto.rating !== undefined ? Number(cleanDto.rating) : 5.0,
+      reviewCount: cleanDto.reviewCount !== undefined ? Number(cleanDto.reviewCount) : 1,
+      badges: cleanDto.badges && cleanDto.badges.length > 0 ? cleanDto.badges : ['Official SENSEIN®', 'Salon Exclusive'],
+      ...cleanDto,
+      stock: stockNum,
       slug,
       id,
     };
 
-    let savedObj: any = payload;
     try {
       const created = await this.productModel.create(payload);
-      const obj = created.toObject ? created.toObject() : created;
-      savedObj = {
-        ...obj,
-        id: obj._id?.toString() || obj.id || id,
-      };
+      return this.normalizeProduct(created);
     } catch (err: any) {
-      this.logger.warn(`MongoDB product create fallback to in-memory: ${err.message}`);
+      this.logger.error(`MongoDB product create failed: ${err.message}`);
+      throw new InternalServerErrorException(`Failed to save product to database: ${err.message}`);
     }
-
-    // Always unshift to top of in-memory catalog
-    this.products = [savedObj, ...this.products.filter((p) => p.id !== id && p.slug !== slug)];
-
-    return savedObj;
   }
 
   async update(id: string, dto: any): Promise<any> {
-    const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
     const query: any = { $or: [{ id }, { slug: id }] };
     if (isObjectId) query.$or.push({ _id: id });
+
+    const { _id, id: _dtoId, __v, createdAt, updatedAt, ...cleanDto } = dto || {};
+    if (cleanDto.stock !== undefined && cleanDto.stock !== '' && !isNaN(Number(cleanDto.stock))) {
+      cleanDto.stock = Math.max(0, Number(cleanDto.stock));
+    }
+
     let updated: any = null;
     try {
-      updated = await this.productModel.findOneAndUpdate(query, dto, { new: true });
+      updated = await this.productModel
+        .findOneAndUpdate(query, { $set: cleanDto }, { new: true })
+        .lean();
     } catch (err: any) {
-      this.logger.warn(`MongoDB product update fallback: ${err.message}`);
+      this.logger.error(`MongoDB product update failed: ${err.message}`);
+      throw new InternalServerErrorException(`Failed to update product in database: ${err.message}`);
     }
 
-    const idx = this.products.findIndex((p) => p.id === id || p.slug === id);
-    if (idx !== -1) {
-      this.products[idx] = { ...this.products[idx], ...dto };
-      return this.products[idx];
+    if (!updated) {
+      throw new NotFoundException(`Product not found for update: ${id}`);
     }
 
-    return updated || { id, ...dto };
+    return this.normalizeProduct(updated);
   }
 
   async updateStock(id: string, delta: number): Promise<any> {
-    const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
     const query: any = { $or: [{ id }, { slug: id }] };
     if (isObjectId) query.$or.push({ _id: id });
-    let updated: any = null;
+
     try {
-      updated = await this.productModel.findOneAndUpdate(
-        query,
-        { $inc: { stock: delta } },
-        { new: true }
-      );
+      const existing = await this.productModel.findOne(query).lean();
+      if (!existing) {
+        throw new NotFoundException(`Product not found for stock update: ${id}`);
+      }
+      const currentStock = typeof (existing as any).stock === 'number' ? (existing as any).stock : 50;
+      const nextStock = Math.max(0, currentStock + Number(delta || 0));
+
+      const updated = await this.productModel
+        .findOneAndUpdate({ _id: (existing as any)._id }, { $set: { stock: nextStock } }, { new: true })
+        .lean();
+
+      return this.normalizeProduct(updated);
     } catch (err: any) {
-      this.logger.warn(`MongoDB product stock update fallback: ${err.message}`);
+      if (err instanceof NotFoundException) throw err;
+      this.logger.error(`MongoDB stock update failed: ${err.message}`);
+      throw new InternalServerErrorException(`Failed to update stock in database: ${err.message}`);
     }
-
-    const idx = this.products.findIndex((p) => p.id === id || p.slug === id);
-    if (idx !== -1) {
-      this.products[idx] = {
-        ...this.products[idx],
-        stock: Math.max(0, (this.products[idx].stock || 0) + delta),
-      };
-      return this.products[idx];
-    }
-
-    return updated;
   }
 
   async delete(id: string): Promise<any> {
-    const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
     const query: any = { $or: [{ id }, { slug: id }] };
     if (isObjectId) query.$or.push({ _id: id });
-    let deleted = false;
+
     try {
-      const res = await this.productModel.findOneAndDelete(query);
-      deleted = !!res;
+      const existing: any = await this.productModel.findOne(query).lean();
+      if (!existing) {
+        return { success: true, deleted: false, deletedCount: 0, id };
+      }
+
+      const deleteConditions: any[] = [{ _id: existing._id }, { id }];
+      if (existing.id) deleteConditions.push({ id: existing.id });
+      if (existing.slug) deleteConditions.push({ slug: existing.slug });
+
+      const res = await this.productModel.deleteMany({ $or: deleteConditions });
+      this.logger.log(`Permanently deleted product "${existing.name || id}" from MongoDB (count: ${res.deletedCount}).`);
+      return { success: true, deleted: res.deletedCount > 0, deletedCount: res.deletedCount, id };
     } catch (err: any) {
-      this.logger.warn(`MongoDB product delete fallback: ${err.message}`);
+      this.logger.error(`MongoDB product delete failed: ${err.message}`);
+      throw new InternalServerErrorException(`Failed to delete product from database: ${err.message}`);
     }
-    this.products = this.products.filter((p) => p.id !== id && p.slug !== id);
-    return { success: true, deleted: true };
   }
 }

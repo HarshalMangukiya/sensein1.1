@@ -14,7 +14,12 @@ import {
   Star,
 } from 'lucide-react';
 import { ProductCard } from '@/components/product-card';
-import { fetchProducts } from '@/lib/api';
+import {
+  fetchProducts,
+  clearLegacyProductStorage,
+  PRODUCTS_SYNC_TS_KEY,
+  PRODUCTS_SYNC_CHANNEL,
+} from '@/lib/api';
 
 function ShopContent() {
   const searchParams = useSearchParams();
@@ -42,6 +47,7 @@ function ShopContent() {
 
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const categories = [
     { label: 'All Formulations', value: 'All' },
@@ -89,8 +95,11 @@ function ShopContent() {
   };
 
   useEffect(() => {
-    async function loadFilteredProducts() {
-      setLoading(true);
+    clearLegacyProductStorage();
+
+    async function loadFilteredProducts(showSpinner = true) {
+      if (showSpinner) setLoading(true);
+      setSyncError(null);
       try {
         const currentRange = priceRanges.find((p) => p.value === priceRange);
         const data = await fetchProducts({
@@ -102,21 +111,47 @@ function ShopContent() {
           sort: sortOption,
         });
         setProducts(data.products || []);
-      } catch (err) {
-        console.error(err);
+      } catch (err: any) {
+        console.error('Failed to sync shop catalog:', err);
+        setSyncError(err?.message || 'Unable to synchronize catalog from database.');
       } finally {
-        setLoading(false);
+        if (showSpinner) setLoading(false);
       }
     }
-    loadFilteredProducts();
+    loadFilteredProducts(true);
 
     const handleProductsUpdated = () => {
-      loadFilteredProducts();
+      loadFilteredProducts(false);
     };
 
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === PRODUCTS_SYNC_TS_KEY) {
+        loadFilteredProducts(false);
+      }
+    };
+
+    const handleFocus = () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        loadFilteredProducts(false);
+      }
+    };
+
+    let bc: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+      bc = new BroadcastChannel(PRODUCTS_SYNC_CHANNEL);
+      bc.onmessage = () => loadFilteredProducts(false);
+    }
+
     window.addEventListener('sensein-products-updated', handleProductsUpdated);
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
     return () => {
+      if (bc) bc.close();
       window.removeEventListener('sensein-products-updated', handleProductsUpdated);
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
     };
   }, [selectedCategory, selectedCollection, priceRange, minRating, sortOption]);
 
@@ -246,11 +281,10 @@ function ShopContent() {
                   <button
                     key={cat.value}
                     onClick={() => setSelectedCategory(cat.value)}
-                    className={`w-full text-left py-1 px-2 rounded transition flex items-center justify-between ${
-                      selectedCategory === cat.value
-                        ? 'bg-plum text-white font-semibold'
-                        : 'text-charcoal hover:text-plum hover:bg-alabaster'
-                    }`}
+                    className={`w-full text-left py-1 px-2 rounded transition flex items-center justify-between ${selectedCategory === cat.value
+                      ? 'bg-plum text-white font-semibold'
+                      : 'text-charcoal hover:text-plum hover:bg-alabaster'
+                      }`}
                   >
                     <span>{cat.label}</span>
                   </button>
@@ -274,11 +308,10 @@ function ShopContent() {
                   <button
                     key={col.value}
                     onClick={() => setSelectedCollection(col.value)}
-                    className={`w-full text-left py-1 px-2 rounded transition flex items-center justify-between ${
-                      selectedCollection === col.value
-                        ? 'bg-plum text-white font-semibold'
-                        : 'text-charcoal hover:text-plum hover:bg-alabaster'
-                    }`}
+                    className={`w-full text-left py-1 px-2 rounded transition flex items-center justify-between ${selectedCollection === col.value
+                      ? 'bg-plum text-white font-semibold'
+                      : 'text-charcoal hover:text-plum hover:bg-alabaster'
+                      }`}
                   >
                     <span>{col.label}</span>
                   </button>
@@ -332,11 +365,10 @@ function ShopContent() {
                   <button
                     key={opt.value}
                     onClick={() => setMinRating(minRating === opt.value ? null : opt.value)}
-                    className={`w-full text-left py-1 px-2 rounded transition flex items-center justify-between ${
-                      minRating === opt.value
-                        ? 'bg-plum text-white font-semibold'
-                        : 'text-charcoal hover:text-plum hover:bg-alabaster'
-                    }`}
+                    className={`w-full text-left py-1 px-2 rounded transition flex items-center justify-between ${minRating === opt.value
+                      ? 'bg-plum text-white font-semibold'
+                      : 'text-charcoal hover:text-plum hover:bg-alabaster'
+                      }`}
                   >
                     <span className="flex items-center gap-1">
                       <Star className="w-3.5 h-3.5 fill-gold text-gold" />
@@ -356,6 +388,21 @@ function ShopContent() {
               {[1, 2, 3, 4, 5, 6].map((n) => (
                 <div key={n} className="bg-white p-4 h-80 sm:h-96 animate-pulse rounded-md border border-border" />
               ))}
+            </div>
+          ) : syncError && products.length === 0 ? (
+            <div className="bg-white border border-red-200 p-12 text-center rounded-sm">
+              <p className="font-sans text-xl font-bold text-charcoal mb-2 tracking-tight">
+                Unable to Load Catalog
+              </p>
+              <p className="text-xs text-charcoal-muted max-w-sm mx-auto mb-6">
+                {syncError}
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-2.5 bg-plum text-white text-xs uppercase tracking-widest font-semibold rounded hover:bg-plum-dark transition"
+              >
+                Retry Sync
+              </button>
             </div>
           ) : products.length === 0 ? (
             <div className="bg-white border border-border p-12 text-center rounded-sm">
@@ -415,9 +462,8 @@ function ShopContent() {
                     <button
                       key={cat.value}
                       onClick={() => setSelectedCategory(cat.value)}
-                      className={`w-full text-left py-1.5 px-2 rounded ${
-                        selectedCategory === cat.value ? 'bg-plum text-white font-semibold' : 'text-charcoal'
-                      }`}
+                      className={`w-full text-left py-1.5 px-2 rounded ${selectedCategory === cat.value ? 'bg-plum text-white font-semibold' : 'text-charcoal'
+                        }`}
                     >
                       {cat.label}
                     </button>

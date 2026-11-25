@@ -1,5 +1,3 @@
-import { SEED_PRODUCTS } from './seed-products';
-
 export interface ProductItem {
   id: string;
   name: string;
@@ -385,9 +383,22 @@ export const DEFAULT_ANNOUNCEMENT_CONFIG: AnnouncementBarConfig = {
   ],
 };
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
-const CUSTOM_PRODUCTS_KEY = 'sensein_custom_products';
-const DELETED_PRODUCTS_KEY = 'sensein_deleted_products';
+const CONFIGURED_API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
+function resolveApiBaseUrl(): string {
+  if (
+    typeof window !== 'undefined' &&
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(CONFIGURED_API_BASE_URL) &&
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1'
+  ) {
+    return CONFIGURED_API_BASE_URL.replace(/localhost|127\.0\.0\.1/i, window.location.hostname);
+  }
+  return CONFIGURED_API_BASE_URL;
+}
+const LEGACY_CUSTOM_PRODUCTS_KEY = 'sensein_custom_products';
+const LEGACY_DELETED_PRODUCTS_KEY = 'sensein_deleted_products';
+export const PRODUCTS_SYNC_TS_KEY = 'sensein_products_sync_ts';
+export const PRODUCTS_SYNC_CHANNEL = 'sensein_products_sync';
 const HERO_BANNER_STORAGE_KEY = 'sensein_hero_banner';
 const PRIVILEGE_BANNER_STORAGE_KEY = 'sensein_privilege_banner';
 export const CART_MILESTONES_STORAGE_KEY = 'sensein_cart_milestones_config';
@@ -427,7 +438,7 @@ export async function fetchAnnouncementBarConfig(): Promise<AnnouncementBarConfi
 
     let res: Response | null = null;
     try {
-      res = await fetch(`${API_BASE_URL}/content/announcements`, {
+      res = await fetch(`${resolveApiBaseUrl()}/content/announcements`, {
         cache: 'no-store',
         signal: controller.signal,
       });
@@ -476,7 +487,7 @@ export async function updateAnnouncementBarConfigApi(config: AnnouncementBarConf
 
     let res: Response | null = null;
     try {
-      res = await fetch(`${API_BASE_URL}/content/announcements`, {
+      res = await fetch(`${resolveApiBaseUrl()}/content/announcements`, {
         method: 'PUT',
         headers: getAdminAuthHeaders(true),
         body: JSON.stringify(config),
@@ -535,7 +546,7 @@ export async function fetchBeforeAfterConfig(): Promise<BeforeAfterConfig> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    const res = await fetch(`${API_BASE_URL}/content/before-after`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/content/before-after`, {
       cache: 'no-store',
       signal: controller.signal,
     });
@@ -578,7 +589,7 @@ export async function updateBeforeAfterConfigApi(config: BeforeAfterConfig): Pro
       token = await ensureAdminToken();
     }
 
-    const res = await fetch(`${API_BASE_URL}/content/before-after`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/content/before-after`, {
       method: 'PUT',
       headers: getAdminAuthHeaders(true),
       body: JSON.stringify(config),
@@ -642,7 +653,7 @@ export async function fetchShowcaseConfig(): Promise<ShowcaseConfig> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    const res = await fetch(`${API_BASE_URL}/content/showcase`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/content/showcase`, {
       cache: 'no-store',
       signal: controller.signal,
     });
@@ -697,7 +708,7 @@ export async function updateShowcaseConfigApi(config: ShowcaseConfig): Promise<S
       token = await ensureAdminToken();
     }
 
-    const res = await fetch(`${API_BASE_URL}/content/showcase`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/content/showcase`, {
       method: 'PUT',
       headers: getAdminAuthHeaders(true),
       body: JSON.stringify(config),
@@ -768,7 +779,7 @@ export async function fetchHeroBanner(): Promise<HeroBannerConfig> {
   if (typeof window !== 'undefined') {
     endpoints.push('/api/banner');
   }
-  endpoints.push(`${API_BASE_URL}/content/banner`);
+  endpoints.push(`${resolveApiBaseUrl()}/content/banner`);
 
   for (const url of endpoints) {
     try {
@@ -865,7 +876,7 @@ export async function updateHeroBannerApi(config: HeroBannerConfig): Promise<Her
       token = await ensureAdminToken();
     }
 
-    const res = await fetch(`${API_BASE_URL}/content/banner`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/content/banner`, {
       method: 'PUT',
       headers: getAdminAuthHeaders(true),
       body: JSON.stringify(config),
@@ -910,7 +921,7 @@ export async function fetchPrivilegeBanner(): Promise<PrivilegeBannerConfig> {
   if (typeof window !== 'undefined') {
     endpoints.push('/api/privilege-banner');
   }
-  endpoints.push(`${API_BASE_URL}/content/privilege-banner`);
+  endpoints.push(`${resolveApiBaseUrl()}/content/privilege-banner`);
 
   for (const url of endpoints) {
     try {
@@ -970,7 +981,7 @@ export async function updatePrivilegeBannerApi(config: PrivilegeBannerConfig): P
       token = await ensureAdminToken();
     }
 
-    const res = await fetch(`${API_BASE_URL}/content/privilege-banner`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/content/privilege-banner`, {
       method: 'PUT',
       headers: getAdminAuthHeaders(true),
       body: JSON.stringify(config),
@@ -1018,7 +1029,7 @@ export async function fetchCartMilestones(): Promise<CartMilestonesConfig> {
   if (typeof window !== 'undefined') {
     endpoints.push('/api/cart-milestones');
   }
-  endpoints.push(`${API_BASE_URL}/content/cart-milestones`);
+  endpoints.push(`${resolveApiBaseUrl()}/content/cart-milestones`);
 
   for (const url of endpoints) {
     try {
@@ -1082,7 +1093,7 @@ export async function updateCartMilestonesApi(config: CartMilestonesConfig): Pro
       token = await ensureAdminToken();
     }
 
-    const res = await fetch(`${API_BASE_URL}/content/cart-milestones`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/content/cart-milestones`, {
       method: 'PUT',
       headers: getAdminAuthHeaders(true),
       body: JSON.stringify(config),
@@ -1100,115 +1111,29 @@ export async function updateCartMilestonesApi(config: CartMilestonesConfig): Pro
   return config;
 }
 
-export function getCustomProductsFromStorage(): ProductItem[] {
-  if (typeof window === 'undefined') return [];
+export function clearLegacyProductStorage(): void {
+  if (typeof window === 'undefined') return;
   try {
-    const raw = localStorage.getItem(CUSTOM_PRODUCTS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+    localStorage.removeItem(LEGACY_CUSTOM_PRODUCTS_KEY);
+    localStorage.removeItem(LEGACY_DELETED_PRODUCTS_KEY);
+  } catch (e) {
+    // Ignore storage cleanup errors
+  }
+}
 
-    // Deduplicate any historic duplicates stored in local storage
-    const seenSlugs = new Set<string>();
-    const seenIds = new Set<string>();
-    const deduped: ProductItem[] = [];
-
-    for (const item of parsed) {
-      if (!item) continue;
-      const s = (item.slug || '').toLowerCase().trim();
-      const id = (item.id || (item as any)._id || '').toString().toLowerCase().trim();
-      const mongoId = (item as any)._id ? (item as any)._id.toString().toLowerCase().trim() : '';
-
-      if (s && seenSlugs.has(s)) continue;
-      if (id && seenIds.has(id)) continue;
-      if (mongoId && seenIds.has(mongoId)) continue;
-
-      if (s) seenSlugs.add(s);
-      if (id) seenIds.add(id);
-      if (mongoId) seenIds.add(mongoId);
-
-      deduped.push(item);
+export function broadcastProductsSync(detail?: any): void {
+  if (typeof window === 'undefined') return;
+  try {
+    clearLegacyProductStorage();
+    window.dispatchEvent(new CustomEvent('sensein-products-updated', { detail }));
+    localStorage.setItem(PRODUCTS_SYNC_TS_KEY, String(Date.now()));
+    if (typeof BroadcastChannel !== 'undefined') {
+      const ch = new BroadcastChannel(PRODUCTS_SYNC_CHANNEL);
+      ch.postMessage({ type: 'products-updated', ts: Date.now() });
+      ch.close();
     }
-
-    if (deduped.length !== parsed.length) {
-      localStorage.setItem(CUSTOM_PRODUCTS_KEY, JSON.stringify(deduped));
-    }
-
-    return deduped;
   } catch (e) {
-    return [];
-  }
-}
-
-export function saveCustomProductToStorage(product: ProductItem): void {
-  if (typeof window === 'undefined') return;
-  try {
-    const existing = getCustomProductsFromStorage();
-    const targetSlug = (product.slug || '').toLowerCase().trim();
-    const targetId = (product.id || (product as any)._id || '').toString().toLowerCase().trim();
-    const targetMongoId = (product as any)._id ? (product as any)._id.toString().toLowerCase().trim() : '';
-
-    const filtered = existing.filter((p) => {
-      const pSlug = (p.slug || '').toLowerCase().trim();
-      const pId = (p.id || (p as any)._id || '').toString().toLowerCase().trim();
-      const pMongoId = (p as any)._id ? (p as any)._id.toString().toLowerCase().trim() : '';
-
-      if (targetSlug && pSlug === targetSlug) return false;
-      if (targetId && (pId === targetId || pMongoId === targetId)) return false;
-      if (targetMongoId && (pId === targetMongoId || pMongoId === targetMongoId)) return false;
-      return true;
-    });
-
-    const updated = [product, ...filtered];
-    localStorage.setItem(CUSTOM_PRODUCTS_KEY, JSON.stringify(updated));
-    window.dispatchEvent(new CustomEvent('sensein-products-updated', { detail: product }));
-  } catch (e) {
-    console.warn('Failed to save product in local storage:', e);
-  }
-}
-
-export function removeCustomProductFromStorage(productIdOrSlug: string): void {
-  if (typeof window === 'undefined') return;
-  try {
-    const key = (productIdOrSlug || '').toLowerCase().trim();
-    const existing = getCustomProductsFromStorage();
-    const updated = existing.filter((p) => {
-      const pSlug = (p.slug || '').toLowerCase().trim();
-      const pId = (p.id || (p as any)._id || '').toString().toLowerCase().trim();
-      const pMongoId = (p as any)._id ? (p as any)._id.toString().toLowerCase().trim() : '';
-      return pSlug !== key && pId !== key && pMongoId !== key;
-    });
-    localStorage.setItem(CUSTOM_PRODUCTS_KEY, JSON.stringify(updated));
-    window.dispatchEvent(new CustomEvent('sensein-products-updated', { detail: productIdOrSlug }));
-  } catch (e) {
-    console.warn('Failed to remove product from local storage:', e);
-  }
-}
-
-// Track deleted product slugs/IDs so they are filtered out from SEED_PRODUCTS fallback
-export function getDeletedProductKeys(): Set<string> {
-  if (typeof window === 'undefined') return new Set();
-  try {
-    const raw = localStorage.getItem(DELETED_PRODUCTS_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return new Set();
-    return new Set(parsed.map((k: string) => k.toLowerCase().trim()));
-  } catch (e) {
-    return new Set();
-  }
-}
-
-export function markProductAsDeleted(productIdOrSlug: string): void {
-  if (typeof window === 'undefined') return;
-  try {
-    const key = (productIdOrSlug || '').toLowerCase().trim();
-    const existing = getDeletedProductKeys();
-    existing.add(key);
-    localStorage.setItem(DELETED_PRODUCTS_KEY, JSON.stringify(Array.from(existing)));
-    window.dispatchEvent(new CustomEvent('sensein-products-updated', { detail: productIdOrSlug }));
-  } catch (e) {
-    console.warn('Failed to record deleted product key:', e);
+    // Ignore broadcast errors
   }
 }
 
@@ -1248,205 +1173,95 @@ export async function fetchProducts(params?: {
   search?: string;
   sort?: string;
 }): Promise<{ products: ProductItem[]; total: number }> {
-  let backendProducts: ProductItem[] = [];
-  let backendSucceeded = false;
+  clearLegacyProductStorage();
+
+  const query = new URLSearchParams();
+  if (params?.category) query.set('category', params.category);
+  if (params?.collection) query.set('collection', params.collection);
+  if (params?.minPrice !== undefined) query.set('minPrice', params.minPrice.toString());
+  if (params?.maxPrice !== undefined) query.set('maxPrice', params.maxPrice.toString());
+  if (params?.minRating !== undefined) query.set('minRating', params.minRating.toString());
+  if (params?.search) query.set('search', params.search);
+  if (params?.sort) query.set('sort', params.sort);
+
+  const isBrowser = typeof window !== 'undefined';
+  if (isBrowser) {
+    query.set('_t', String(Date.now()));
+  }
+
+  const endpoint = isBrowser
+    ? `/api/products?${query.toString()}`
+    : `${resolveApiBaseUrl()}/products?${query.toString()}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
 
   try {
-    const query = new URLSearchParams();
-    if (params?.category) query.set('category', params.category);
-    if (params?.collection) query.set('collection', params.collection);
-    if (params?.minPrice !== undefined) query.set('minPrice', params.minPrice.toString());
-    if (params?.maxPrice !== undefined) query.set('maxPrice', params.maxPrice.toString());
-    if (params?.minRating !== undefined) query.set('minRating', params.minRating.toString());
-    if (params?.search) query.set('search', params.search);
-    if (params?.sort) query.set('sort', params.sort);
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-    const res = await fetch(`${API_BASE_URL}/products?${query.toString()}`, {
+    const res = await fetch(endpoint, {
       cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' },
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data && Array.isArray(data.products) && data.products.length > 0) {
-        backendProducts = data.products;
-        backendSucceeded = true;
-      }
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      throw new Error(errBody?.message || errBody?.error || `Failed to load inventory (HTTP ${res.status})`);
     }
-  } catch (err) {
-    // Backend offline or timeout
+
+    const data = await res.json();
+    const products: ProductItem[] = Array.isArray(data?.products) ? data.products : [];
+    return { products, total: Number(data?.total ?? products.length) };
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    throw new Error(err?.message || 'Unable to synchronize inventory from database');
   }
-
-  // Load custom products stored in browser
-  const customProducts = getCustomProductsFromStorage();
-
-  // Load the set of deleted product IDs/slugs to exclude them from all sources
-  const deletedKeys = getDeletedProductKeys();
-
-  // Helper to check if a product has been deleted
-  const isDeleted = (item: ProductItem): boolean => {
-    if (!deletedKeys.size) return false;
-    const s = (item.slug || '').toLowerCase().trim();
-    const id = (item.id || (item as any)._id || '').toString().toLowerCase().trim();
-    return deletedKeys.has(s) || deletedKeys.has(id);
-  };
-
-  // Deduplicate products across custom storage and backend
-  const seenSlugs = new Set<string>();
-  const seenIds = new Set<string>();
-  const combinedList: ProductItem[] = [];
-
-  const addUnique = (item: ProductItem) => {
-    if (!item) return;
-    // Skip products that have been deleted
-    if (isDeleted(item)) return;
-    const s = (item.slug || '').toLowerCase().trim();
-    const id = (item.id || (item as any)._id || '').toString().toLowerCase().trim();
-    const mongoId = (item as any)._id ? (item as any)._id.toString().toLowerCase().trim() : '';
-
-    if (s && seenSlugs.has(s)) return;
-    if (id && seenIds.has(id)) return;
-    if (mongoId && seenIds.has(mongoId)) return;
-
-    if (s) seenSlugs.add(s);
-    if (id) seenIds.add(id);
-    if (mongoId) seenIds.add(mongoId);
-
-    combinedList.push(item);
-  };
-
-  // Custom products (stored / recently added / edited) appear first
-  customProducts.forEach(addUnique);
-
-  if (backendSucceeded) {
-    // When backend succeeds, trust it as the source of truth — don't add SEED_PRODUCTS on top.
-    // Backend already correctly reflects all deletions from MongoDB.
-    backendProducts.forEach(addUnique);
-  } else {
-    // Backend offline: use SEED_PRODUCTS but skip any that the user has deleted
-    SEED_PRODUCTS.filter((p) => !isDeleted(p)).forEach(addUnique);
-  }
-
-  // Apply complete filtering
-  let result = combinedList;
-
-  if (params?.category && params.category !== 'All') {
-    result = result.filter((p) => matchesCategory(p.category, p.productType, params.category));
-  }
-  if (params?.collection && params.collection !== 'All') {
-    result = result.filter((p) => matchesCollection(p.curatedCollection, params.collection));
-  }
-  if (params?.minPrice !== undefined && !isNaN(params.minPrice)) {
-    result = result.filter((p) => p.price >= params.minPrice!);
-  }
-  if (params?.maxPrice !== undefined && !isNaN(params.maxPrice)) {
-    result = result.filter((p) => p.price <= params.maxPrice!);
-  }
-  if (params?.minRating !== undefined && !isNaN(params.minRating)) {
-    result = result.filter((p) => (p.rating || 0) >= params.minRating!);
-  }
-  if (params?.search && params.search.trim()) {
-    const q = params.search.toLowerCase().trim();
-    result = result.filter(
-      (p) =>
-        (p.name && p.name.toLowerCase().includes(q)) ||
-        (p.subtitle && p.subtitle.toLowerCase().includes(q)) ||
-        (p.description && p.description.toLowerCase().includes(q)) ||
-        (p.category && p.category.toLowerCase().includes(q)) ||
-        (p.overview && p.overview.toLowerCase().includes(q)) ||
-        (p.slug && p.slug.toLowerCase().includes(q))
-    );
-  }
-
-  // Sort logic
-  if (params?.sort === 'price-low') {
-    result.sort((a, b) => a.price - b.price);
-  } else if (params?.sort === 'price-high') {
-    result.sort((a, b) => b.price - a.price);
-  } else if (params?.sort === 'rating') {
-    result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-  } else if (params?.sort === 'discount') {
-    result.sort((a, b) => (b.discountPercentage || 0) - (a.discountPercentage || 0));
-  }
-
-  return { products: result, total: result.length };
 }
 
 export async function fetchProduct(idOrSlug: string): Promise<ProductItem> {
-  const cleanKey = (idOrSlug || '').trim().toLowerCase();
+  clearLegacyProductStorage();
 
-  // Try backend first
+  const isBrowser = typeof window !== 'undefined';
+  const endpoint = isBrowser
+    ? `/api/products/${encodeURIComponent(idOrSlug)}?_t=${Date.now()}`
+    : `${resolveApiBaseUrl()}/products/${encodeURIComponent(idOrSlug)}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-    const res = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(idOrSlug)}`, {
+    const res = await fetch(endpoint, {
       cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' },
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
 
     if (res.ok) {
       const data = await res.json();
-      if (data && (data.id || data.slug)) {
+      if (data && (data.id || data._id || data.slug)) {
         return data;
       }
     }
-  } catch (err) {
-    console.warn('Backend product fetch notice:', err);
-  }
-
-  const deletedKeys = getDeletedProductKeys();
-  if (deletedKeys.has(cleanKey)) {
     throw new Error(`Product not found in catalog: ${idOrSlug}`);
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    throw new Error(err?.message || `Product not found in catalog: ${idOrSlug}`);
   }
-
-  // Fallback 1: check custom products in localStorage
-  const customProducts = getCustomProductsFromStorage();
-  const foundCustom = customProducts.find(
-    (p) =>
-      (p.id && p.id.toLowerCase() === cleanKey) ||
-      (p.slug && p.slug.toLowerCase() === cleanKey)
-  );
-  if (foundCustom && !deletedKeys.has((foundCustom.slug || foundCustom.id || '').toLowerCase())) {
-    return foundCustom;
-  }
-
-  // Fallback 2: check SEED_PRODUCTS
-  const foundSeed = SEED_PRODUCTS.find(
-    (p) =>
-      (p.id && p.id.toLowerCase() === cleanKey) ||
-      (p.slug && p.slug.toLowerCase() === cleanKey) ||
-      (cleanKey.includes('wax') && p.slug === 'hair-wax') ||
-      (cleanKey.includes('shampoo') && p.slug === 'argan-keratin-smoothing-shampoo') ||
-      (cleanKey.includes('mask') && p.slug === 'argan-keratin-smoothing-hair-mask') ||
-      (cleanKey.includes('oil') && p.slug === 'argan-oil-for-hair-body') ||
-      (cleanKey.includes('face') && p.slug === '5-in-1-total-face-cleanup-facewash') ||
-      (cleanKey.includes('combo') && p.slug === 'hair-face-care-combo-pack')
-  );
-  if (foundSeed && !deletedKeys.has((foundSeed.slug || foundSeed.id || '').toLowerCase())) {
-    return foundSeed;
-  }
-
-  throw new Error(`Product not found in catalog: ${idOrSlug}`);
 }
 
 export async function fetchCategories(): Promise<Array<{ name: string; count: number; slug: string }>> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/products/categories`, { cache: 'no-store' });
-    if (res.ok) {
-      const cats = await res.json();
-      if (Array.isArray(cats) && cats.length > 0) return cats;
-    }
-  } catch (err) {
-    console.warn('Backend/MongoDB categories notice:', err);
+  const isBrowser = typeof window !== 'undefined';
+  const endpoint = isBrowser
+    ? `/api/products/categories?_t=${Date.now()}`
+    : `${resolveApiBaseUrl()}/products/categories`;
+
+  const res = await fetch(endpoint, { cache: 'no-store' });
+  if (res.ok) {
+    const cats = await res.json();
+    if (Array.isArray(cats)) return cats;
   }
 
-  // Fallback dynamic category computation from active products
   const { products } = await fetchProducts();
   const map = new Map<string, number>();
   products.forEach((p) => {
@@ -1466,7 +1281,7 @@ export async function fetchCategories(): Promise<Array<{ name: string; count: nu
 
 export async function sendOtp(email: string) {
   const cleanEmail = (email || '').trim().toLowerCase();
-  const res = await fetch(`${API_BASE_URL}/auth/send-otp`, {
+  const res = await fetch(`${resolveApiBaseUrl()}/auth/send-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: cleanEmail }),
@@ -1484,7 +1299,7 @@ export async function verifyOtp(email: string, otp: string) {
   const cleanEmail = (email || '').trim().toLowerCase();
   const cleanOtp = (otp || '').trim();
 
-  const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+  const res = await fetch(`${resolveApiBaseUrl()}/auth/verify-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: cleanEmail, otp: cleanOtp }),
@@ -1500,7 +1315,7 @@ export async function verifyOtp(email: string, otp: string) {
 
 export async function checkPincodeServiceability(pincode: string) {
   try {
-    const res = await fetch(`${API_BASE_URL}/shipping/serviceability/${pincode}`);
+    const res = await fetch(`${resolveApiBaseUrl()}/shipping/serviceability/${pincode}`);
     if (res.ok) return await res.json();
   } catch (e) { }
 
@@ -1526,7 +1341,7 @@ export async function checkPincodeServiceability(pincode: string) {
 
 export async function createRazorpayOrder(amount: number, notes?: Record<string, any>) {
   try {
-    const res = await fetch(`${API_BASE_URL}/payments/create-order`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/payments/create-order`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ amount, notes }),
@@ -1547,7 +1362,7 @@ export async function verifyRazorpayPayment(data: {
   razorpay_payment_id: string;
   razorpay_signature: string;
 }) {
-  const res = await fetch(`${API_BASE_URL}/payments/verify`, {
+  const res = await fetch(`${resolveApiBaseUrl()}/payments/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -1563,7 +1378,7 @@ export async function placeOrder(orderData: any) {
   const orderNumber = `SEN-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
 
   try {
-    const res = await fetch(`${API_BASE_URL}/orders`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(orderData),
@@ -1592,7 +1407,7 @@ export async function placeOrder(orderData: any) {
 
 export async function fetchUserOrders(userIdOrEmail: string): Promise<any[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/orders/user/${encodeURIComponent(userIdOrEmail)}`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/orders/user/${encodeURIComponent(userIdOrEmail)}`, {
       cache: 'no-store',
     });
     if (res.ok) {
@@ -1608,7 +1423,7 @@ export async function submitWholesaleInquiry(inquiryData: any) {
   const referenceCode = `B2B-SEN-${Math.floor(100000 + Math.random() * 900000)}`;
 
   try {
-    const res = await fetch(`${API_BASE_URL}/inquiries/bulk`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/inquiries/bulk`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(inquiryData),
@@ -1631,7 +1446,11 @@ export async function ensureAdminToken(): Promise<string | null> {
   if (token) return token;
 
   try {
-    const res = await fetch(`${API_BASE_URL}/auth/admin/login`, {
+    const loginUrl =
+      typeof window !== 'undefined'
+        ? '/api/auth/admin/login'
+        : `${resolveApiBaseUrl()}/auth/admin/login`;
+    const res = await fetch(loginUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: 'admin@sensein.com', pass: 'sensein2026' }),
@@ -1679,7 +1498,7 @@ export async function fetchAllOrders(params?: { search?: string; status?: string
     }
 
     const qs = query.toString();
-    const url = `${API_BASE_URL}/orders${qs ? `?${qs}` : ''}`;
+    const url = `${resolveApiBaseUrl()}/orders${qs ? `?${qs}` : ''}`;
 
     let res = await fetch(url, {
       cache: 'no-store',
@@ -1712,7 +1531,7 @@ export async function fetchAllOrders(params?: { search?: string; status?: string
 
 export async function updateOrderStatusApi(orderId: string, status: string): Promise<any> {
   try {
-    const res = await fetch(`${API_BASE_URL}/orders/${encodeURIComponent(orderId)}/status`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/orders/${encodeURIComponent(orderId)}/status`, {
       method: 'PATCH',
       headers: getAdminAuthHeaders(true),
       body: JSON.stringify({ status: status.toUpperCase() }),
@@ -1728,7 +1547,7 @@ export async function updateOrderStatusApi(orderId: string, status: string): Pro
 
 export async function fetchWholesaleInquiries(): Promise<any[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/inquiries/bulk`, { cache: 'no-store' });
+    const res = await fetch(`${resolveApiBaseUrl()}/inquiries/bulk`, { cache: 'no-store' });
     if (res.ok) {
       return await res.json();
     }
@@ -1740,7 +1559,7 @@ export async function fetchWholesaleInquiries(): Promise<any[]> {
 
 export async function updateInquiryStatusApi(idOrRef: string, status: string): Promise<any> {
   try {
-    const res = await fetch(`${API_BASE_URL}/inquiries/bulk/${idOrRef}/status`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/inquiries/bulk/${idOrRef}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
@@ -1756,7 +1575,7 @@ export async function uploadProductImageToCloudinary(
   productSlug?: string
 ): Promise<{ success: boolean; url: string; publicId: string; error?: string }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/cloudinary/upload-product-image`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/cloudinary/upload-product-image`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image, productSlug }),
@@ -2258,7 +2077,7 @@ export async function uploadShowcaseMediaToCloudinary(
     }
 
     if (payloadMedia) {
-      const res = await fetch(`${API_BASE_URL}/cloudinary/upload-showcase-media`, {
+      const res = await fetch(`${resolveApiBaseUrl()}/cloudinary/upload-showcase-media`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ media: payloadMedia, tags }),
@@ -2288,168 +2107,118 @@ export async function uploadShowcaseMediaToCloudinary(
 }
 
 export async function createProductApi(productData: any): Promise<any> {
-  const baseSlug = (productData.slug || productData.name || 'formulation')
+  const { _id, ...rest } = productData || {};
+  const baseSlug = (rest.slug || rest.name || 'formulation')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
   const slug = baseSlug || `product-${Date.now()}`;
-  const id = productData.id || `sensein-${slug}-${Date.now().toString().slice(-4)}`;
+  const id = rest.id || `sensein-${slug}-${Date.now().toString().slice(-4)}`;
 
-  const normalized: ProductItem = {
+  const payload = {
     rating: 5.0,
     reviewCount: 1,
     inStock: true,
-    stock: productData.stock !== undefined ? Number(productData.stock) : 50,
-    curatedCollection: productData.curatedCollection || 'Bestsellers',
-    productType: productData.productType || (productData.category === 'Combos' ? 'combo' : 'single'),
-    comboItems: productData.comboItems || [],
+    stock: rest.stock !== undefined ? Number(rest.stock) : 50,
+    curatedCollection: rest.curatedCollection || 'Bestsellers',
+    productType: rest.productType || (rest.category === 'Combos' ? 'combo' : 'single'),
+    comboItems: rest.comboItems || [],
     badges:
-      productData.badges && productData.badges.length > 0
-        ? productData.badges
+      rest.badges && rest.badges.length > 0
+        ? rest.badges
         : ['Official SENSEIN®', 'Salon Exclusive'],
     images:
-      productData.images && productData.images.length > 0
-        ? productData.images
+      rest.images && rest.images.length > 0
+        ? rest.images
         : [
-          'https://res.cloudinary.com/dqddawu42/image/upload/v1792492874/sensein/products/media_1792492512087.jpg',
-        ],
+            'https://res.cloudinary.com/dqddawu42/image/upload/v1792492874/sensein/products/media_1792492512087.jpg',
+          ],
     variants:
-      productData.variants && productData.variants.length > 0
-        ? productData.variants
+      rest.variants && rest.variants.length > 0
+        ? rest.variants
         : [
-          {
-            size: productData.netVolume || 'Standard Size',
-            price: Number(productData.price) || 0,
-            mrp: Number(productData.mrp) || Number(productData.price) || 0,
-            inStock: true,
-          },
-        ],
-    ...productData,
+            {
+              size: rest.netVolume || 'Standard Size',
+              price: Number(rest.price) || 0,
+              mrp: Number(rest.mrp) || Number(rest.price) || 0,
+              inStock: true,
+            },
+          ],
+    ...rest,
     id,
     slug,
   };
 
-  // 1. Instantly persist to localStorage and notify UI components
-  saveCustomProductToStorage(normalized);
+  await ensureAdminToken();
+  const res = await fetch('/api/products', {
+    method: 'POST',
+    cache: 'no-store',
+    headers: getAdminAuthHeaders(true),
+    body: JSON.stringify(payload),
+  });
 
-  // 2. Also send to MongoDB backend
-  try {
-    const res = await fetch(`${API_BASE_URL}/products`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(normalized),
-    });
-    if (res.ok) {
-      const serverProduct = await res.json();
-      const merged = { ...normalized, ...serverProduct, id: serverProduct.id || serverProduct._id || id };
-      saveCustomProductToStorage(merged);
-      return merged;
-    }
-  } catch (err) {
-    console.warn('Backend unavailable, product saved locally in browser:', err);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || `Failed to create product (HTTP ${res.status})`);
   }
 
-  return normalized;
+  broadcastProductsSync(data);
+  return data;
 }
 
 export async function deleteProductApi(productId: string): Promise<any> {
-  const cleanKey = (productId || '').toLowerCase().trim();
+  await ensureAdminToken();
+  const res = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
+    method: 'DELETE',
+    cache: 'no-store',
+    headers: getAdminAuthHeaders(false),
+  });
 
-  // 1. Remove from local custom product storage
-  removeCustomProductFromStorage(cleanKey);
-
-  // 2. Mark as deleted so it won't re-appear from SEED_PRODUCTS fallback
-  markProductAsDeleted(cleanKey);
-
-  // 3. Look up related slug / id in SEED_PRODUCTS and custom storage to delete all identifiers
-  const allKnown = [...getCustomProductsFromStorage(), ...SEED_PRODUCTS];
-  const found = allKnown.find(
-    (p) =>
-      (p.id && p.id.toLowerCase().trim() === cleanKey) ||
-      (p.slug && p.slug.toLowerCase().trim() === cleanKey) ||
-      ((p as any)._id && String((p as any)._id).toLowerCase().trim() === cleanKey)
-  );
-  if (found) {
-    if (found.id) {
-      markProductAsDeleted(found.id);
-      removeCustomProductFromStorage(found.id);
-    }
-    if (found.slug) {
-      markProductAsDeleted(found.slug);
-      removeCustomProductFromStorage(found.slug);
-    }
-    if ((found as any)._id) {
-      markProductAsDeleted(String((found as any)._id));
-      removeCustomProductFromStorage(String((found as any)._id));
-    }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || `Failed to delete product (HTTP ${res.status})`);
   }
 
-  // 4. Also notify backend to delete from MongoDB
-  try {
-    const res = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productId)}`, {
-      method: 'DELETE',
-    });
-    if (res.ok) return await res.json();
-  } catch (err) {
-    console.warn('Backend product delete notice:', err);
-  }
-
-  return { success: true, deleted: true };
+  broadcastProductsSync(productId);
+  return data;
 }
 
 export async function updateProductApi(productId: string, productData: any): Promise<any> {
-  const customProducts = getCustomProductsFromStorage();
-  const cleanId = (productId || '').toLowerCase().trim();
-  const existing = customProducts.find(
-    (p) =>
-      (p.id || '').toLowerCase().trim() === cleanId ||
-      (p.slug || '').toLowerCase().trim() === cleanId ||
-      ((p as any)._id || '').toString().toLowerCase().trim() === cleanId
-  );
-  const updated: ProductItem = {
-    ...(existing || {}),
-    ...productData,
-    id: productId,
-  };
+  const { _id, id: _ignoreId, ...cleanData } = productData || {};
+  await ensureAdminToken();
 
-  saveCustomProductToStorage(updated);
+  const res = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
+    method: 'PATCH',
+    cache: 'no-store',
+    headers: getAdminAuthHeaders(true),
+    body: JSON.stringify(cleanData),
+  });
 
-  try {
-    const res = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productId)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(productData),
-    });
-    if (res.ok) {
-      const serverData = await res.json();
-      const merged = {
-        ...updated,
-        ...serverData,
-        id: serverData.id || serverData._id || productId,
-      };
-      saveCustomProductToStorage(merged);
-      return merged;
-    }
-  } catch (err) {
-    console.warn('Backend product update notice:', err);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || `Failed to update product (HTTP ${res.status})`);
   }
 
-  return updated;
+  broadcastProductsSync(data);
+  return data;
 }
 
-
-
 export async function updateProductStockApi(productId: string, delta: number): Promise<any> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/products/${productId}/stock`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ delta }),
-    });
-    if (res.ok) return await res.json();
-  } catch (err) {
-    console.warn('Failed to update product stock in MongoDB:', err);
+  await ensureAdminToken();
+  const res = await fetch(`/api/products/${encodeURIComponent(productId)}/stock`, {
+    method: 'PATCH',
+    cache: 'no-store',
+    headers: getAdminAuthHeaders(true),
+    body: JSON.stringify({ delta }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || `Failed to update stock (HTTP ${res.status})`);
   }
+
+  broadcastProductsSync(data);
+  return data;
 }
 
 export async function createDelhiveryShipmentApi(payload: any): Promise<any> {
@@ -2458,7 +2227,7 @@ export async function createDelhiveryShipmentApi(payload: any): Promise<any> {
     if (!token) {
       token = await ensureAdminToken();
     }
-    let res = await fetch(`${API_BASE_URL}/shipping/create-shipment`, {
+    let res = await fetch(`${resolveApiBaseUrl()}/shipping/create-shipment`, {
       method: 'POST',
       headers: getAdminAuthHeaders(true),
       body: JSON.stringify(payload),
@@ -2467,7 +2236,7 @@ export async function createDelhiveryShipmentApi(payload: any): Promise<any> {
     if (res.status === 401) {
       const refreshedToken = await ensureAdminToken();
       if (refreshedToken) {
-        res = await fetch(`${API_BASE_URL}/shipping/create-shipment`, {
+        res = await fetch(`${resolveApiBaseUrl()}/shipping/create-shipment`, {
           method: 'POST',
           headers: {
             ...getAdminAuthHeaders(true),
@@ -2489,7 +2258,7 @@ export async function createDelhiveryShipmentApi(payload: any): Promise<any> {
 
 export async function requestDelhiveryPickupApi(expectedCount?: number): Promise<any> {
   try {
-    const res = await fetch(`${API_BASE_URL}/shipping/request-pickup`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/shipping/request-pickup`, {
       method: 'POST',
       headers: getAdminAuthHeaders(true),
       body: JSON.stringify({ expectedCount }),
@@ -2502,7 +2271,7 @@ export async function requestDelhiveryPickupApi(expectedCount?: number): Promise
 
 export async function trackDelhiveryAwbApi(awb: string): Promise<any> {
   try {
-    const res = await fetch(`${API_BASE_URL}/shipping/delhivery/track/${encodeURIComponent(awb)}`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/shipping/delhivery/track/${encodeURIComponent(awb)}`, {
       cache: 'no-store',
     });
     if (res.ok) return await res.json();
@@ -2513,7 +2282,7 @@ export async function trackDelhiveryAwbApi(awb: string): Promise<any> {
 
 export async function fetchOrderShipmentApi(idOrNumber: string): Promise<any> {
   try {
-    const res = await fetch(`${API_BASE_URL}/orders/${encodeURIComponent(idOrNumber)}/shipment`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/orders/${encodeURIComponent(idOrNumber)}/shipment`, {
       cache: 'no-store',
     });
     if (res.ok) return await res.json();
@@ -2524,7 +2293,7 @@ export async function fetchOrderShipmentApi(idOrNumber: string): Promise<any> {
 
 export async function fetchPaymentDetailsApi(paymentId: string): Promise<any> {
   try {
-    const res = await fetch(`${API_BASE_URL}/payments/${encodeURIComponent(paymentId)}/details`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/payments/${encodeURIComponent(paymentId)}/details`, {
       cache: 'no-store',
       headers: getAdminAuthHeaders(false),
     });
@@ -2570,7 +2339,7 @@ export async function fetchCouponsApi(params?: { search?: string; status?: strin
     }
 
     const qs = query.toString();
-    const url = `${API_BASE_URL}/coupons${qs ? `?${qs}` : ''}`;
+    const url = `${resolveApiBaseUrl()}/coupons${qs ? `?${qs}` : ''}`;
 
     let res = await fetch(url, {
       cache: 'no-store',
@@ -2606,7 +2375,7 @@ export async function createCouponApi(payload: Partial<CouponItem>): Promise<any
       token = await ensureAdminToken();
     }
 
-    let res = await fetch(`${API_BASE_URL}/coupons`, {
+    let res = await fetch(`${resolveApiBaseUrl()}/coupons`, {
       method: 'POST',
       headers: getAdminAuthHeaders(true),
       body: JSON.stringify(payload),
@@ -2615,7 +2384,7 @@ export async function createCouponApi(payload: Partial<CouponItem>): Promise<any
     if (res.status === 401) {
       const refreshedToken = await ensureAdminToken();
       if (refreshedToken) {
-        res = await fetch(`${API_BASE_URL}/coupons`, {
+        res = await fetch(`${resolveApiBaseUrl()}/coupons`, {
           method: 'POST',
           headers: {
             ...getAdminAuthHeaders(true),
@@ -2642,7 +2411,7 @@ export async function updateCouponApi(id: string, payload: Partial<CouponItem>):
       token = await ensureAdminToken();
     }
 
-    let res = await fetch(`${API_BASE_URL}/coupons/${encodeURIComponent(id)}`, {
+    let res = await fetch(`${resolveApiBaseUrl()}/coupons/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: getAdminAuthHeaders(true),
       body: JSON.stringify(payload),
@@ -2651,7 +2420,7 @@ export async function updateCouponApi(id: string, payload: Partial<CouponItem>):
     if (res.status === 401) {
       const refreshedToken = await ensureAdminToken();
       if (refreshedToken) {
-        res = await fetch(`${API_BASE_URL}/coupons/${encodeURIComponent(id)}`, {
+        res = await fetch(`${resolveApiBaseUrl()}/coupons/${encodeURIComponent(id)}`, {
           method: 'PATCH',
           headers: {
             ...getAdminAuthHeaders(true),
@@ -2678,7 +2447,7 @@ export async function toggleCouponStatusApi(id: string, status?: 'ACTIVE' | 'PAU
       token = await ensureAdminToken();
     }
 
-    let res = await fetch(`${API_BASE_URL}/coupons/${encodeURIComponent(id)}/toggle`, {
+    let res = await fetch(`${resolveApiBaseUrl()}/coupons/${encodeURIComponent(id)}/toggle`, {
       method: 'PATCH',
       headers: getAdminAuthHeaders(true),
       body: JSON.stringify(status ? { status } : {}),
@@ -2687,7 +2456,7 @@ export async function toggleCouponStatusApi(id: string, status?: 'ACTIVE' | 'PAU
     if (res.status === 401) {
       const refreshedToken = await ensureAdminToken();
       if (refreshedToken) {
-        res = await fetch(`${API_BASE_URL}/coupons/${encodeURIComponent(id)}/toggle`, {
+        res = await fetch(`${resolveApiBaseUrl()}/coupons/${encodeURIComponent(id)}/toggle`, {
           method: 'PATCH',
           headers: {
             ...getAdminAuthHeaders(true),
@@ -2714,7 +2483,7 @@ export async function deleteCouponApi(id: string): Promise<any> {
       token = await ensureAdminToken();
     }
 
-    let res = await fetch(`${API_BASE_URL}/coupons/${encodeURIComponent(id)}`, {
+    let res = await fetch(`${resolveApiBaseUrl()}/coupons/${encodeURIComponent(id)}`, {
       method: 'DELETE',
       headers: getAdminAuthHeaders(false),
     });
@@ -2722,7 +2491,7 @@ export async function deleteCouponApi(id: string): Promise<any> {
     if (res.status === 401) {
       const refreshedToken = await ensureAdminToken();
       if (refreshedToken) {
-        res = await fetch(`${API_BASE_URL}/coupons/${encodeURIComponent(id)}`, {
+        res = await fetch(`${resolveApiBaseUrl()}/coupons/${encodeURIComponent(id)}`, {
           method: 'DELETE',
           headers: {
             ...getAdminAuthHeaders(false),
@@ -2743,7 +2512,7 @@ export async function deleteCouponApi(id: string): Promise<any> {
 
 export async function validateCouponApi(code: string, subtotal: number): Promise<any> {
   try {
-    const res = await fetch(`${API_BASE_URL}/coupons/validate`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/coupons/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code, subtotal }),

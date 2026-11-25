@@ -16,8 +16,9 @@ import { BeforeAfterSection } from '@/components/before-after-section';
 import { WhyChooseSensein } from '@/components/why-choose-sensein';
 import {
   fetchProducts,
-  getDeletedProductKeys,
-  getCustomProductsFromStorage,
+  clearLegacyProductStorage,
+  PRODUCTS_SYNC_TS_KEY,
+  PRODUCTS_SYNC_CHANNEL,
   fetchHeroBanner,
   getHeroBannerFromStorage,
   saveHeroBannerToStorage,
@@ -42,27 +43,14 @@ export function HomePageClient({
   initialProducts,
   initialPrivilegeBanner,
 }: HomePageClientProps) {
-  const [bestsellers, setBestsellers] = useState<any[]>(() => {
-    if (typeof window !== 'undefined') {
-      const deletedKeys = getDeletedProductKeys();
-      const customProducts = getCustomProductsFromStorage();
-      const isDeleted = (p: any) => {
-        if (!deletedKeys.size) return false;
-        const s = (p.slug || '').toLowerCase().trim();
-        const id = (p.id || p._id || '').toString().toLowerCase().trim();
-        return deletedKeys.has(s) || deletedKeys.has(id);
-      };
-
-      const fromInitial = (initialProducts || []).filter((p) => !isDeleted(p));
-      const seen = new Set(fromInitial.map((p) => (p.slug || p.id || '').toLowerCase()));
-      const extraCustom = customProducts.filter(
-        (p) => !isDeleted(p) && !seen.has((p.slug || p.id || '').toLowerCase())
-      );
-      return [...extraCustom, ...fromInitial];
-    }
-    return initialProducts || [];
-  });
+  const [bestsellers, setBestsellers] = useState<any[]>(() => initialProducts || []);
   const [loading, setLoading] = useState(!initialProducts || initialProducts.length === 0);
+
+  useEffect(() => {
+    if (Array.isArray(initialProducts)) {
+      setBestsellers(initialProducts);
+    }
+  }, [initialProducts]);
   const [banner, setBanner] = useState<HeroBannerConfig>(() => {
     if (initialBanner && initialBanner.title) {
       return initialBanner;
@@ -178,6 +166,8 @@ export function HomePageClient({
   };
 
   useEffect(() => {
+    clearLegacyProductStorage();
+
     async function loadData() {
       try {
         const data = await fetchProducts({ sort: 'featured' });
@@ -185,13 +175,13 @@ export function HomePageClient({
           setBestsellers(data.products);
         }
       } catch (err) {
-        console.error('Failed to load bestsellers', err);
+        console.error('Failed to load live products from database:', err);
       } finally {
         setLoading(false);
       }
     }
 
-    // Always fetch fresh products on client mount so deletions and additions sync immediately
+    // Always fetch fresh products from centralized database on client mount
     loadData();
 
     // Instant local synchronization: if SSR sent default but client's local storage has the newly uploaded banner, sync immediately!
@@ -276,20 +266,37 @@ export function HomePageClient({
           setPrivilegeBanner((prev) => ({ ...prev, ...parsed }));
         } catch (_) { }
       }
-      if (e.key === 'sensein_custom_products' || e.key === 'sensein_deleted_products') {
+      if (e.key === PRODUCTS_SYNC_TS_KEY) {
         loadData();
       }
     };
+
+    const handleVisibilityOrFocus = () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        loadData();
+      }
+    };
+
+    let bc: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+      bc = new BroadcastChannel(PRODUCTS_SYNC_CHANNEL);
+      bc.onmessage = () => loadData();
+    }
 
     window.addEventListener('sensein-products-updated', handleProductsUpdated);
     window.addEventListener('sensein-banner-updated', handleBannerUpdated);
     window.addEventListener('sensein-privilege-banner-updated', handlePrivilegeBannerUpdated);
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
     return () => {
+      if (bc) bc.close();
       window.removeEventListener('sensein-products-updated', handleProductsUpdated);
       window.removeEventListener('sensein-banner-updated', handleBannerUpdated);
       window.removeEventListener('sensein-privilege-banner-updated', handlePrivilegeBannerUpdated);
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
     };
   }, []);
 

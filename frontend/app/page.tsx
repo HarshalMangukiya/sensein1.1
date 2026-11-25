@@ -7,10 +7,15 @@ import {
   PrivilegeBannerConfig,
 } from '@/lib/api';
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
+const API_BASE_URL = (
+  process.env.BACKEND_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'http://localhost:4000'
+).replace(/\/+$/, '');
 
-// Edge revalidation interval (seconds); instantly purged on admin update via revalidatePath('/')
-export const revalidate = 30;
+// Force dynamic SSR so inventory deletions, additions, and edits reflect immediately across all devices
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 async function getHeroBannerServer(): Promise<HeroBannerConfig> {
   try {
@@ -75,7 +80,7 @@ async function getHeroBannerServer(): Promise<HeroBannerConfig> {
 async function getFeaturedProductsServer(): Promise<any[]> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     const res = await fetch(`${API_BASE_URL}/products?sort=featured`, {
       cache: 'no-store',

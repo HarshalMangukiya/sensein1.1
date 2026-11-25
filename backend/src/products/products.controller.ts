@@ -1,13 +1,16 @@
-import { Controller, Get, Post, Patch, Delete, Param, Query, Body } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Query, Body, Header } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 
 @ApiTags('Products')
-@Controller('products')
+@Controller(['products', 'api/products'])
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(private readonly productsService: ProductsService) { }
 
   @Get()
+  @Header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  @Header('Pragma', 'no-cache')
+  @Header('Expires', '0')
   @ApiOperation({ summary: 'List and filter luxury products from MongoDB Atlas' })
   @ApiQuery({ name: 'category', required: false, description: 'Category name or all' })
   @ApiQuery({ name: 'collection', required: false, description: 'Curated collection' })
@@ -37,12 +40,18 @@ export class ProductsController {
   }
 
   @Get('categories')
+  @Header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  @Header('Pragma', 'no-cache')
+  @Header('Expires', '0')
   @ApiOperation({ summary: 'Get list of categories with product counts from MongoDB Atlas' })
   async getCategories() {
     return this.productsService.getCategories();
   }
 
   @Get(':idOrSlug')
+  @Header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  @Header('Pragma', 'no-cache')
+  @Header('Expires', '0')
   @ApiOperation({ summary: 'Get single product details by id or slug from MongoDB Atlas' })
   @ApiResponse({ status: 200, description: 'Product details' })
   @ApiResponse({ status: 404, description: 'Product not found' })

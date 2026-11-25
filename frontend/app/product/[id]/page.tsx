@@ -72,17 +72,34 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   const { flyToCart } = useFlyToCart();
 
   useEffect(() => {
-    async function load() {
+    async function load(showSpinner = true) {
+      if (showSpinner) setLoading(true);
       try {
         const data = await fetchProduct(params.id);
         setProduct(data);
       } catch (err) {
         console.error(err);
+        setProduct(null);
       } finally {
-        setLoading(false);
+        if (showSpinner) setLoading(false);
       }
     }
-    load();
+    load(true);
+
+    const handleSync = () => load(false);
+    const handleVisibility = () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        load(false);
+      }
+    };
+    window.addEventListener('sensein-products-updated', handleSync);
+    window.addEventListener('focus', handleVisibility);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('sensein-products-updated', handleSync);
+      window.removeEventListener('focus', handleVisibility);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [params.id]);
 
   // Handle scroll for bottom sticky bar
@@ -220,11 +237,10 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                       type="button"
                       onClick={() => setSelectedImageIndex(idx)}
                       onMouseEnter={() => setSelectedImageIndex(idx)}
-                      className={`aspect-square w-16 sm:w-full bg-white rounded-sm border p-1 shrink-0 transition-all cursor-pointer ${
-                        selectedImageIndex === idx
-                          ? 'border-plum ring-2 ring-plum shadow-xs'
-                          : 'border-border/80 opacity-70 hover:opacity-100 hover:border-plum/40'
-                      }`}
+                      className={`aspect-square w-16 sm:w-full bg-white rounded-sm border p-1 shrink-0 transition-all cursor-pointer ${selectedImageIndex === idx
+                        ? 'border-plum ring-2 ring-plum shadow-xs'
+                        : 'border-border/80 opacity-70 hover:opacity-100 hover:border-plum/40'
+                        }`}
                     >
                       <img src={img} alt={`View ${idx + 1}`} className="w-full h-full object-contain" />
                     </button>
@@ -345,11 +361,10 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                     <button
                       key={idx}
                       onClick={() => setSelectedVariantIndex(idx)}
-                      className={`px-4 py-2.5 rounded-sm border text-xs font-semibold tracking-wide transition flex items-center gap-2 ${
-                        selectedVariantIndex === idx
-                          ? 'border-plum bg-plum text-white shadow-sm'
-                          : 'border-border bg-white text-charcoal hover:border-plum/50'
-                      }`}
+                      className={`px-4 py-2.5 rounded-sm border text-xs font-semibold tracking-wide transition flex items-center gap-2 ${selectedVariantIndex === idx
+                        ? 'border-plum bg-plum text-white shadow-sm'
+                        : 'border-border bg-white text-charcoal hover:border-plum/50'
+                        }`}
                     >
                       <span>{v.size}</span>
                       <span className={`text-[11px] ${selectedVariantIndex === idx ? 'text-gold-light' : 'text-charcoal-muted'}`}>
@@ -472,10 +487,10 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                   {(product.comboItems && product.comboItems.length > 0
                     ? product.comboItems
                     : [
-                        { name: 'Argan + Keratin Shampoo', quantity: '50 ml', description: 'Gentle clarifying & hair fiber repair' },
-                        { name: 'Leave-In Moisture Cream', quantity: '50 ml', description: 'Deep moisture care & cellular elasticity' },
-                        { name: '5 IN 1 Cleanup Facewash', quantity: '50 ml', description: 'Total face cleanup with walnut scrub' },
-                      ]
+                      { name: 'Argan + Keratin Shampoo', quantity: '50 ml', description: 'Gentle clarifying & hair fiber repair' },
+                      { name: 'Leave-In Moisture Cream', quantity: '50 ml', description: 'Deep moisture care & cellular elasticity' },
+                      { name: '5 IN 1 Cleanup Facewash', quantity: '50 ml', description: 'Total face cleanup with walnut scrub' },
+                    ]
                   ).map((item: any, i: number) => (
                     <div key={i} className="p-3.5 bg-white rounded border border-border shadow-2xs space-y-1.5 flex flex-col justify-between">
                       <div>
@@ -600,9 +615,8 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                       Object.entries(product.productDetails).map(([key, val]) => (
                         <div
                           key={key}
-                          className={`flex justify-between py-2.5 px-3.5 bg-white rounded border border-border text-xs ${
-                            String(val).length > 35 ? 'md:col-span-2' : ''
-                          }`}
+                          className={`flex justify-between py-2.5 px-3.5 bg-white rounded border border-border text-xs ${String(val).length > 35 ? 'md:col-span-2' : ''
+                            }`}
                         >
                           <span className="font-semibold text-charcoal-muted uppercase tracking-wider text-[11px] capitalize">
                             {key.replace(/([A-Z])/g, ' $1')}:
@@ -655,11 +669,11 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                     {(product.benefits && product.benefits.length > 0
                       ? product.benefits
                       : [
-                          'Provides professional salon-grade hair care.',
-                          'Enhances shine, smoothness, and texture.',
-                          'Formulated with high-potency bio-active ingredients.',
-                          'Suitable for regular grooming and hair wellness.'
-                        ]
+                        'Provides professional salon-grade hair care.',
+                        'Enhances shine, smoothness, and texture.',
+                        'Formulated with high-potency bio-active ingredients.',
+                        'Suitable for regular grooming and hair wellness.'
+                      ]
                     ).map((benefit: string, idx: number) => (
                       <div key={idx} className="p-3.5 bg-white rounded border border-border flex items-start gap-3 shadow-2xs">
                         <Check className="w-4 h-4 text-plum flex-shrink-0 mt-0.5 stroke-[2.5]" />
@@ -769,22 +783,22 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                     {(product.faqs && product.faqs.length > 0
                       ? product.faqs
                       : [
-                          {
-                            question: 'How often should I use this SENSEIN formulation?',
-                            answer:
-                              'Use as part of your regular grooming and salon care ritual according to your hair and skin type recommendations.',
-                          },
-                          {
-                            question: 'Is this formulation suitable for all hair and skin textures?',
-                            answer:
-                              'Yes, SENSEIN formulations are engineered with biomimetic clean botanicals suitable for Indian hair textures, chemically treated hair, and diverse skin types.',
-                          },
-                          {
-                            question: 'What is the shelf life and storage advice?',
-                            answer:
-                              'Shelf life is 36 months from manufacturing date. Store in a cool, dry place away from direct sunlight.',
-                          },
-                        ]
+                        {
+                          question: 'How often should I use this SENSEIN formulation?',
+                          answer:
+                            'Use as part of your regular grooming and salon care ritual according to your hair and skin type recommendations.',
+                        },
+                        {
+                          question: 'Is this formulation suitable for all hair and skin textures?',
+                          answer:
+                            'Yes, SENSEIN formulations are engineered with biomimetic clean botanicals suitable for Indian hair textures, chemically treated hair, and diverse skin types.',
+                        },
+                        {
+                          question: 'What is the shelf life and storage advice?',
+                          answer:
+                            'Shelf life is 36 months from manufacturing date. Store in a cool, dry place away from direct sunlight.',
+                        },
+                      ]
                     ).map((faq: any, idx: number) => (
                       <div key={idx} className="p-4 sm:p-5 bg-white rounded-lg border border-border shadow-2xs space-y-2">
                         <h5 className="font-sans text-sm sm:text-base font-bold text-charcoal tracking-tight flex items-start gap-2.5">
@@ -830,9 +844,8 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                       Object.entries(product.additionalInfo).map(([key, val]) => (
                         <div
                           key={key}
-                          className={`p-3.5 bg-white rounded border border-border ${
-                            String(val).length > 40 ? 'sm:col-span-2' : ''
-                          }`}
+                          className={`p-3.5 bg-white rounded border border-border ${String(val).length > 40 ? 'sm:col-span-2' : ''
+                            }`}
                         >
                           <span className="block text-[10px] font-bold uppercase tracking-wider text-charcoal-muted mb-1 capitalize">
                             {key.replace(/([A-Z])/g, ' $1')}

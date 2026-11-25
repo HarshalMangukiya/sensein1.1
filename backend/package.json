@@ -4,8 +4,8 @@
   "description": "SENSEIN PROFESSIONAL Luxury E-Commerce NestJS Modular Backend",
   "private": true,
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/main.js",
+    "build": "rimraf dist && tsc",
+    "start": "node dist/src/main.js",
     "start:dev": "ts-node src/main.ts",
     "dev": "ts-node src/main.ts"
   },

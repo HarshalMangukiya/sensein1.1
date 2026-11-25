@@ -34,8 +34,13 @@ export const useAdminStore = create<AdminStore>()(
         const cleanPass = (pass || '').trim();
 
         try {
-          const res = await fetch(`${API_BASE_URL}/auth/admin/login`, {
+          const loginUrl =
+            typeof window !== 'undefined'
+              ? '/api/auth/admin/login'
+              : `${API_BASE_URL}/auth/admin/login`;
+          const res = await fetch(loginUrl, {
             method: 'POST',
+            cache: 'no-store',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               email: cleanIdentifier,
