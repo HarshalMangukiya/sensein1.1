@@ -475,28 +475,36 @@ export const useCartStore = create<CartStore>((set, get) => ({
 
   getMilestones: () => {
     const itemCount = get().getItemCount();
+    const subtotal = get().getSubtotal();
     const config = get().milestonesConfig || DEFAULT_CART_MILESTONES;
     const rawTiers = config.tiers && config.tiers.length > 0 ? config.tiers : DEFAULT_CART_MILESTONES.tiers;
 
-    const milestones: Milestone[] = rawTiers.map((t, idx) => ({
-      id: t.id || `tier-${idx + 1}`,
-      threshold: Number(t.threshold) || DEFAULT_CART_MILESTONES.tiers[idx]?.threshold || 999,
-      itemsRequired: Number(t.itemsRequired) || (idx + 1),
-      subtitle: t.subtitle || DEFAULT_CART_MILESTONES.tiers[idx]?.subtitle || `${idx + 1} Products`,
-      cardLabel: t.cardLabel || DEFAULT_CART_MILESTONES.tiers[idx]?.cardLabel || 'Gift',
-      reward: t.reward || DEFAULT_CART_MILESTONES.tiers[idx]?.reward || '',
-      rewardValue: Number(t.rewardValue) || DEFAULT_CART_MILESTONES.tiers[idx]?.rewardValue || 299,
-      unlocked: itemCount >= (Number(t.itemsRequired) || (idx + 1)),
-    }));
+    // Ensure tiers are sorted by price threshold ascending
+    const sortedRawTiers = [...rawTiers].sort((a, b) => Number(a.threshold) - Number(b.threshold));
+
+    const milestones: Milestone[] = sortedRawTiers.map((t, idx) => {
+      const threshold = Number(t.threshold) || DEFAULT_CART_MILESTONES.tiers[idx]?.threshold || 999;
+      return {
+        id: t.id || `tier-${idx + 1}`,
+        threshold,
+        itemsRequired: Number(t.itemsRequired) || (idx + 1),
+        subtitle: t.subtitle || DEFAULT_CART_MILESTONES.tiers[idx]?.subtitle || `${idx + 1} Products`,
+        cardLabel: t.cardLabel || DEFAULT_CART_MILESTONES.tiers[idx]?.cardLabel || 'Gift',
+        reward: t.reward || DEFAULT_CART_MILESTONES.tiers[idx]?.reward || '',
+        rewardValue: Number(t.rewardValue) || DEFAULT_CART_MILESTONES.tiers[idx]?.rewardValue || 299,
+        // Milestone gift card is unlocked strictly when cart total amount reaches or exceeds the threshold
+        unlocked: subtotal >= threshold,
+      };
+    });
 
     let nextMilestone: Milestone | null = null;
-    let productsNeededForNext = 0;
+    let amountNeededForNext = 0;
     let currentTierIndex = 0;
 
     for (let i = 0; i < milestones.length; i++) {
-      if (itemCount < milestones[i].itemsRequired) {
+      if (subtotal < milestones[i].threshold) {
         nextMilestone = milestones[i];
-        productsNeededForNext = milestones[i].itemsRequired - itemCount;
+        amountNeededForNext = Math.max(0, milestones[i].threshold - subtotal);
         currentTierIndex = i;
         break;
       }
@@ -506,14 +514,39 @@ export const useCartStore = create<CartStore>((set, get) => ({
       currentTierIndex = milestones.length;
     }
 
-    const maxItems = milestones.length > 0 ? milestones[milestones.length - 1].itemsRequired : 3;
-    const progressPercentage = Math.min(100, Math.round((itemCount / Math.max(1, maxItems)) * 100));
+    // Segmented progress bar calculation across all tier nodes
+    let progressPercentage = 0;
+    const N = milestones.length;
+    if (N > 0 && subtotal > 0) {
+      const segmentWidth = 100 / N;
+
+      if (subtotal < milestones[0].threshold) {
+        // Below the first milestone (e.g. ₹699 of ₹999)
+        const ratio = subtotal / Math.max(1, milestones[0].threshold);
+        progressPercentage = Math.min(Math.round(segmentWidth), Math.max(1, Math.round(ratio * segmentWidth)));
+      } else if (subtotal >= milestones[N - 1].threshold) {
+        // Reached or passed the highest milestone (e.g. ₹2999+)
+        progressPercentage = 100;
+      } else {
+        // Between milestones (e.g. between ₹999 and ₹1399)
+        for (let i = 0; i < N - 1; i++) {
+          const currentT = milestones[i].threshold;
+          const nextT = milestones[i + 1].threshold;
+          if (subtotal >= currentT && subtotal < nextT) {
+            const segRatio = (subtotal - currentT) / Math.max(1, nextT - currentT);
+            const pct = (i + 1) * segmentWidth + segRatio * segmentWidth;
+            progressPercentage = Math.min(100, Math.round(pct));
+            break;
+          }
+        }
+      }
+    }
 
     return {
       milestones,
       nextMilestone,
-      amountNeededForNext: productsNeededForNext,
-      productsNeededForNext,
+      amountNeededForNext,
+      productsNeededForNext: amountNeededForNext, // for backward compatibility
       currentTierIndex,
       progressPercentage,
     };

@@ -31,7 +31,7 @@ export function AdminMilestonesEditor({ setToast }: AdminMilestonesEditorProps) 
   const [config, setConfig] = useState<CartMilestonesConfig>(DEFAULT_CART_MILESTONES);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [simulatedItemsCount, setSimulatedItemsCount] = useState<number>(1);
+  const [simulatedAmount, setSimulatedAmount] = useState<number>(699);
 
   // Load configuration from API / storage
   useEffect(() => {
@@ -125,21 +125,42 @@ export function AdminMilestonesEditor({ setToast }: AdminMilestonesEditorProps) 
     }
   };
 
-  // Preview simulations
-  const maxItems = tiers.length > 0 ? tiers[tiers.length - 1].itemsRequired : 3;
-  const progressPct = Math.min(100, Math.round((simulatedItemsCount / Math.max(1, maxItems)) * 100));
+  // Preview simulations: amount-based unlocking & segmented progress
+  const sortedTiers = [...tiers].sort((a, b) => Number(a.threshold) - Number(b.threshold));
+  const N = sortedTiers.length;
+  let progressPct = 0;
+  if (N > 0 && simulatedAmount > 0) {
+    const segmentWidth = 100 / N;
+    if (simulatedAmount < sortedTiers[0].threshold) {
+      const ratio = simulatedAmount / Math.max(1, sortedTiers[0].threshold);
+      progressPct = Math.min(Math.round(segmentWidth), Math.max(1, Math.round(ratio * segmentWidth)));
+    } else if (simulatedAmount >= sortedTiers[N - 1].threshold) {
+      progressPct = 100;
+    } else {
+      for (let i = 0; i < N - 1; i++) {
+        const currentT = sortedTiers[i].threshold;
+        const nextT = sortedTiers[i + 1].threshold;
+        if (simulatedAmount >= currentT && simulatedAmount < nextT) {
+          const segRatio = (simulatedAmount - currentT) / Math.max(1, nextT - currentT);
+          const pct = (i + 1) * segmentWidth + segRatio * segmentWidth;
+          progressPct = Math.min(100, Math.round(pct));
+          break;
+        }
+      }
+    }
+  }
 
   let nextTier: CartMilestoneTier | null = null;
-  let itemsNeeded = 0;
-  for (const t of tiers) {
-    if (simulatedItemsCount < t.itemsRequired) {
+  let amountNeeded = 0;
+  for (const t of sortedTiers) {
+    if (simulatedAmount < t.threshold) {
       nextTier = t;
-      itemsNeeded = t.itemsRequired - simulatedItemsCount;
+      amountNeeded = Math.max(0, t.threshold - simulatedAmount);
       break;
     }
   }
 
-  const unlockedTiers = tiers.filter((t) => simulatedItemsCount >= t.itemsRequired);
+  const unlockedTiers = sortedTiers.filter((t) => simulatedAmount >= t.threshold);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -212,24 +233,39 @@ export function AdminMilestonesEditor({ setToast }: AdminMilestonesEditorProps) 
               </div>
 
               {/* Simulation buttons */}
-              <div className="flex items-center gap-1.5 bg-[#FAF7F5] p-1 rounded-xl border border-border">
-                <span className="text-[10px] font-bold text-charcoal-muted px-2 uppercase">
-                  Simulate Cart:
+              <div className="flex flex-wrap items-center gap-1.5 bg-[#FAF7F5] p-1.5 rounded-xl border border-border">
+                <span className="text-[10px] font-bold text-charcoal-muted px-1 uppercase">
+                  Simulate Amount:
                 </span>
-                {[0, 1, 2, 3].map((count) => (
+                {[
+                  { label: '₹0 (Empty)', val: 0 },
+                  { label: '₹699 (Below T1)', val: 699 },
+                  { label: '₹999 (Tier 1)', val: 999 },
+                  { label: '₹1,399 (Tier 2)', val: 1399 },
+                  { label: '₹2,999 (All)', val: 2999 },
+                ].map((s) => (
                   <button
-                    key={count}
+                    key={s.val}
                     type="button"
-                    onClick={() => setSimulatedItemsCount(count)}
-                    className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
-                      simulatedItemsCount === count
+                    onClick={() => setSimulatedAmount(s.val)}
+                    className={`px-2 py-1 text-[10px] font-bold rounded-lg transition-all ${
+                      simulatedAmount === s.val
                         ? 'bg-plum text-white shadow-2xs'
                         : 'text-charcoal hover:bg-white'
                     }`}
                   >
-                    {count === 0 ? 'Empty' : `${count} Item${count > 1 ? 's' : ''}`}
+                    {s.label}
                   </button>
                 ))}
+                <div className="flex items-center gap-1 pl-1">
+                  <span className="text-[10px] text-charcoal-muted font-bold">Custom:</span>
+                  <input
+                    type="number"
+                    value={simulatedAmount}
+                    onChange={(e) => setSimulatedAmount(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-16 px-1.5 py-0.5 text-[10px] bg-white border border-border rounded font-bold text-charcoal focus:outline-none focus:border-plum"
+                  />
+                </div>
               </div>
             </div>
 
@@ -239,21 +275,21 @@ export function AdminMilestonesEditor({ setToast }: AdminMilestonesEditorProps) 
               <div className="px-5 py-3 bg-white border-b border-border flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 font-bold text-charcoal">
                   <ShoppingBag className="w-4 h-4 text-plum" />
-                  <span>YOUR LUXURY BAG ({simulatedItemsCount})</span>
+                  <span>YOUR LUXURY BAG (₹{simulatedAmount.toLocaleString('en-IN')})</span>
                 </div>
                 <span className="text-[10px] text-charcoal-muted">Drawer Preview</span>
               </div>
 
               {/* Gamified Milestone Progress Bar (The Exact Element From Screenshot) */}
               <div className="bg-[#FAF7F5] px-5 py-4 border-b border-border">
-                <div className="flex items-center justify-between text-xs font-medium mb-1.5">
+                <div className="flex items-center justify-between text-xs font-medium mb-1.5 gap-2">
                   {nextTier ? (
-                    <span className="text-charcoal flex items-center gap-1.5 text-[11px]">
+                    <span className="text-charcoal flex items-center gap-1.5 text-[11px] min-w-0 pr-1 truncate">
                       <Gift className="w-3.5 h-3.5 text-plum flex-shrink-0" />
-                      <span>
+                      <span className="truncate">
                         Add{' '}
                         <strong className="text-plum font-bold">
-                          {itemsNeeded} more {itemsNeeded === 1 ? 'product' : 'products'}
+                          ₹{amountNeeded.toLocaleString('en-IN')} more
                         </strong>{' '}
                         to unlock{' '}
                         <span className="text-emerald font-semibold">
@@ -268,7 +304,7 @@ export function AdminMilestonesEditor({ setToast }: AdminMilestonesEditorProps) 
                       All Luxury Gifts Unlocked with Your Order!
                     </span>
                   )}
-                  <span className="text-[11px] font-bold text-plum ml-2">{progressPct}%</span>
+                  <span className="text-[11px] font-bold text-plum ml-2 flex-shrink-0">{progressPct}%</span>
                 </div>
 
                 {/* Progress track */}
@@ -282,7 +318,7 @@ export function AdminMilestonesEditor({ setToast }: AdminMilestonesEditorProps) 
                 {/* THE 3 MILESTONE CARDS (Exact match to uploaded images) */}
                 <div className="grid grid-cols-3 gap-2.5 mt-3 pt-1">
                   {tiers.map((m, idx) => {
-                    const isUnlocked = simulatedItemsCount >= m.itemsRequired;
+                    const isUnlocked = simulatedAmount >= m.threshold;
                     return (
                       <div
                         key={m.id || idx}
@@ -336,7 +372,7 @@ export function AdminMilestonesEditor({ setToast }: AdminMilestonesEditorProps) 
                   </div>
                 ) : (
                   <div className="p-3 bg-[#FAF7F5] rounded-xl border border-dashed border-border text-center text-[11px] text-charcoal-muted">
-                    Add 1 formulation to bag to unlock your first luxury gift!
+                    Spend ₹{(nextTier ? nextTier.threshold - simulatedAmount : 0).toLocaleString('en-IN')} more to unlock your first luxury gift!
                   </div>
                 )}
               </div>
@@ -379,10 +415,10 @@ export function AdminMilestonesEditor({ setToast }: AdminMilestonesEditorProps) 
                       </div>
 
                       <div className="space-y-3.5">
-                        {/* Display Amount (Top Line of Card) */}
+                        {/* Display Amount & Unlock Threshold */}
                         <div>
                           <label className="block text-[11px] font-bold uppercase tracking-wider text-charcoal mb-1">
-                            Card Top Price (₹ Amount) *
+                            Card Price &amp; Unlock Threshold (₹ Total Amount) *
                           </label>
                           <div className="relative">
                             <span className="absolute left-3 top-2.5 text-xs text-charcoal-muted font-bold">
@@ -400,7 +436,7 @@ export function AdminMilestonesEditor({ setToast }: AdminMilestonesEditorProps) 
                             />
                           </div>
                           <span className="text-[10px] text-charcoal-muted mt-0.5 block">
-                            Displayed on top line of card (e.g. ₹999)
+                            Displayed on card &amp; cart total required to unlock gift (e.g. ₹999)
                           </span>
                         </div>
 

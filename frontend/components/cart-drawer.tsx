@@ -58,7 +58,7 @@ export function CartDrawer() {
   const discount = getTotalDiscount();
   const shipping = getShippingFee();
   const finalTotal = getFinalTotal();
-  const { milestones, nextMilestone, productsNeededForNext, progressPercentage } = getMilestones();
+  const { milestones, nextMilestone, amountNeededForNext, progressPercentage } = getMilestones();
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,24 +100,26 @@ export function CartDrawer() {
 
         {/* Gamified Milestone Progress Bar */}
         <div className="bg-[#FAF7F5] px-6 py-4 border-b border-border">
-          <div className="flex items-center justify-between text-xs font-medium mb-1.5">
+          <div className="flex items-center justify-between text-xs font-medium mb-1.5 gap-2">
             {nextMilestone ? (
-              <span className="text-charcoal flex items-center gap-1.5">
-                <Gift className="w-3.5 h-3.5 text-plum" />
-                Add{' '}
-                <strong className="text-plum font-bold">
-                  {productsNeededForNext || 1} more {productsNeededForNext === 1 ? 'product' : 'products'}
-                </strong>{' '}
-                to unlock{' '}
-                <span className="text-emerald font-semibold">{nextMilestone.reward.split('(')[0]}</span>!
+              <span className="text-charcoal flex items-center gap-1.5 min-w-0 pr-1 truncate text-[11.5px]">
+                <Gift className="w-3.5 h-3.5 text-plum flex-shrink-0" />
+                <span className="truncate">
+                  Add{' '}
+                  <strong className="text-plum font-bold">
+                    ₹{amountNeededForNext.toLocaleString('en-IN')} more
+                  </strong>{' '}
+                  to unlock{' '}
+                  <span className="text-emerald font-semibold">{nextMilestone.reward.split('(')[0].trim()}</span>!
+                </span>
               </span>
             ) : (
-              <span className="text-emerald font-semibold flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-gold" />
+              <span className="text-emerald font-semibold flex items-center gap-1.5 text-[11.5px]">
+                <Sparkles className="w-3.5 h-3.5 text-gold flex-shrink-0" />
                 All Luxury Gifts Unlocked with Your Order!
               </span>
             )}
-            <span className="text-[11px] font-bold text-plum">{progressPercentage}%</span>
+            <span className="text-[11px] font-bold text-plum flex-shrink-0">{progressPercentage}%</span>
           </div>
 
           {/* Progress track */}

@@ -101,7 +101,7 @@ export const DEFAULT_CART_MILESTONES = {
     },
     {
       id: 'tier-2',
-      threshold: 1999,
+      threshold: 1399,
       itemsRequired: 2,
       subtitle: '2 Products',
       cardLabel: 'Travel Kit',
