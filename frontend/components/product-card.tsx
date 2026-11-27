@@ -85,11 +85,27 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
           ) : (
             <div className="w-full h-full flex items-center justify-center text-charcoal-muted">SENSEIN</div>
           )}
-          {discountPercent > 0 && (
-            <span className="absolute top-2 left-2 bg-plum text-white text-[10px] font-bold px-2 py-0.5 tracking-wider uppercase">
-              -{discountPercent}% OFF
+          {/* Top Left Badges */}
+          <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-10 pointer-events-none">
+            {discountPercent > 0 && (
+              <span className="bg-plum text-white text-[9px] font-bold px-1.5 py-0.5 tracking-wider uppercase rounded-[2px] shadow-xs whitespace-nowrap">
+                -{discountPercent}% OFF
+              </span>
+            )}
+            {product.curatedCollection === 'Bestsellers' && (
+              <span className="bg-charcoal text-white text-[8px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded-[2px] shadow-xs whitespace-nowrap">
+                BESTSELLER
+              </span>
+            )}
+          </div>
+
+          {/* Top Right Tag */}
+          <div className="absolute top-2 right-2 z-10 pointer-events-none">
+            <span className="inline-flex items-center gap-0.5 bg-plum/10 text-plum border border-plum/20 text-[7.5px] font-bold px-1.5 py-0.5 rounded-[2px] uppercase tracking-wider backdrop-blur-xs shadow-xs whitespace-nowrap">
+              <Sparkles className="w-2.5 h-2.5 shrink-0" />
+              {product.curatedCollection === 'Bestsellers' ? 'MOST RE-ORDERED' : 'SALON CARE'}
             </span>
-          )}
+          </div>
         </Link>
 
         <div className="flex-1 flex flex-col justify-between w-full">
@@ -193,40 +209,25 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
         />
 
         {/* Top Left Badges */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+        <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 flex items-center gap-1 z-10 max-w-[calc(100%-110px)] pointer-events-none">
           {discountPercent > 0 && (
-            <span className="bg-plum text-white text-[9px] sm:text-[10px] font-bold tracking-wider uppercase px-1.5 sm:px-2 py-0.5 rounded-[2px] shadow-sm">
+            <span className="bg-plum text-white text-[8px] sm:text-[9px] font-bold tracking-wider uppercase px-1.5 sm:px-2 py-0.5 rounded-[2px] shadow-xs whitespace-nowrap">
               -{discountPercent}% OFF
             </span>
           )}
           {product.curatedCollection === 'Bestsellers' && (
-            <span className="bg-charcoal text-white text-[8px] sm:text-[9px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded-[2px]">
+            <span className="bg-charcoal text-white text-[8px] sm:text-[9px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded-[2px] shadow-xs whitespace-nowrap">
               BESTSELLER
             </span>
           )}
         </div>
 
-        {/* Top Right Badges / Wishlist */}
-        <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
-          <span className="inline-flex items-center gap-0.5 bg-plum/10 text-plum border border-plum/20 text-[8px] sm:text-[9px] font-bold px-1.5 sm:px-2 py-0.5 rounded-[2px] uppercase tracking-wider backdrop-blur-xs">
-            <Sparkles className="w-2.5 h-2.5" />
+        {/* Top Right Tag (Placed in former heart position to avoid product overlay) */}
+        <div className="absolute top-2 right-2 sm:top-2.5 sm:right-2.5 z-10 pointer-events-none">
+          <span className="inline-flex items-center gap-0.5 bg-plum/10 text-plum border border-plum/20 text-[7.5px] sm:text-[8.5px] font-bold px-1.5 sm:px-2 py-0.5 rounded-[2px] uppercase tracking-wider backdrop-blur-xs shadow-xs whitespace-nowrap">
+            <Sparkles className="w-2.5 h-2.5 shrink-0" />
             {product.curatedCollection === 'Bestsellers' ? 'MOST RE-ORDERED' : 'SALON CARE'}
           </span>
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setIsWishlisted(!isWishlisted);
-            }}
-            className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white/90 backdrop-blur-sm border border-border/70 flex items-center justify-center transition-all duration-200 ${
-              isWishlisted
-                ? 'text-plum bg-white shadow-sm'
-                : 'text-charcoal hover:text-plum hover:bg-white'
-            }`}
-            aria-label="Wishlist toggle"
-          >
-            <Heart className={`w-3 h-3 ${isWishlisted ? 'fill-plum text-plum' : ''}`} />
-          </button>
         </div>
 
         {/* Net Volume Tag overlay bottom right */}
@@ -240,9 +241,26 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
       {/* Card Content Details */}
       <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between">
         <div>
-          {/* Category Tag */}
-          <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] text-charcoal-muted font-semibold mb-0.5 sm:mb-1">
-            {product.category}
+          {/* Category Tag & Wishlist */}
+          <div className="flex items-center justify-between mb-0.5 sm:mb-1">
+            <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.16em] text-charcoal-muted font-semibold">
+              {product.category}
+            </span>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsWishlisted(!isWishlisted);
+              }}
+              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-200 -mr-1 ${
+                isWishlisted
+                  ? 'text-plum bg-plum/10 shadow-xs'
+                  : 'text-charcoal-muted hover:text-plum hover:bg-neutral-100'
+              }`}
+              aria-label="Wishlist toggle"
+            >
+              <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isWishlisted ? 'fill-plum text-plum' : ''}`} />
+            </button>
           </div>
 
           {/* Product Title */}
