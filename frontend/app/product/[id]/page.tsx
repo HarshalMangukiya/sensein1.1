@@ -463,7 +463,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                     <span className="font-semibold text-charcoal">{shippingResult.courierPartner}</span>.
                   </p>
                   <p className="text-[11px] text-charcoal-muted">
-                    ✓ Cash on Delivery (COD) Available • Free Express Dispatch
+                    ✓ 100% Secure Prepaid Payment • Free Express Dispatch
                   </p>
                 </div>
               )}

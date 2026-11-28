@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   Truck,
   CreditCard,
-  Banknote,
   CheckCircle,
   Tag,
   ArrowRight,
@@ -82,7 +81,7 @@ export default function CheckoutPage() {
     state: 'Haryana',
   });
 
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
+  const [paymentMethod] = useState<'razorpay'>('razorpay');
   const [loading, setLoading] = useState(false);
   const [pincodeLoading, setPincodeLoading] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState<any | null>(null);
@@ -156,36 +155,12 @@ export default function CheckoutPage() {
 
     setLoading(true);
 
-    // 1. Direct Placement for Cash on Delivery (COD)
-    if (paymentMethod === 'cod') {
-      try {
-        const orderRecord = await placeOrder({
-          customer: { ...formData, userId: user.id },
-          items,
-          subtotal,
-          discount,
-          couponCode,
-          shippingFee: shipping,
-          total: finalTotal,
-          paymentMethod: 'cod',
-          freeGifts: unlockedGifts,
-        });
-        setOrderConfirmed(orderRecord);
-        clearCart();
-      } catch (err) {
-        alert('Cash on Delivery order placement failed. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
-    // 2. Razorpay Online Payment Flow
+    // Razorpay Online Payment Flow
     try {
       // 1. Ensure Razorpay checkout SDK is loaded
       const scriptReady = await loadRazorpayScript();
       if (!scriptReady || typeof window === 'undefined' || !window.Razorpay) {
-        alert('Could not initialize Razorpay payment gateway. Please check your internet connection or select Cash on Delivery.');
+        alert('Could not initialize Razorpay payment gateway. Please check your internet connection and try again.');
         setLoading(false);
         return;
       }
@@ -558,23 +533,10 @@ export default function CheckoutPage() {
               </div>
 
               <div className="space-y-3 text-xs">
-                {/* Option 1: Razorpay Prepaid */}
-                <div
-                  onClick={() => setPaymentMethod('razorpay')}
-                  className={`p-4 rounded border cursor-pointer transition flex items-center justify-between ${
-                    paymentMethod === 'razorpay'
-                      ? 'border-plum bg-plum/5 ring-1 ring-plum'
-                      : 'border-border bg-white hover:border-charcoal/30'
-                  }`}
-                >
+                {/* Razorpay Secure Online Payment */}
+                <div className="p-4 rounded border border-plum bg-plum/5 ring-1 ring-plum flex items-center justify-between">
                   <div className="flex items-start gap-3">
-                    <div
-                      className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5 transition ${
-                        paymentMethod === 'razorpay'
-                          ? 'bg-plum text-white'
-                          : 'border border-border text-transparent'
-                      }`}
-                    >
+                    <div className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5 bg-plum text-white shadow-2xs">
                       ✓
                     </div>
                     <div>
@@ -597,48 +559,7 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   </div>
-                  <CreditCard className={`w-6 h-6 shrink-0 ${paymentMethod === 'razorpay' ? 'text-plum' : 'text-charcoal-muted'}`} />
-                </div>
-
-                {/* Option 2: Cash on Delivery (COD) */}
-                <div
-                  onClick={() => setPaymentMethod('cod')}
-                  className={`p-4 rounded border cursor-pointer transition flex items-center justify-between ${
-                    paymentMethod === 'cod'
-                      ? 'border-plum bg-plum/5 ring-1 ring-plum'
-                      : 'border-border bg-white hover:border-charcoal/30'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5 transition ${
-                        paymentMethod === 'cod'
-                          ? 'bg-plum text-white'
-                          : 'border border-border text-transparent'
-                      }`}
-                    >
-                      ✓
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-charcoal block text-sm">
-                          Cash on Delivery (COD)
-                        </span>
-                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald/10 text-emerald border border-emerald/20">
-                          PAY AT DOORSTEP
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-charcoal-muted block mt-0.5">
-                        Pay with Cash or UPI upon delivery • Handled by Delhivery Express
-                      </span>
-                      <div className="flex flex-wrap gap-2 mt-2 text-[10px] text-charcoal-subtle font-medium">
-                        <span className="px-2 py-0.5 bg-white border border-border rounded">Doorstep Cash / UPI</span>
-                        <span className="px-2 py-0.5 bg-white border border-border rounded">Delhivery Verified Manifest</span>
-                        <span className="px-2 py-0.5 bg-white border border-border rounded">Zero Advance Payment</span>
-                      </div>
-                    </div>
-                  </div>
-                  <Banknote className={`w-6 h-6 shrink-0 ${paymentMethod === 'cod' ? 'text-plum' : 'text-charcoal-muted'}`} />
+                  <CreditCard className="w-6 h-6 shrink-0 text-plum" />
                 </div>
               </div>
             </div>
@@ -796,20 +717,14 @@ export default function CheckoutPage() {
                 {loading
                   ? 'Processing Order...'
                   : !user
-                  ? (paymentMethod === 'cod' ? 'Log In & Place COD Order' : 'Log In & Pay with Razorpay')
-                  : (paymentMethod === 'cod'
-                      ? `Place Order (Cash on Delivery) • ₹${finalTotal.toLocaleString('en-IN')}`
-                      : `Pay with Razorpay • ₹${finalTotal.toLocaleString('en-IN')}`)}
+                  ? 'Log In & Pay with Razorpay'
+                  : `Pay with Razorpay • ₹${finalTotal.toLocaleString('en-IN')}`}
                 {!user ? <Lock className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
               </button>
 
               <div className="flex items-center justify-center gap-2 text-[10px] text-charcoal-muted">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald" />
-                <span>
-                  {paymentMethod === 'cod'
-                    ? 'Verified Delhivery Express Doorstep Delivery • Zero Advance Payment'
-                    : 'Encrypted 256-Bit SSL • Authorized Razorpay Gateway'}
-                </span>
+                <span>Encrypted 256-Bit SSL • Authorized Razorpay Gateway</span>
               </div>
             </div>
           </div>

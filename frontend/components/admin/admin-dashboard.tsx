@@ -1811,11 +1811,11 @@ export function AdminDashboard() {
 
                     <div className="flex items-center justify-between p-3.5 bg-[#FAF7F5] rounded-lg border border-border">
                       <div>
-                        <p className="font-semibold text-charcoal">Cash on Delivery Verification</p>
-                        <p className="text-[11px] text-charcoal-muted">Automated OTP verification on orders exceeding ₹2,500</p>
+                        <p className="font-semibold text-charcoal">Cash on Delivery (COD)</p>
+                        <p className="text-[11px] text-charcoal-muted">Doorstep cash collection disabled (Prepaid Only Storefront)</p>
                       </div>
-                      <span className="px-2.5 py-1 rounded-full bg-emerald-light text-emerald-accent font-bold text-[10px] uppercase">
-                        Enabled
+                      <span className="px-2.5 py-1 rounded-full bg-neutral-200 text-charcoal-muted font-bold text-[10px] uppercase">
+                        Disabled
                       </span>
                     </div>
                   </div>

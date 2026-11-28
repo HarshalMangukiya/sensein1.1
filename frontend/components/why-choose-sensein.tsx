@@ -24,7 +24,7 @@ const REASONS = [
     id: 'delivery',
     icon: Lock,
     title: 'Express Courier Delivery',
-    description: 'Fast doorstep delivery, live tracking & reliable COD option',
+    description: 'Fast doorstep delivery, live tracking & priority express shipping',
   },
 ];
 
