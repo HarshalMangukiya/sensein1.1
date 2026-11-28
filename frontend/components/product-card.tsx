@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Star, Heart, Plus, Minus, Check, ShoppingBag, Sparkles } from 'lucide-react';
+import { Star, Heart, Plus, Minus, Check, ShoppingBag } from 'lucide-react';
 import { useCartStore } from '@/store/cart-store';
 import { useFlyToCart } from '@/components/fly-to-cart';
 
@@ -97,14 +97,6 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                 BESTSELLER
               </span>
             )}
-          </div>
-
-          {/* Top Right Tag */}
-          <div className="absolute top-2 right-2 z-10 pointer-events-none">
-            <span className="inline-flex items-center gap-0.5 bg-plum/10 text-plum border border-plum/20 text-[7.5px] font-bold px-1.5 py-0.5 rounded-[2px] uppercase tracking-wider backdrop-blur-xs shadow-xs whitespace-nowrap">
-              <Sparkles className="w-2.5 h-2.5 shrink-0" />
-              {product.curatedCollection === 'Bestsellers' ? 'MOST RE-ORDERED' : 'SALON CARE'}
-            </span>
           </div>
         </Link>
 
@@ -209,7 +201,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
         />
 
         {/* Top Left Badges */}
-        <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 flex items-center gap-1 z-10 max-w-[calc(100%-110px)] pointer-events-none">
+        <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 flex items-center gap-1 z-10 pointer-events-none">
           {discountPercent > 0 && (
             <span className="bg-plum text-white text-[8px] sm:text-[9px] font-bold tracking-wider uppercase px-1.5 sm:px-2 py-0.5 rounded-[2px] shadow-xs whitespace-nowrap">
               -{discountPercent}% OFF
@@ -220,14 +212,6 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
               BESTSELLER
             </span>
           )}
-        </div>
-
-        {/* Top Right Tag (Placed in former heart position to avoid product overlay) */}
-        <div className="absolute top-2 right-2 sm:top-2.5 sm:right-2.5 z-10 pointer-events-none">
-          <span className="inline-flex items-center gap-0.5 bg-plum/10 text-plum border border-plum/20 text-[7.5px] sm:text-[8.5px] font-bold px-1.5 sm:px-2 py-0.5 rounded-[2px] uppercase tracking-wider backdrop-blur-xs shadow-xs whitespace-nowrap">
-            <Sparkles className="w-2.5 h-2.5 shrink-0" />
-            {product.curatedCollection === 'Bestsellers' ? 'MOST RE-ORDERED' : 'SALON CARE'}
-          </span>
         </div>
 
         {/* Net Volume Tag overlay bottom right */}
